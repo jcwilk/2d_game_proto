@@ -1,6 +1,6 @@
 ---
 id: 2gp-xfhi
-status: open
+status: closed
 deps: [2gp-5d4y]
 links: []
 created: 2026-03-28T03:23:56Z
@@ -21,3 +21,9 @@ parent: 2gp-2rau
 
 1) `package.json` declares **`excalibur`** with range **`^0.32`**. 2) `npm ls excalibur` resolves **`0.32.x`**. 3) Lockfile / install does **not** use `@next` or a prerelease tag as the resolved engine version.
 
+
+## Notes
+
+**2026-03-28T03:42:28Z**
+
+Added excalibur@^0.32 to dependencies; npm ls resolves excalibur@0.32.0; lockfile uses registry tarball excalibur-0.32.0.tgz (stable, not @next).

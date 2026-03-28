@@ -47,6 +47,7 @@ import {
   DPAD_SHEET_STYLE,
   DPAD_SHEET_SUBJECT,
 } from "./sprite-generation/prompt.mjs";
+import { buildInitialManifest, buildRecipeId } from "./sprite-generation/manifest.mjs";
 import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./sprite-generation/postprocess/chroma-key.mjs";
 import { countFullyTransparentPercent, extractPngRegion } from "./sprite-generation/postprocess/png-region.mjs";
 
@@ -389,12 +390,11 @@ async function main() {
   const frames = DPAD_FRAMES;
   for (const f of frames) assertSheetCropForFrame(f);
 
-  const recipeId =
-    opts.mode === "mock"
-      ? "dpad-workflow-mock-v2-frames"
-      : opts.strategy === "sheet"
-        ? "dpad-workflow-fal-sheet-v13-frames-chroma"
-        : "dpad-workflow-fal-per-tile-v4-frames-chroma";
+  const recipeId = buildRecipeId({
+    preset: "dpad_four_way",
+    mode: opts.mode,
+    ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
+  });
 
   log("INFO", "init", "starting", {
     mode: opts.mode,
@@ -476,70 +476,35 @@ async function main() {
 
   const keyRgbForManifest = opts.mode === "generate" ? parseHexRgb(opts.chromaKeyHex) : null;
 
-  const recipeNote =
-    opts.mode === "mock"
-      ? "Mock: geometry from pngjs triangles, not T2I."
-      : opts.strategy === "sheet"
-        ? `Real: one fal job at ${SHEET_SIZE}x${SHEET_SIZE}, crop to ${TILE_SIZE}px, then chroma-key (${opts.chromaKeyHex}) → RGBA.`
-        : `Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (${opts.chromaKeyHex}) → RGBA after each download.`;
-
   // --- Manifest (written before tiles so partial runs still leave a trace)
-  const manifest = {
-    kind: "dpad_tile_set",
-    preset: "dpad_four_way",
-    recipeId,
-    createdAt,
-    workflow:
-      opts.mode === "mock"
-        ? "mock (triangles)"
-        : opts.strategy === "sheet"
-          ? `fal sheet (${opts.endpoint}, ${SHEET_SIZE}px → crop)`
-          : `fal per-tile (${opts.endpoint})`,
-    specs: {
-      tileSize: { width: TILE_SIZE, height: TILE_SIZE },
-      framePreset: frames.map((f) => ({ id: f.id, outSubdir: f.outSubdir })),
-      ...(opts.mode === "generate" && opts.strategy === "sheet"
-        ? { sheetSize: { width: SHEET_SIZE, height: SHEET_SIZE }, sheetCropMap: SHEET_CROPS }
-        : {}),
-      imageSize:
-        opts.mode === "generate" && opts.strategy === "sheet"
-          ? `${SHEET_SIZE}x${SHEET_SIZE}`
-          : opts.imageSize,
-      naming: "dpad.png per frame folder (outSubdir)",
-      ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
-      ...(opts.mode === "generate" && keyRgbForManifest
-        ? {
-            chroma: {
-              keyHex: opts.chromaKeyHex,
-              keyRgb: keyRgbForManifest,
-              tolerance: opts.chromaTolerance,
-              postProcess:
-                "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median 1px border RGB + higher tolerance",
-            },
-            seedPolicyPerTile:
-              opts.strategy === "per-tile"
-                ? "Same integer --seed passed to every fal.subscribe in this batch when --seed is set."
-                : null,
-          }
-        : {}),
-    },
-    generationRecipe: {
+  const manifest = /** @type {Record<string, unknown>} */ (
+    buildInitialManifest({
+      kind: "dpad_tile_set",
+      preset: "dpad_four_way",
+      recipeId,
+      createdAt,
+      frames,
       mode: opts.mode,
+      ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
       endpoint: opts.mode === "generate" ? opts.endpoint : null,
-      seedRequested: opts.seed ?? null,
-      falExtrasPerTile: opts.mode === "generate" && opts.strategy === "per-tile" ? PER_TILE_FAL_EXTRA_INPUT : null,
-      falExtrasSheet: opts.mode === "generate" && opts.strategy === "sheet" ? SHEET_FAL_EXTRA_INPUT : null,
-      note: recipeNote,
-    },
-    /** Batch report: one object per frame, same keys (notes for honest shortfalls / follow-up QA). */
-    frames: /** @type {Array<Record<string, unknown>>} */ ([]),
-    provenance: {
-      tool: "tools/dpad-workflow.mjs",
-      version: 3,
-    },
-    /** @deprecated Prefer `frames` array; kept for quick lookup during run */
-    generationResults: generationResultsById,
-  };
+      imageSize: opts.imageSize,
+      tileSize: TILE_SIZE,
+      sheetSize: SHEET_SIZE,
+      sheetCropMap: SHEET_CROPS,
+      chromaKeyHex: opts.chromaKeyHex,
+      chromaTolerance: opts.chromaTolerance,
+      keyRgbForManifest,
+      falExtrasPerTile: PER_TILE_FAL_EXTRA_INPUT,
+      falExtrasSheet: SHEET_FAL_EXTRA_INPUT,
+      seed: opts.seed ?? null,
+      provenance: {
+        tool: "tools/dpad-workflow.mjs",
+        version: 3,
+      },
+    })
+  );
+  /** @deprecated Prefer `frames` array; kept for quick lookup during run */
+  manifest.generationResults = generationResultsById;
 
   const manifestPath = join(OUT_BASE, "manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");

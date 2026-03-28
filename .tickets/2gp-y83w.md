@@ -1,6 +1,6 @@
 ---
 id: 2gp-y83w
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:08Z
@@ -20,3 +20,11 @@ Add **`tools/sprite-generation/manifest.mjs`**: assemble and write **`manifest.j
 - [ ] Unit tests build a manifest object from **fixture inputs** (mock mode, per-tile vs sheet as applicable); assert required top-level keys and **`frames`** length/order match the preset.
 - [ ] **`recipeId`** and **`generationRecipe`** fields are present and validated by test for at least **mock** and one **strategy** path if both exist in code.
 - [ ] Output matches structural expectations of the checked-in **`public/art/dpad/manifest.json`** sample (field names/types); note intentional deltas in the close note.
+
+## Notes
+
+**2026-03-28T16:32:25Z**
+
+Implemented tools/sprite-generation/manifest.mjs: buildRecipeId (sprite-gen-{preset}-{segment}-{version slug}), buildInitialManifest matching dpad manifest shape. Refactored dpad-workflow.mjs to use module. Unit tests: mock + per-tile + sheet + structural key parity vs public/art/dpad/manifest.json.
+
+Intentional delta vs old checked-in recipeId strings: recipeId now uses sprite-gen-dpad_four_way-* prefix and RECIPE_VERSION_* slugs (replaces dpad-workflow-mock-v2 / fal-per-tile-v4 / fal-sheet-v13). Workflow strings and all other field names unchanged for generate paths.

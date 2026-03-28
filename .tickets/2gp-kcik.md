@@ -1,6 +1,6 @@
 ---
 id: 2gp-kcik
-status: open
+status: closed
 deps: [2gp-swz6]
 links: []
 created: 2026-03-28T03:23:56Z
@@ -21,3 +21,9 @@ Prefer `src/art/atlasTypes.ts` (exact path may vary—closure notes record the c
 
 1) Types cover packed `sourceViews` as `{ x, y, width, height }` (**pixel**, **top-left** origin) and grid metadata required by `SpriteSheetGridOptions` (see **`.cursor/plans/project-implementation-deep-dive.md`** §C.3). 2) Parse/validation **fails fast** with a **clear error message** on invalid JSON. Choose **either** throwing **or** a `Result`/similar pattern **once** and use the **same** style in **Add unit tests for atlas JSON to SourceView mapping** (`2gp-dydr`) tests.
 
+
+## Notes
+
+**2026-03-28T03:46:26Z**
+
+Implemented src/art/atlasTypes.ts: AtlasFrameRect (pixel, top-left), grid manifest matching SpriteSheetGridOptions (rows/columns/spriteWidth/spriteHeight + optional spacing), packed ordered sourceViews and named frames, frame key→index and key→rect manifests. Parsers throw Error with ATLAS_JSON_ERROR_PREFIX; atlasFrameRectToSourceView bridges to Excalibur SourceView.

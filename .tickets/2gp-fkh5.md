@@ -11,13 +11,13 @@ parent: 2gp-c9u6
 ---
 # Add optional OpenAI vision QA script with structured JSON output
 
-OPENAI_API_KEY in Node only; Chat vs Responses pick one §E.5.1. Skip if no key.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §E.5.1 (vision step, structured outputs, policies). **`OPENAI_API_KEY`** only in Node/tooling—never in the Vite client.
 
 ## Design
 
-tools/; OPENAI_VISION_MODEL env; no OpenAI in src/.
+Implement under `tools/` (exact filename in closure notes). `OPENAI_VISION_MODEL` (or equivalent) selects the model. No OpenAI SDK imports under `src/`.
 
 ## Acceptance Criteria
 
-1) Vision model configurable via env (e.g. `OPENAI_VISION_MODEL`). 2) With no key, script exits 0 with a clear “skipped” message (or behavior documented in `tools/README.md`). 3) **`rg` / search**: no `openai` package imports or OpenAI client usage under `src/` (client bundle). 4) **`tools/README.md`**: names chosen **Chat Completions vs Responses** API surface; links OpenAI data/API policy for third-party processing of pixels (plan §E.5.1). 5) **Closure notes** (or README) record the chosen API surface and confirm the pinned model supports **vision + structured outputs** together, per plan §E.5.1 (spawn **web-research** if model capability matrix is unclear).
+1) Vision model is configurable via environment (e.g. `OPENAI_VISION_MODEL`). 2) When **`OPENAI_API_KEY`** is unset, the script **exits 0** and prints a clear **skipped** message **or** `tools/README.md` documents the exact behavior. 3) `rg` (or repo search) shows **no** `openai` package imports and **no** OpenAI client usage under `src/`. 4) `tools/README.md` names the chosen API surface (**Chat Completions** *or* **Responses**, not both) and links OpenAI **data / API** policy for sending pixels to OpenAI (§E.5.1). 5) Closure notes name the API surface and the pinned **model** string, and state that the model supports **vision + structured outputs** together per §E.5.1 (use **web-research** subagent if the model matrix is unclear before closing).
 

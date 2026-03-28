@@ -11,13 +11,13 @@ parent: 2gp-c9u6
 ---
 # Add deterministic PNG analysis script (dimensions, alpha, grid projection)
 
-sharp or pngjs; CLI path + grid params; §E.5, §E.5.1 metrics.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §E.5 (deterministic checks), §E.5.1 (metrics), §C.4 (premultiplied alpha note when relevant).
 
 ## Design
 
-npm run analyze:sprite or documented; premultiplied note §C.4.
+Use `sharp`, `pngjs`, or similar; CLI accepts image path + grid parameters. Wire to `npm run` via **Add package.json script aliases** (`2gp-67ok`) when that lands, or document the raw `node` command until then.
 
 ## Acceptance Criteria
 
-1) Runs on fixture PNG. 2) Vitest or shell documents exit codes. 3) tools/README --help mentions alpha checklist.
+1) Script runs successfully on at least one **checked-in** fixture PNG and prints dimensions / alpha / grid-projection metrics defined in §E.5.1. 2) **Either** Vitest tests cover the pure metric functions **or** `tools/README.md` documents CLI **exit codes** (0 = success, non-zero on failure) and `--help` output. 3) `tools/README.md` mentions the **alpha** / premultiplied checklist tie-in from §C.4 where relevant.
 

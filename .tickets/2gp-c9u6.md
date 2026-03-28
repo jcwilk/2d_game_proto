@@ -10,7 +10,17 @@ assignee: user.email
 ---
 # Epic: AI & tooling pipeline
 
-fal raster scripts, deterministic PNG analysis, optional OpenAI vision; `.env.example`. Canonical plan §E.
+fal raster scripts, deterministic PNG analysis, optional OpenAI vision; `.env.example`.
 
-**Scheduling note:** Child tickets depend on **Add repository .gitignore** (`2gp-kp8p`) and **Add Vitest** (`2gp-1voe`) where applicable—land infra/testing prerequisites first. **Secrets and provider calls stay in Node tooling only**—never `VITE_*` public env keys for `FAL_KEY` / `OPENAI_API_KEY`, never committed `.env` values.
+## Design
+
+**Scheduling:** Child tickets depend on **Add repository .gitignore** (`2gp-kp8p`) and **Add Vitest** (`2gp-1voe`) where their YAML `deps` state so—land those prerequisites first.
+
+## Epic rollup (definition of done)
+
+**Close this epic** only when no child ticket with `parent: 2gp-c9u6` remains **open**. **Secrets / bundle rules** are enforced by child tickets (e.g. `.gitignore`, `tools/README`, CI)—**normative** reference: **`.cursor/plans/project-implementation-deep-dive.md`** §E (especially §E.0, §E.5.1).
+
+## Acceptance Criteria
+
+1) Rollup above is satisfied at closure.
 

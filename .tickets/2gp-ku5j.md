@@ -11,13 +11,13 @@ parent: 2gp-hbb5
 ---
 # Build SpriteSheet from packed JSON via fromImageSourceWithSourceViews
 
-fromImageSourceWithSourceViews + sparse options. Plan §C.2, §C.3 pivot.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.2 step 4 (packed path), §C.3 (pivot / origin).
 
 ## Design
 
-Stable sourceViews order; document Sprite.origin policy for packed.
+Keep **`sourceViews`** order stable for index-based access; document **`Sprite.origin`** (or `GetSpriteOptions.origin`) for packed frames.
 
 ## Acceptance Criteria
 
-1) Test with synthetic PNG+JSON. 2) Comment §C.2 step 4 bullet 2. 3) README/module states origin policy.
+1) Vitest (or equivalent) uses a **synthetic** PNG + JSON fixture with `fromImageSourceWithSourceViews`. 2) Code comment cites §C.2 step 4 **bullet 2** (packed / arbitrary rects). 3) `README.md` or module doc states the **origin** policy for packed sprites.
 

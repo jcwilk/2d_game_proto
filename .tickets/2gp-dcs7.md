@@ -11,13 +11,13 @@ parent: 2gp-2rau
 ---
 # Add global styles for canvas touch-action and pointer behavior
 
-Canvas container touch-action: none. Plan §D.2.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §D.2 (`touch-action`, pointer delivery).
 
 ## Design
 
-CSS imported from `main.ts` (e.g. `src/styles.css`). Apply rules to a **named** wrapper (e.g. `#game-root` or `.game-shell`) that parents the canvas—document the selector in this ticket’s closure notes.
+CSS imported from `main.ts` (e.g. `src/styles.css`). Apply rules to a **named** wrapper (e.g. `#game-root` or `.game-shell`) that **contains** the canvas—record the selector in closure notes.
 
 ## Acceptance Criteria
 
-1) Built app has `touch-action: none` on the documented game container selector. 2) Comment cites §D.2.
+1) Production build (`npm run build` output) includes CSS such that the **documented** game container selector has **`touch-action: none`**. 2) A short comment next to the rule cites **`.cursor/plans/project-implementation-deep-dive.md`** §D.2.
 

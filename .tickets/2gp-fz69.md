@@ -11,13 +11,13 @@ parent: 2gp-9buv
 ---
 # Add unit tests for pure world-to-screen or camera bounds helpers
 
-Pure layout math without canvas. Plan §D.4.
+Pure layout math without canvas. **Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §D.4 (Vitest for pure layout math).
 
 ## Design
 
-Implement pure helpers under `src/` (e.g. `src/camera/math.ts`) with colocated `*.test.ts`; **exact paths** are chosen in this ticket—update acceptance if the module lives elsewhere.
+Implement pure helpers under `src/` (e.g. `src/camera/math.ts`) with colocated `*.test.ts`; **exact paths** are chosen in this ticket—record them in closure notes if different from the example.
 
 ## Acceptance Criteria
 
-1) ≥3 assertions covering distinct cases (e.g. origin, negative coords, clamp/bounds). 2) `npm test` passes. 3) Closure notes name the files implementing the helpers and tests.
+1) At least **three** distinct test cases (e.g. origin mapping, negative world coords, clamp or bounds behavior) with **≥3 assertions** total across them. 2) `npm test` exits 0. 3) Closure notes list the helper module path(s) and matching `*.test.ts` path(s).
 

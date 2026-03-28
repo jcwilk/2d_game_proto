@@ -11,13 +11,13 @@ parent: 2gp-gu27
 ---
 # Add repository .gitignore for Node artifacts and secrets
 
-Prevent accidental commits of dependencies, build output, and secrets (including `.env`). Align with plan intro (prototype assets, CI output) and **§E.0** (keys live in `.env`, not in git).
+Prevent accidental commits of dependencies, build output, and secrets (including `.env`). **Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** intro (prototype/replaceable assets), §E.0 (secrets in `.env`, not in git).
 
 ## Design
 
-Ignore node_modules/, dist/, .env, OS junk; extend existing .gitignore if present.
+Ignore `node_modules/`, `dist/`, `.env`, and common OS junk; extend the existing `.gitignore` if one is present.
 
 ## Acceptance Criteria
 
-1) .gitignore contains node_modules/, dist/, .env. 2) git check-ignore -v .env works when .env exists or equivalent documented.
+1) `.gitignore` includes patterns that ignore `node_modules/`, `dist/`, and `.env`. 2) With a **temporary** `.env` file present locally, `git check-ignore -v .env` shows a matching rule (or closure notes document an equivalent verification command).
 

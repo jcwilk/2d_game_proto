@@ -10,5 +10,17 @@ assignee: user.email
 ---
 # Epic: Testing & QA
 
-Vitest, optional Playwright smoke; CI integration. Canonical plan §D.4.
+Vitest, optional Playwright smoke; CI integration.
+
+## Design
+
+CI ordering for `typecheck` → `test` → `build` is owned by **Integrate typecheck and tests into GitHub Actions build job** (`2gp-ufvb`), not by **Add Vitest** (`2gp-1voe`) alone.
+
+## Epic rollup (definition of done)
+
+**Close this epic** only when no child ticket with `parent: 2gp-9buv` remains **open**. **Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §D.4 (Vitest for pure math; optional Playwright smoke). **Agents:** do **not** treat “merge to `main`” as a routine task—**pushes to the current branch** and CI are sufficient per **`AGENTS.md`**.
+
+## Acceptance Criteria
+
+1) Rollup above is satisfied at closure. 2) Closure notes reference how CI runs tests (workflow path or `./tk` link).
 

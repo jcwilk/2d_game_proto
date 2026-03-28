@@ -11,13 +11,13 @@ parent: 2gp-gu27
 ---
 # Add GitHub Actions workflow to build and deploy GitHub Pages
 
-push to main → build → deploy; workflow_dispatch. Official Pages actions. Plan §A.2, §A.2.2. Do not deploy from PR.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §A.2 (two-job pattern), §A.2.2 (permissions, `github-pages` environment). **Do not** deploy production from `pull_request`.
 
 ## Design
 
-checkout@v6, setup-node@v6 node 22 cache npm, upload-pages-artifact@v3 path dist, deploy-pages@v5 id deployment. concurrency group pages; permissions contents read pages write id-token write. configure-pages@v5 optional.
+Use **`actions/checkout@v6`**, **`actions/setup-node@v6`** (Node **22**, `cache: npm`), **`actions/upload-pages-artifact@v3`** (`path: dist`), **`actions/deploy-pages@v5`** (`id: deployment`). **`concurrency:`** group `pages`, `cancel-in-progress: false`. **`permissions:`** `contents: read`, `pages: write`, `id-token: write`. Optional: **`actions/configure-pages@v5`**.
 
 ## Acceptance Criteria
 
-1) Valid YAML. 2) build runs npm ci npm run build then upload dist/. 3) Pinned majors match plan. 4) No production deploy on pull_request.
+1) Workflow YAML parses and matches the §A.2.2 **shape** (build + deploy jobs). 2) **`build`** runs `npm ci` then `npm run build` then uploads **`dist/`**. 3) Action **major** versions match **`.cursor/plans/project-implementation-deep-dive.md`** §A.2.2 / §F (re-verify on bump). 4) No job that publishes Pages runs on **`pull_request`** (fork PRs must not deploy).
 

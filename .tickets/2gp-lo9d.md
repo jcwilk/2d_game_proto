@@ -11,13 +11,13 @@ parent: 2gp-hbb5
 ---
 # Load atlas JSON with Excalibur Resource responseType json
 
-Resource responseType json; parse typed. Plan §C.2.
+`Resource` + `responseType: 'json'`; parse to typed structures. **Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.2 step 3, §C.4 (HTTP(S) loading).
 
 ## Design
 
-Sample JSON in public/ or assets; HTTP(S) paths §C.4.
+Sample JSON under `public/` or `src`/fixtures; paths must be loadable over HTTP(S) in dev (not `file://` for the game bundle path per §C.4 checklist).
 
 ## Acceptance Criteria
 
-1) `Loader` preloads JSON (via `Resource` + `responseType: 'json'` or equivalent documented API) and image on the engine start path. 2) New code uses **`ImageSource`** / current raster path—no legacy `Texture` patterns (plan §C.2 footnote). 3) Pure JSON→typed parse is extractable for Vitest without a browser.
+1) `Loader` preloads JSON using `Resource` with `responseType: 'json'` (or the current documented equivalent in Excalibur’s API) **and** preloads the atlas image on the same engine-start path. 2) New code uses **`ImageSource`** for rasters—no legacy `Texture` construction patterns (**`.cursor/plans/project-implementation-deep-dive.md`** §C.2, API drift note). 3) JSON → typed parse is implemented so a **pure function** (or module) can be unit-tested with Vitest **without** a browser.
 

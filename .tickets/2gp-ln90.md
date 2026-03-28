@@ -11,13 +11,13 @@ parent: 2gp-gu27
 ---
 # Document Pages published-size and bandwidth limits for maintainers
 
-§B.5 limits: 1 GB site, ~100 GB/mo soft band, 10 min deploy; git large-file thresholds; Actions max job duration; soft build rate N/A for custom Actions.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §B.5 (Pages quotas, git large files, Actions job duration).
 
 ## Design
 
-README or MAINTAINERS.md; cite §B.5.
+Add a short section to **`README.md`** or **`MAINTAINERS.md`**—one file only unless you split with closure notes.
 
 ## Acceptance Criteria
 
-1) Doc mentions three Pages limits + git large-file + Actions job duration with §B.5 pointer. 2) States soft build rate does not apply to custom GitHub Actions. 3) One sentence on no published edge RPS / possible 429.
+1) Doc lists: **≤1 GB** published site, **~100 GB/month** soft bandwidth, **10 minute** deploy timeout, **git** large-file **warning/block** thresholds, **Actions** max **job** duration—each with a pointer to §B.5. 2) States GitHub’s **soft “builds per hour”** limit for Pages **does not apply** when using **custom GitHub Actions** (§B.5 table). 3) One sentence: **no** published edge **RPS**; users may see **HTTP 429** when over soft limits.
 

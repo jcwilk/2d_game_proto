@@ -11,13 +11,13 @@ parent: 2gp-2rau
 ---
 # Add Excalibur ^0.32 runtime dependency
 
-Install excalibur@^0.32 stable line not @next. Plan §C.1, §F.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.1 (stable line, not `@next`), §F summary.
 
 ## Design
 
-npm install excalibur@^0.32; lockfile updated.
+`npm install excalibur@^0.32`; commit lockfile changes.
 
 ## Acceptance Criteria
 
-1) package.json has excalibur ^0.32. 2) npm ls excalibur resolves 0.32.x. 3) No @next or prerelease.
+1) `package.json` declares **`excalibur`** with range **`^0.32`**. 2) `npm ls excalibur` resolves **`0.32.x`**. 3) Lockfile / install does **not** use `@next` or a prerelease tag as the resolved engine version.
 

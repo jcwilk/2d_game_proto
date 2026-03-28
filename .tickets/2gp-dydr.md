@@ -11,13 +11,13 @@ parent: 2gp-9buv
 ---
 # Add unit tests for atlas JSON to SourceView mapping
 
-Guard parsing top-left pixel rects §C.2, §C.4.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.2, §C.4 (pixel rects, top-left origin).
 
 ## Design
 
-Fixture JSON; invalid dimensions rejected.
+Use fixture JSON; invalid inputs must exercise the same **error style** as **Define TypeScript types for atlas JSON** (`2gp-kcik`)—throw **or** `Result`, not both.
 
 ## Acceptance Criteria
 
-1) Test under src/**/*.test.ts. 2) ≥1 invalid input path throws or Result error.
+1) Tests live under `src/**/*.test.ts`. 2) At least **one** test passes **valid** JSON mapping to `sourceViews`. 3) At least **one** test covers an **invalid** input and expects the **documented** failure mode (throw or `Result` error) from `2gp-kcik`.
 

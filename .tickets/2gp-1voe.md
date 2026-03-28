@@ -11,13 +11,13 @@ parent: 2gp-9buv
 ---
 # Add Vitest with TypeScript support and npm script
 
-Vitest for deterministic unit tests. Plan §D.4.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §D.4 (Vitest for fast deterministic tests).
 
 ## Design
 
-vitest.config.ts; npm test; optional coverage.
+Add `vitest.config.ts`; `npm test` runs Vitest; coverage optional.
 
 ## Acceptance Criteria
 
-1) npm test exits 0 with ≥1 test. 2) CI wiring deferred to Integrate typecheck and tests ticket.
+1) `npm test` exits 0 with **≥1** passing test. 2) **CI** integration (`typecheck` → `test` → `build` in GitHub Actions) is **out of scope** here—owned by **Integrate typecheck and tests into GitHub Actions build job** (`2gp-ufvb`).
 

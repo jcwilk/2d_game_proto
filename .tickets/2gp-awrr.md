@@ -11,13 +11,13 @@ parent: 2gp-c9u6
 ---
 # Add Node script to call fal for raster generation using FAL_KEY
 
-Pin endpoint id; image_size, num_images, png; seed if schema allows. Plan §E.3.1.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §E.3.1 (endpoint id, `image_size`, `num_images`, `output_format`, seed).
 
 ## Design
 
-tools/ or scripts/; process.env.FAL_KEY only; no Vite client.
+Place under `tools/` or `scripts/`; read **`process.env.FAL_KEY`** only. No fal client code or key in `src/` / Vite bundle.
 
 ## Acceptance Criteria
 
-1) Clear error if FAL_KEY missing. 2) README/tools README server-side only. 3) Output dir documented. 4) Closure notes pin endpoint id string.
+1) If **`FAL_KEY`** is unset, the script exits non-zero with a **clear** error. 2) `tools/README.md` states the script is **Node/server-side only** (not bundled to Pages). 3) `tools/README.md` states where raster files are written (directory path). 4) Closure notes record the **exact** fal **endpoint id** string copied from the model’s `/api` page (§E.3.1).
 

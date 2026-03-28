@@ -11,13 +11,13 @@ parent: 2gp-c9u6
 ---
 # Document fal versus OpenAI roles and iteration loop in tools README
 
-§E.0, §E.5.1 flow; observability fields. Link plan §E.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §E.0 (provider split), §E.5.1 (fal↔OpenAI loop and observability).
 
 ## Design
 
-tools/README.md bullets or mermaid.
+Update `tools/README.md` with bullets or a short mermaid diagram; keep one obvious “roles” section.
 
 ## Acceptance Criteria
 
-1) Doc states **fal** = spritesheet/raster path; **OpenAI** = non-fal gen + vision/chat. 2) Doc states provider keys **must not** use `VITE_*` and **must not** appear in the GitHub Pages client bundle; optional: point to **`rg` over `dist/`** after `npm run build` as a smoke check once the app exists. 3) Doc lists iteration observability: wall time, token/cost line items when available, parameter deltas between fal runs (plan §E.5.1).
+1) `tools/README.md` states **fal** = spritesheet-oriented raster generation (you pack/slice); **OpenAI** = non-fal image gen, vision/QA, and chat, per §E.0. 2) Same doc states **`FAL_KEY`** and **`OPENAI_API_KEY`** **must not** use `VITE_*` and **must not** ship in the GitHub Pages **client** bundle; optional one-liner: after `npm run build`, `rg FAL_KEY dist/` and `rg OPENAI_API_KEY dist/` return nothing. 3) Same doc lists iteration **observability** called out in §E.5.1: **wall-clock time**, **token/cost** line items when the APIs expose them, and **parameter deltas** between fal runs.
 

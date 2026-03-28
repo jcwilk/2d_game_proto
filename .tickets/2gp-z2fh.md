@@ -11,13 +11,13 @@ parent: 2gp-9buv
 ---
 # Add npm typecheck script using tsc --noEmit
 
-Enforce CONVENTIONS strict typing in CI. Plan supporting CONVENTIONS.md.
+Enforce strict typing aligned with **`CONVENTIONS.md`** and **`tsconfig.json`**. **Normative:** same stack as **`.cursor/plans/project-implementation-deep-dive.md`** §F (TypeScript app).
 
 ## Design
 
-package.json typecheck script; include src/ and tests.
+`package.json` script `typecheck` runs `tsc --noEmit` (or equivalent) over `src/` and test files included by `tsconfig`.
 
 ## Acceptance Criteria
 
-1) npm run typecheck exits 0. 2) Documented in README or package.json comment.
+1) `npm run typecheck` exits 0 on a clean tree. 2) **`README.md`** or a **`package.json` comment** names the `typecheck` script and what it runs.
 

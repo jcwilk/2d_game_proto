@@ -11,13 +11,13 @@ parent: 2gp-gu27
 ---
 # Document GitHub Pages Actions source and first-deploy environment approval
 
-Settings → Pages → Source: GitHub Actions; github-pages environment approvals. §A.2.2, §A.3.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §A.2.2 (`github-pages` environment), §A.3 (push-driven deploy).
 
 ## Design
 
-README section; link GitHub docs if helpful.
+Add a short **`README.md`** section; optional link to GitHub docs.
 
 ## Acceptance Criteria
 
-1) README states Pages source is GitHub Actions. 2) First-run environment approval mentioned. 3) One sentence: push to default branch triggers deploy.
+1) **`README.md`** states **Settings → Pages → Build and deployment → Source: GitHub Actions**. 2) Same doc mentions **first-use** approval for the **`github-pages`** environment if the workflow waits. 3) One sentence: **pushes to the default branch** (e.g. `main`) run the deploy workflow—**describe only**; do **not** instruct agents to merge to `main` as routine work (**`AGENTS.md`**).
 

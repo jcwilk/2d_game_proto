@@ -11,13 +11,13 @@ parent: 2gp-hbb5
 ---
 # Build SpriteSheet from uniform grid ImageSource
 
-SpriteSheet.fromImageSource + grid options. Plan §C.2, §C.3.
+**Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.2 (grid path), §C.3 (grid dimensions).
 
 ## Design
 
-Pure function where possible; Vitest for getSprite(0,0) on fixture.
+Prefer pure helpers; Vitest loads a grid fixture and calls `getSprite` (e.g. column 0, row 0).
 
 ## Acceptance Criteria
 
-1) Uses fromImageSource. 2) spriteWidth/Height match fixture. 3) Vitest asserts grid sprite.
+1) Implementation uses `SpriteSheet.fromImageSource` with grid options. 2) `spriteWidth` / `spriteHeight` **exactly** match the fixture PNG’s cell size (§C.4 dimension checklist). 3) Vitest asserts a non-empty sprite for at least one grid cell.
 

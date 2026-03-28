@@ -11,13 +11,13 @@ parent: 2gp-2rau
 ---
 # Wire main entry to start Engine and show a minimal scene
 
-main.ts starts engine and shows placeholder Scene. Plan §C.2 prep.
+`main.ts` starts the engine and shows a placeholder `Scene`. **Normative:** **`.cursor/plans/project-implementation-deep-dive.md`** §C.2 (bootstrap before full loader work); §E.0 / §E.5.1 for secrets vs client (see Acceptance Criteria item 3).
 
 ## Design
 
-Minimal scene; defer atlas to EPIC-C.
+Minimal scene only; full **Loader** / atlas integration is **Epic: Asset loading & atlas** (`2gp-hbb5`).
 
 ## Acceptance Criteria
 
-1) npm run dev shows canvas without errors. 2) npm run build succeeds. 3) No API keys in source.
+1) `npm run dev` opens a running canvas with **no** uncaught errors. 2) `npm run build` exits 0. 3) No `FAL_KEY`, `OPENAI_API_KEY`, or other secrets appear in `src/` (placeholders for **public** env like `VITE_*` are allowed only for non-secret config).
 

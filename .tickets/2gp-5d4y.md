@@ -11,13 +11,13 @@ parent: 2gp-gu27
 ---
 # Scaffold Vite TypeScript project with strict compiler options
 
-Create minimal Vite + TypeScript app (package.json, vite.config.ts, index.html, src/main.ts). Align with CONVENTIONS.md. Plan: intro, §F.
+Create a minimal Vite + TypeScript app (`package.json`, `vite.config.ts`, `index.html`, `src/main.ts`). **Normative:** **`CONVENTIONS.md`**, **`.cursor/plans/project-implementation-deep-dive.md`** intro + §F.
 
 ## Design
 
-tsconfig.json strict; main.ts entry; Node 22 for local dev to match CI (§A.2.2). No Phaser/Pixi.
+`tsconfig.json` **strict**; `src/main.ts` entry; **Node 22** for local dev to match CI (**`.cursor/plans/project-implementation-deep-dive.md`** §A.2.2). Do **not** add Phaser or Pixi.
 
 ## Acceptance Criteria
 
-1) package.json has dev, build, preview; npm run build produces dist/. 2) tsconfig strict; no any in scaffold. 3) README notes Vite-based app (one sentence or link to plan).
+1) `package.json` has `dev`, `build`, and `preview` scripts; `npm run build` emits **`dist/`**. 2) `tsconfig` enables strict options; scaffold contains **no** `any`. 3) **`README.md`** states the app is **Vite + TypeScript** and links **`.cursor/plans/project-implementation-deep-dive.md`** for stack details.
 

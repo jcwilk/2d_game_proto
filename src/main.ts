@@ -1,10 +1,11 @@
 import './styles.css';
 
-import { Color, Scene } from 'excalibur';
+import { Actor, Color, Scene, vec } from 'excalibur';
 
 import { createSampleAtlasLoader } from './art/atlasLoader';
+import { spriteSheetFromPackedImageSource } from './art/packedSpriteSheet';
 import { parsePackedAtlasOrderedJson } from './art/atlasTypes';
-import { createEngine } from './engine';
+import { VIEWPORT_HEIGHT, VIEWPORT_WIDTH, createEngine } from './engine';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -33,6 +34,14 @@ void engine
     if (atlas.sourceViews.length < 1) {
       throw new Error('Expected at least one packed atlas frame');
     }
+    const sheet = spriteSheetFromPackedImageSource(atlasImageSource, atlas);
+    const sprite = sheet.getSprite(0, 0);
+    const actor = new Actor({
+      pos: vec(VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2),
+      scale: vec(64, 64),
+    });
+    actor.graphics.use(sprite);
+    mainScene.add(actor);
   })
   .catch((err: unknown) => {
     console.error('Engine failed to start', err);

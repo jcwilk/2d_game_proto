@@ -1,0 +1,44 @@
+{
+  "kind": "dpad_tile_set",
+  "recipeId": "dpad-workflow-mock-v1",
+  "createdAt": "2026-03-28T12:38:09.054Z",
+  "workflow": "mock (triangles)",
+  "specs": {
+    "tileSize": {
+      "width": 256,
+      "height": 256
+    },
+    "imageSize": "256x256",
+    "naming": "dpad.png per direction folder",
+    "directions": [
+      "up",
+      "down",
+      "left",
+      "right"
+    ]
+  },
+  "generationRecipe": {
+    "mode": "mock",
+    "endpoint": null,
+    "seedRequested": null,
+    "note": "Mock: geometry from pngjs triangles, not T2I."
+  },
+  "provenance": {
+    "tool": "tools/dpad-workflow.mjs",
+    "version": 1
+  },
+  "generationResults": {
+    "up": {
+      "wallMs": 24
+    },
+    "down": {
+      "wallMs": 16
+    },
+    "left": {
+      "wallMs": 15
+    },
+    "right": {
+      "wallMs": 14
+    }
+  }
+}

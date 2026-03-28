@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "generate:raster": "node tools/fal-raster-generate.mjs",
     "analyze:png": "node tools/png-analyze.mjs",
-    "qa:vision": "node tools/openai-vision-qa.mjs"
+    "qa:vision": "node tools/openai-vision-qa.mjs",
+    "mock:dpad-workflow": "node tools/dpad-workflow.mjs --mode mock",
+    "dpad-workflow": "node tools/dpad-workflow.mjs"
   },
   "devDependencies": {
     "@fal-ai/client": "^1.9.5",

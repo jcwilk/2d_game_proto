@@ -5,7 +5,7 @@
  *
  * Endpoint id is pinned to the model’s /api page (see tools/README.md).
  */
-import { fal } from "@fal-ai/client";
+import { ApiError, fal } from "@fal-ai/client";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -101,8 +101,50 @@ Options:
   --out-dir <path>        Where to write files. Default: tools/out/raster/
 
 Environment:
-  FAL_KEY                 Required. fal API key (never commit).
+  FAL_KEY                 fal API key (never commit). Trimmed on use.
+  FAL_KEY_ID + FAL_KEY_SECRET   Alternative: combined as id:secret (see fal docs).
+
+On HTTP 403 Forbidden, read the printed detail — often account billing (add balance at fal.ai/dashboard/billing).
 `);
+}
+
+/**
+ * Resolve API key: trimmed `FAL_KEY`, or `FAL_KEY_ID:FAL_KEY_SECRET` when set (see fal docs).
+ * @returns {string | undefined}
+ */
+function resolveFalCredentials() {
+  const direct = process.env.FAL_KEY;
+  if (direct !== undefined && String(direct).trim() !== "") {
+    return String(direct).trim();
+  }
+  const id = process.env.FAL_KEY_ID;
+  const secret = process.env.FAL_KEY_SECRET;
+  if (id && secret && String(id).trim() && String(secret).trim()) {
+    return `${String(id).trim()}:${String(secret).trim()}`;
+  }
+  return undefined;
+}
+
+/**
+ * @param {unknown} err
+ * @returns {string}
+ */
+function formatFalClientError(err) {
+  if (err instanceof ApiError) {
+    const body = err.body;
+    if (body && typeof body === "object") {
+      const detail = "detail" in body ? body.detail : undefined;
+      const msg = "message" in body ? body.message : undefined;
+      const line = typeof detail === "string" ? detail : typeof msg === "string" ? msg : undefined;
+      if (line) {
+        return `${err.message} (${line})`;
+      }
+    }
+    if (err.requestId) {
+      return `${err.message} (request id: ${err.requestId})`;
+    }
+  }
+  return err instanceof Error ? err.message : String(err);
 }
 
 async function downloadToFile(url, destPath) {
@@ -115,10 +157,11 @@ async function downloadToFile(url, destPath) {
 }
 
 async function main() {
-  if (!process.env.FAL_KEY || String(process.env.FAL_KEY).trim() === "") {
+  const credentials = resolveFalCredentials();
+  if (!credentials) {
     console.error(
-      "error: FAL_KEY is unset or empty. Set the fal API key in the environment only (e.g. export FAL_KEY=...). " +
-        "Do not put keys in src/ or commit them.",
+      "error: No fal credentials. Set FAL_KEY in the environment, or FAL_KEY_ID and FAL_KEY_SECRET " +
+        "(see https://fal.ai/docs/model-apis/authentication). Do not put keys in src/ or commit them.",
     );
     process.exit(1);
   }
@@ -137,7 +180,7 @@ async function main() {
     process.exit(1);
   }
 
-  fal.config({ credentials: process.env.FAL_KEY });
+  fal.config({ credentials });
 
   const imageSize = parseImageSize(opts.imageSize);
   const input = {
@@ -183,6 +226,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e instanceof Error ? e.message : e);
+  console.error(`error: ${formatFalClientError(e)}`);
   process.exit(1);
 });

@@ -7,10 +7,14 @@ Scripts in this directory run **only on the machine or CI that invokes Node** �
 | Script (`npm run …`) | Node entry file |
 |---------------------|-------------------|
 | **`generate:raster`** | `tools/fal-raster-generate.mjs` |
+| **`dpad-workflow`** | `tools/dpad-workflow.mjs` |
+| **`mock:dpad-workflow`** | `tools/dpad-workflow.mjs --mode mock` (alias) |
 | **`analyze:png`** | `tools/png-analyze.mjs` |
 | **`qa:vision`** | `tools/openai-vision-qa.mjs` |
 
 Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-grid-atlas.png --sprite-width 32 --sprite-height 32`.
+
+**`dpad-workflow.mjs`** — opinionated D-pad tile pipeline: manifest under `public/art/dpad/`, one PNG per direction, optional fal generation (`--mode generate` + `FAL_KEY`), verbose STDOUT for debugging, `png-analyze` QA. See `--help`. `tools/mock-dpad-workflow.mjs` forwards to `--mode mock` for back-compat.
 
 ## fal vs OpenAI (roles)
 
@@ -37,7 +41,7 @@ See **`.cursor/plans/project-implementation-deep-dive.md`** §E.0, §E.5.1.
 
 ## `fal-raster-generate.mjs`
 
-Calls the fal Model API for text-to-image raster output using **`process.env.FAL_KEY`** only.
+Calls the fal Model API for text-to-image raster output using **`FAL_KEY`** (or **`FAL_KEY_ID`** + **`FAL_KEY_SECRET`**) from the environment.
 
 - **Endpoint id** (pinned in the script, from the model’s `/api` page): **`fal-ai/flux/dev`**.
 - **Writes** generated rasters to **`tools/out/raster/`** by default (`--out-dir` overrides). That directory is gitignored; create it on first run.
@@ -50,6 +54,8 @@ npm run generate:raster -- --prompt "pixel art hero idle, transparent background
 ```
 
 See **`../.cursor/plans/project-implementation-deep-dive.md`** §E.3.1 for `image_size`, `num_images`, `output_format`, and `seed` semantics.
+
+**Troubleshooting:** If the API returns **403 Forbidden**, run the script again: it prints the JSON **`detail`** from fal (the raw client often only showed `Forbidden`). A common case is **exhausted balance** — add credits at [fal.ai/dashboard/billing](https://fal.ai/dashboard/billing). Confirm the key works with the [authentication docs](https://fal.ai/docs/model-apis/authentication) curl example (`fal-ai/flux/schnell`).
 
 ## `png-analyze.mjs`
 

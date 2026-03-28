@@ -10,7 +10,7 @@ This repository is a **starting point for small 2D game experiments** where you 
 
 ## Stack
 
-The app is **Vite + TypeScript** (strict `tsconfig`). Use **Node.js 22** locally to match CI. For build pipeline, caching, and runtime plans, see **`.cursor/plans/project-implementation-deep-dive.md`**.
+The app is **Vite + TypeScript** (strict `tsconfig`). Use **Node.js 22** locally to match CI. Run **`npm run typecheck`** to type-check the project with **`tsc --noEmit`** (same files as **`tsconfig.json`** `include`). For build pipeline, caching, and runtime plans, see **`.cursor/plans/project-implementation-deep-dive.md`**.
 
 For **local** development, run **`npm run dev`** with the default **`base: '/'`** (leave **`VITE_BASE`** unset in `.env`). For **GitHub Pages** project URLs (`https://<user>.github.io/<repo>/`), set **`VITE_BASE=/<repo>/`** when building so hashed assets load under that prefix. The **`/<repo>/`** segment must match the **case-sensitive** repository name as it appears in that URL—forks may differ from upstream. Normative detail: **`.cursor/plans/project-implementation-deep-dive.md`** §A.2.1.
 

@@ -1,6 +1,6 @@
 ---
 id: 2gp-2rau
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T03:23:56Z
@@ -24,3 +24,9 @@ Bootstrap and engine wiring land before full atlas gameplay; atlas work rolls up
 
 1) Rollup above is satisfied at closure.
 
+
+## Notes
+
+**2026-03-28T04:05:58Z**
+
+Epic rollup satisfied: all five children (2gp-xfhi, 2gp-435f, 2gp-dcs7, 2gp-kz6m, 2gp-swz6) closed. No additional implementation. npm run build and npm test verified green before persist.

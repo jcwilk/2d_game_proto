@@ -35,7 +35,7 @@ import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
 import { applyPostprocessPipeline, resolveGeneratorConfig, resolvePostprocessSteps } from "./pipeline-stages.mjs";
-import { extractPngRegion, resizePngBufferNearest } from "./postprocess/png-region.mjs";
+import { extractPngRegion, normalizeDecodedSheetToPreset } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
 import { sheetLayoutFromCrops } from "./sheet-layout.mjs";
@@ -736,11 +736,12 @@ async function runGenerateSheetPath({
   timings.sheetFal = wallMs;
   let png = PNG.sync.read(buffer);
   if (png.width !== sheetW || png.height !== sheetH) {
-    log("WARN", "sheet", "fal output dimensions differ from requested; resizing to preset sheet size", {
+    // Sheet decode policy: center-crop to preset aspect then uniform NN — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**).
+    log("WARN", "sheet", "fal output dimensions differ from preset; center-cropping to strip aspect then uniform nearest-neighbor scale", {
       got: `${png.width}x${png.height}`,
       want: `${sheetW}x${sheetH}`,
     });
-    buffer = resizePngBufferNearest(buffer, sheetW, sheetH);
+    buffer = normalizeDecodedSheetToPreset(buffer, sheetW, sheetH);
     png = PNG.sync.read(buffer);
   }
   if (keepSheet) {

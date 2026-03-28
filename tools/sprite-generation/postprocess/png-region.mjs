@@ -1,6 +1,19 @@
 import { PNG } from "pngjs";
 
 /**
+ * ## D-pad / fal sheet decode policy (epic **2gp-p4js**)
+ *
+ * `fal-ai/flux-control-lora-canny` may return a **square** PNG (e.g. 512²) when the request asks for a
+ * **4∶1** strip (`400×100`) — see **`tools/sprite-generation/docs/fal-control-canny-image-size.md`**. We
+ * **do not** anisotropically nearest-neighbor squash that square onto the strip (different X vs Y scale
+ * distorts glyphs). Instead we **center-crop** the decoded raster to the preset’s aspect ratio
+ * (**`SHEET_WIDTH`∶`SHEET_HEIGHT`**, e.g. 4∶1), then apply **one** uniform nearest-neighbor resize to the
+ * exact preset pixel size (same scale factor on both axes — pixel-art friendly). Rejected for this path:
+ * relying on fal always honoring non-square `image_size`; changing strip dimensions without updating the
+ * preset; using anisotropic NN as the sole fix from square output.
+ */
+
+/**
  * @param {import('pngjs').PNG} src
  * @param {number} x0
  * @param {number} y0
@@ -43,8 +56,9 @@ export function countFullyTransparentPercent(pngBuffer) {
 }
 
 /**
- * Nearest-neighbor resize (pixel-art friendly). Used when fal returns a fixed square (e.g. 512²)
- * but the preset sheet is rectangular (e.g. 400×100).
+ * Nearest-neighbor resize (pixel-art friendly). Prefer calling **`normalizeDecodedSheetToPreset`**
+ * for sheet jobs so aspect is corrected by crop first; this helper is the uniform scale step when
+ * source dimensions already match the target aspect ratio.
  *
  * @param {Buffer} pngBuffer
  * @param {number} targetW
@@ -72,4 +86,46 @@ export function resizePngBufferNearest(pngBuffer, targetW, targetH) {
     }
   }
   return PNG.sync.write(dst);
+}
+
+/**
+ * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform nearest-neighbor resize to exactly
+ * **`targetW`×`targetH`**. See module comment (epic **2gp-p4js**).
+ *
+ * @param {Buffer} pngBuffer
+ * @param {number} targetW  Preset sheet width (e.g. **`SHEET_WIDTH`**).
+ * @param {number} targetH  Preset sheet height (e.g. **`SHEET_HEIGHT`**).
+ * @returns {Buffer}
+ */
+export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH) {
+  const src = PNG.sync.read(pngBuffer);
+  const sw = src.width;
+  const sh = src.height;
+  if (sw === targetW && sh === targetH) {
+    return pngBuffer;
+  }
+
+  const targetAspect = targetW / targetH;
+  const srcAspect = sw / sh;
+  const eps = 1e-9;
+
+  let x0 = 0;
+  let y0 = 0;
+  let cw = sw;
+  let ch = sh;
+
+  if (srcAspect > targetAspect + eps) {
+    cw = Math.max(1, Math.round(sh * targetAspect));
+    ch = sh;
+    x0 = Math.floor((sw - cw) / 2);
+    y0 = 0;
+  } else if (srcAspect < targetAspect - eps) {
+    cw = sw;
+    ch = Math.max(1, Math.round(sw / targetAspect));
+    x0 = 0;
+    y0 = Math.floor((sh - ch) / 2);
+  }
+
+  const cropped = cw === sw && ch === sh ? pngBuffer : extractPngRegion(src, x0, y0, cw, ch);
+  return resizePngBufferNearest(cropped, targetW, targetH);
 }

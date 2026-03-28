@@ -1,7 +1,12 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { countFullyTransparentPercent, extractPngRegion, resizePngBufferNearest } from "./png-region.mjs";
+import {
+  countFullyTransparentPercent,
+  extractPngRegion,
+  normalizeDecodedSheetToPreset,
+  resizePngBufferNearest,
+} from "./png-region.mjs";
 
 describe("png-region", () => {
   it("countFullyTransparentPercent matches deterministic alpha pattern", () => {
@@ -48,6 +53,32 @@ describe("png-region", () => {
     expect(out.height).toBe(4);
     expect(out.data[0]).toBe(10);
     expect(out.data[(out.width * 0 + 3) << 2]).toBe(20);
+  });
+
+  it("normalizeDecodedSheetToPreset leaves an exact-size buffer unchanged", () => {
+    const png = new PNG({ width: 400, height: 100, colorType: 6 });
+    png.data.fill(0);
+    const buf = PNG.sync.write(png);
+    expect(normalizeDecodedSheetToPreset(buf, 400, 100)).toBe(buf);
+  });
+
+  it("normalizeDecodedSheetToPreset yields preset dimensions from square fal-like output (512² → 400×100)", () => {
+    const png = new PNG({ width: 512, height: 512, colorType: 6 });
+    png.data.fill(0);
+    png.data[0] = 99;
+    const buf = PNG.sync.write(png);
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100));
+    expect(out.width).toBe(400);
+    expect(out.height).toBe(100);
+  });
+
+  it("normalizeDecodedSheetToPreset uniform-scales an already 4∶1 strip (800×200 → 400×100)", () => {
+    const png = new PNG({ width: 800, height: 200, colorType: 6 });
+    png.data.fill(0);
+    const buf = PNG.sync.write(png);
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100));
+    expect(out.width).toBe(400);
+    expect(out.height).toBe(100);
   });
 
   it("extractPngRegion throws the same crop-bounds error as the monolith", () => {

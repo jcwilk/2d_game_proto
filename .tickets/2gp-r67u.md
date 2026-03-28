@@ -1,6 +1,6 @@
 ---
 id: 2gp-r67u
-status: open
+status: closed
 deps: [2gp-svav]
 links: []
 created: 2026-03-28T21:34:20Z
@@ -27,3 +27,9 @@ Replace the path that **nearest-neighbor squashes** model output to the D-pad st
 - No undocumented sole NN squash from square fal output to final strip unless that paragraph justifies it.
 - If multiple strategies were considered, ticket notes or PR lists the chosen approach and why.
 
+
+## Notes
+
+**2026-03-28T21:38:54Z**
+
+Implemented center-crop to preset strip aspect (SHEET_WIDTH:SHEET_HEIGHT) then uniform NN to exact preset size in normalizeDecodedSheetToPreset (png-region.mjs). Rejected: anisotropic NN from square; fal-only fix; changing constants without preset update. pipeline.mjs sheet path uses this instead of resizePngBufferNearest. Tests: 512²→400×100, 800×200→400×100, exact passthrough.

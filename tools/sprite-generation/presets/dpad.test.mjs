@@ -33,6 +33,7 @@ describe("presets/dpad", () => {
     expect(p.qa.spriteHeight).toBe(32);
     expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);
     expect(p.generatorConfig?.sheetLayout).toEqual(DPAD_SHEET_LAYOUT);
+    expect(p.postprocessSteps).toEqual(["chromaKey"]);
   });
 
   it("SHEET_CROPS covers every frame id", () => {

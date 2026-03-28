@@ -17,7 +17,7 @@
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
  *
- * **`generatorConfig`** — Passed to mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — reserved; chroma and crops are inlined in the pipeline.
+ * **`generatorConfig`** — Merged via **`resolveGeneratorConfig`** into mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — generate mode only: ordered postprocess ids (**`POSTPROCESS_REGISTRY`** in **`../pipeline-stages.mjs`**); mock mode does not run these. Default when omitted: **`['chromaKey']`**.
  *
  * ## `recipeId`
  *
@@ -208,6 +208,8 @@ export function createPreset(opts) {
       shapeForFrame: defaultDpadShapeForFrame,
       sheetLayout: DPAD_SHEET_LAYOUT,
     },
+    /** Explicit default for documentation; same as `pipeline-stages` default for generate. */
+    postprocessSteps: ["chromaKey"],
     spriteRef: {
       kind: "frameKeyRect",
       jsonRelativePath: spriteRefJsonRelativePath,

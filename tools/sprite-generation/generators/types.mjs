@@ -39,6 +39,12 @@
  */
 
 /**
+ * Postprocess step id (see **`../pipeline-stages.mjs`** **`POSTPROCESS_REGISTRY`**).
+ *
+ * @typedef {'chromaKey'} PostprocessStepId
+ */
+
+/**
  * Mock generator options: deterministic RGBA raster with injectable geometry.
  *
  * @typedef {object} MockGeneratorConfig

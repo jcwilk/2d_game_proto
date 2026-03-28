@@ -1,6 +1,6 @@
 /**
  * Sprite-generation pipeline: **`runPipeline(preset, opts)`** runs **prompt → generator →
- * postprocess → QA (optional) → manifest + sprite-ref writes**, with structured logs via
+ * postprocess (ordered **`postprocessSteps`** from **`pipeline-stages.mjs`**) → QA (optional) → manifest + sprite-ref writes**, with structured logs via
  * **`logging.mjs`**.
  *
  * Supports **per-tile** (one `generate()` per frame) and **sheet** (`generateSheet()` then
@@ -20,13 +20,21 @@ import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
-import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./postprocess/chroma-key.mjs";
-import { countFullyTransparentPercent, extractPngRegion } from "./postprocess/png-region.mjs";
+import { applyPostprocessPipeline, resolveGeneratorConfig, resolvePostprocessSteps } from "./pipeline-stages.mjs";
+import { extractPngRegion } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
 import { sheetLayoutFromCrops } from "./sheet-layout.mjs";
 
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
+
+export {
+  POSTPROCESS_REGISTRY,
+  DEFAULT_POSTPROCESS_STEPS_GENERATE,
+  resolvePostprocessSteps,
+  resolveGeneratorConfig,
+  applyPostprocessPipeline,
+} from "./pipeline-stages.mjs";
 
 /**
  * @param {string} hex
@@ -75,7 +83,8 @@ function maskSecret(s) {
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
- * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock-only: **`shapeForFrame`**, **`sheetLayout`**, etc.; d-pad preset injects D-pad geometry + sheet cell map.
+ * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock: merged via **`resolveGeneratorConfig`** into **`generate`** / **`generateSheet`** (e.g. **`shapeForFrame`**, **`sheetLayout`**).
+ * @property {string[]} [postprocessSteps]  Generate mode only: ordered ids from **`POSTPROCESS_REGISTRY`** in **`pipeline-stages.mjs`** (default **`['chromaKey']`**). Mock mode ignores this.
  * @property {string} [specsNaming]  Optional override for manifest **`specs.naming`** (else derived from resolved PNG basename).
  */
 
@@ -365,11 +374,8 @@ async function runMockPerTilePath({ preset, generationResultsById, timings, seed
 
     log("INFO", `tile:${frame.id}`, "begin mock generate", { outPng });
     const t0 = Date.now();
-    const { buffer: buf } = await mockGenerate(frame, {
-      ...preset.generatorConfig,
-      tileSize,
-      seed,
-    });
+    const genConfig = resolveGeneratorConfig(preset, { tileSize, seed });
+    const { buffer: buf } = await mockGenerate(frame, genConfig);
     timings[frame.id] = Date.now() - t0;
     await writeFile(outPng, buf);
     generationResultsById[frame.id] = {
@@ -415,12 +421,8 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
   const t0 = Date.now();
   // Pixel crop top-left → mock compositor cells: same grid as extractPngRegion (origins ÷ tileSize).
   const sheetLayout = preset.generatorConfig?.sheetLayout ?? sheetLayoutFromCrops(sheet.crops, tileSize);
-  const { buffer } = await mockGenerateSheet(frames, {
-    ...preset.generatorConfig,
-    tileSize,
-    seed,
-    sheetLayout,
-  });
+  const genConfig = resolveGeneratorConfig(preset, { tileSize, seed, sheetLayout });
+  const { buffer } = await mockGenerateSheet(frames, genConfig);
   timings.mockSheet = Date.now() - t0;
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
@@ -476,6 +478,7 @@ async function runGeneratePerTilePath({
 }) {
   const pngName = pngBasename(preset);
   const keyRgb = parseHexRgb(chromaKeyHex);
+  const postSteps = resolvePostprocessSteps(preset, "generate");
   const { prompt, tileSize, frames } = preset;
   for (const frame of frames) {
     const folder = join(preset.outBase, frame.outSubdir ?? frame.id);
@@ -502,25 +505,19 @@ async function runGeneratePerTilePath({
       falExtraInput: falExtras,
       log,
     });
-    const { buffer: outBuf, usedPrimaryKey, keyRgb: effectiveChromaKey } = chromaKeyWithBorderFallback(buffer, {
+    const { buffer: outBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(buffer, postSteps, {
       keyRgb,
-      tolerance: chromaTolerance,
-      fallbackTolerance: Math.max(chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
+      chromaTolerance,
+      log,
     });
-    if (!usedPrimaryKey) {
-      log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
-        inferred: effectiveChromaKey,
-        transparentPercentAfter: countFullyTransparentPercent(outBuf).toFixed(2),
-      });
-    }
     await writeFile(outPng, outBuf);
     timings[frame.id] = Date.now() - t0;
     generationResultsById[frame.id] = {
       seed: outSeed,
       seedRequested: seed ?? null,
       wallMs: timings[frame.id],
-      chromaApplied: true,
-      chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
+      chromaApplied,
+      chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
       notes: [],
     };
     log("INFO", `tile:${frame.id}`, "fal PNG + chroma saved", generationResultsById[frame.id]);
@@ -555,6 +552,7 @@ async function runGenerateSheetPath({
   const sheet = /** @type {{ size: number; crops: Record<string, { x: number; y: number }> }} */ (preset.sheet);
   const pngName = pngBasename(preset);
   const keyRgb = parseHexRgb(chromaKeyHex);
+  const postSteps = resolvePostprocessSteps(preset, "generate");
   const { prompt, tileSize, frames } = preset;
 
   for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
@@ -590,17 +588,11 @@ async function runGenerateSheetPath({
   for (const frame of frames) {
     const { x, y } = sheet.crops[frame.id];
     const tileBufRaw = extractPngRegion(png, x, y, tileSize, tileSize);
-    const { buffer: tileBuf, usedPrimaryKey, keyRgb: effectiveChromaKey } = chromaKeyWithBorderFallback(tileBufRaw, {
+    const { buffer: tileBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(tileBufRaw, postSteps, {
       keyRgb,
-      tolerance: chromaTolerance,
-      fallbackTolerance: Math.max(chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
+      chromaTolerance,
+      log,
     });
-    if (!usedPrimaryKey) {
-      log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
-        inferred: effectiveChromaKey,
-        transparentPercentAfter: countFullyTransparentPercent(tileBuf).toFixed(2),
-      });
-    }
     const outPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);
     await writeFile(outPng, tileBuf);
     generationResultsById[frame.id] = {
@@ -609,8 +601,8 @@ async function runGenerateSheetPath({
       wallMs,
       fromSheet: true,
       cropOrigin: `${x},${y}`,
-      chromaApplied: true,
-      chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
+      chromaApplied,
+      chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
       notes: [],
     };
     log("INFO", `tile:${frame.id}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });

@@ -33,6 +33,7 @@ Do not implement changes that move behavior away from authoritative markdown unl
    - Identify and read the authoritative markdown spec(s) governing the ticket behavior before writing code.
 3. Implement the ticket:
    - Do discovery as needed.
+   - Rapid, parallel, iterative web searches can be leveraged via using the `spawn-subagent` skill with the `web-research` subagent (`.cursor/agents/web-research.md`).
    - Make code changes following repository conventions.
    - Run relevant tests/checks.
    - If tests and markdown conflict, align behavior to markdown and update tests accordingly.

@@ -14,6 +14,8 @@ The app is **Vite + TypeScript** (strict `tsconfig`). Use **Node.js 22** locally
 
 For **local** development, run **`npm run dev`** with the default **`base: '/'`** (leave **`VITE_BASE`** unset in `.env`). For **GitHub Pages** project URLs (`https://<user>.github.io/<repo>/`), set **`VITE_BASE=/<repo>/`** when building so hashed assets load under that prefix. The **`/<repo>/`** segment must match the **case-sensitive** repository name as it appears in that URL—forks may differ from upstream. Normative detail: **`.cursor/plans/project-implementation-deep-dive.md`** §A.2.1.
 
+**Packed atlases (TexturePacker-style JSON):** frame pivots from the export map to **`Sprite.origin`** (or `GetSpriteOptions.origin` when fetching a sprite). Excalibur defaults the origin to the **center** of each sprite graphic—match your atlas tool’s pivot settings to that convention, or override origin per sprite when you build or draw. See **`.cursor/plans/project-implementation-deep-dive.md`** §C.3.
+
 ## Docs
 
 - **`AGENTS.md`** — how **`wedow/ticket`** fits in, using **`./tk`**, and repo norms for agents.

@@ -1,6 +1,6 @@
 ---
 id: 2gp-ku5j
-status: open
+status: closed
 deps: [2gp-kcik, 2gp-lo9d]
 links: []
 created: 2026-03-28T03:23:56Z
@@ -21,3 +21,9 @@ Keep **`sourceViews`** order stable for index-based access; document **`Sprite.o
 
 1) Vitest (or equivalent) uses a **synthetic** PNG + JSON fixture with `fromImageSourceWithSourceViews`. 2) Code comment cites §C.2 step 4 **bullet 2** (packed / arbitrary rects). 3) `README.md` or module doc states the **origin** policy for packed sprites.
 
+
+## Notes
+
+**2026-03-28T03:58:26Z**
+
+Implemented src/art/packedSpriteSheet.ts (spriteSheetFromPackedImageSource → fromImageSourceWithSourceViews). Vitest + sample-packed-atlas PNG/JSON fixtures. README § packed origin policy. Comment cites plan §C.2 step 4 bullet 2.

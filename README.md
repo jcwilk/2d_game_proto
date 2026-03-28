@@ -20,6 +20,24 @@ For **local** development, run **`npm run dev`** with the default **`base: '/'`*
 
 **Packed atlases (TexturePacker-style JSON):** frame pivots from the export map to **`Sprite.origin`** (or `GetSpriteOptions.origin` when fetching a sprite). Excalibur defaults the origin to the **center** of each sprite graphic—match your atlas tool’s pivot settings to that convention, or override origin per sprite when you build or draw. See **`.cursor/plans/project-implementation-deep-dive.md`** §C.3.
 
+## GitHub Pages
+
+### Repository settings and first deploy
+
+In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions** (not “Deploy from a branch”). Optional: [Configuring a publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
+
+On **first use**, the **`github-pages`** environment may require **one-time approval** under **Settings → Environments** if the workflow **waits** for a deployment review—see plan **§A.2.2**.
+
+Once the workflow exists, **pushes to the default branch** (e.g. `main`) run the deploy pipeline—this is **descriptive** context only; **do not** instruct agents to **merge into `main`** or treat that as routine automation (**`AGENTS.md`**).
+
+### Limits and quotas (maintainers)
+
+Authoritative table: plan **§B.5** (see also [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)). **Published site size** ≤ **1 GB** (**§B.5**); **bandwidth** ~**100 GB/month**, soft (**§B.5**); **GitHub Pages deployment** timeout **10 minutes** per deployment (**§B.5**); **git** warns above **50 MiB** and blocks above **100 MiB** per large file (**§B.5**); **GitHub Actions** max **job** duration **6 hours** ([Actions limits](https://docs.github.com/en/actions/reference/actions-limits), **§B.5**).
+
+GitHub’s soft **10 builds/hour** cap for Pages **does not apply** when you build and publish using **custom GitHub Actions** (**§B.5** table).
+
+GitHub **does not** publish a numeric edge **RPS** for Pages; clients may see **HTTP 429** when over soft limits (**§B.5**).
+
 ## Docs
 
 - **`AGENTS.md`** — how **`wedow/ticket`** fits in, using **`./tk`**, and repo norms for agents.

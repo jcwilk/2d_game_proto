@@ -1,6 +1,6 @@
 ---
 id: 2gp-i63p
-status: open
+status: closed
 deps: [2gp-e9l3]
 links: []
 created: 2026-03-28T03:23:56Z

@@ -10,7 +10,7 @@
  * - **`frames`** — `GeneratorFrame[]` with `id`, `outSubdir`, `promptVariant`.
  * - **`outBase`** — Absolute directory for tiles, `manifest.json`, `sprite-ref.json`.
  * - **`tileSize`** — Square tile edge (px).
- * - **`sheet`** — `{ size, crops }` — required when `strategy === 'sheet'` (2×2 crop map).
+ * - **`sheet`** — `{ width, height, crops }` — required when `strategy === 'sheet'` (rectangular sheet pixel size + crop map).
  * - **`prompt`** — `{ frameStyle, frameComposition, sheetStyle, sheetComposition, sheetSubject }` for **`buildPrompt`** / **`buildSheetPrompt`**.
  * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for default flux/dev jobs.
  * - **`qa`** — `{ spriteWidth, spriteHeight }` for png-analyze (8×8 cells on 256² when 32×32).
@@ -21,7 +21,7 @@
  *
  * ## Determinism vs T2I / chroma variance
  *
- * **Deterministic:** **`TILE_SIZE`**, **`SHEET_SIZE`**, **`SHEET_CROPS`**, **`QA_SPRITE_W`** / **`QA_SPRITE_H`** — sheet layout, crop coords, and png-analyze grid are fixed by these constants. **Variable:** model pixels and chroma/tolerance effects on keyed output. See **`../README.md`** and **`../pipeline.mjs`** (postprocess + **`runPngAnalyzeBridge`**).
+ * **Deterministic:** **`TILE_SIZE`**, **`SHEET_WIDTH`** / **`SHEET_HEIGHT`**, **`SHEET_CROPS`**, **`QA_SPRITE_W`** / **`QA_SPRITE_H`** — sheet layout, crop coords, and png-analyze grid are fixed by these constants. **Variable:** model pixels and chroma/tolerance effects on keyed output. See **`../README.md`** and **`../pipeline.mjs`** (postprocess + **`runPngAnalyzeBridge`**).
  *
  * ## `recipeId`
  *
@@ -49,13 +49,14 @@ export const DPAD_PRESET_ID = "dpad_four_way";
 /** Manifest `kind` for the four-way HUD tile set. */
 export const DPAD_KIND = "dpad_tile_set";
 
-/** Tile pixel size (width = height). Fixed for a predictable atlas later. */
-export const TILE_SIZE = 256;
+/** Tile pixel size (width = height) for each d-pad direction cell. */
+export const TILE_SIZE = 100;
 
 /**
- * Single fal/mock sheet output: 2×2 grid of tiles. Must match **`SHEET_CROPS`** layout.
+ * Single fal/mock sheet: **1×4** horizontal strip (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**.
  */
-export const SHEET_SIZE = 512;
+export const SHEET_WIDTH = TILE_SIZE * 4;
+export const SHEET_HEIGHT = TILE_SIZE;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. Plain txt2img when **`--no-control`**. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
@@ -78,16 +79,18 @@ export const DPAD_FAL_EXTRA_INPUT = {
  * @see https://fal.ai/models/fal-ai/flux-control-lora-canny/api
  */
 export const DPAD_FAL_CONTROL_EXTRA_INPUT = {
-  num_inference_steps: 28,
-  guidance_scale: 3.5,
+  num_inference_steps: 32,
+  /** Slightly higher than fal default so prompt can steer texture while control stays loose. */
+  guidance_scale: 4,
   output_format: "png",
   preprocess_depth: false,
-  control_lora_strength: 0.95,
+  /** Lower than ~1.0 — looser fit to the triangle mask; pair with softened control image in pipeline. */
+  control_lora_strength: 0.58,
 };
 
-/** Grid cell size for png-analyze (8×8 cells on 256²). */
-export const QA_SPRITE_W = 32;
-export const QA_SPRITE_H = 32;
+/** Grid cell size for png-analyze (5×5 cells on 100²). */
+export const QA_SPRITE_W = 20;
+export const QA_SPRITE_H = 20;
 
 /**
  * D-pad preset: ordered frames (up → down → left → right in list; generation order is this list).
@@ -134,16 +137,15 @@ export const DPAD_FRAMES = Object.freeze([
 ]);
 
 /**
- * Top-left origins for each frame in the 512×512 sheet. Layout:
- * `[ up ][ right ] / [ left ][ down ]`.
+ * Top-left origins for each frame in the 400×100 sheet (1×4 row: up → down → left → right).
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
 export const SHEET_CROPS = Object.freeze({
   up: { x: 0, y: 0 },
-  right: { x: TILE_SIZE, y: 0 },
-  left: { x: 0, y: TILE_SIZE },
-  down: { x: TILE_SIZE, y: TILE_SIZE },
+  down: { x: TILE_SIZE, y: 0 },
+  left: { x: TILE_SIZE * 2, y: 0 },
+  right: { x: TILE_SIZE * 3, y: 0 },
 });
 
 /**
@@ -208,7 +210,8 @@ export function createPreset(opts) {
     outBase,
     tileSize: TILE_SIZE,
     sheet: {
-      size: SHEET_SIZE,
+      width: SHEET_WIDTH,
+      height: SHEET_HEIGHT,
       crops: { ...SHEET_CROPS },
     },
     prompt: {

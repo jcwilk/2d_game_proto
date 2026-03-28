@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE_CONTROL,
-  RECIPE_VERSION_SHEET,
+  RECIPE_VERSION_SHEET_CONTROL,
 } from "../manifest.mjs";
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import {
@@ -14,7 +14,8 @@ import {
   DPAD_SHEET_LAYOUT,
   recipeIdForDpad,
   SHEET_CROPS,
-  SHEET_SIZE,
+  SHEET_HEIGHT,
+  SHEET_WIDTH,
   TILE_SIZE,
 } from "./dpad.mjs";
 
@@ -25,7 +26,8 @@ describe("presets/dpad", () => {
     expect(p.kind).toBe(DPAD_KIND);
     expect(p.frames).toBe(DPAD_FRAMES);
     expect(p.tileSize).toBe(TILE_SIZE);
-    expect(p.sheet?.size).toBe(SHEET_SIZE);
+    expect(p.sheet?.width).toBe(SHEET_WIDTH);
+    expect(p.sheet?.height).toBe(SHEET_HEIGHT);
     expect(p.sheet?.crops?.up).toEqual({ x: 0, y: 0 });
     expect(p.spriteRef.kind).toBe("frameKeyRect");
     expect(p.spriteRef.artUrlPrefix).toBe("art/dpad");
@@ -33,8 +35,8 @@ describe("presets/dpad", () => {
     expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
     expect(p.spriteRef.artUrlPrefix).not.toMatch(/\/$/);
     expect(p.fal?.falExtrasPerTile).toMatchObject({ acceleration: "none" });
-    expect(p.qa.spriteWidth).toBe(32);
-    expect(p.qa.spriteHeight).toBe(32);
+    expect(p.qa.spriteWidth).toBe(20);
+    expect(p.qa.spriteHeight).toBe(20);
     expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);
     expect(p.generatorConfig?.sheetLayout).toEqual(DPAD_SHEET_LAYOUT);
     expect(p.postprocessSteps).toEqual(["chromaKey"]);
@@ -51,7 +53,7 @@ describe("presets/dpad", () => {
     expect(recipeIdForDpad("generate", "per-tile")).toBe(
       `sprite-gen-${DPAD_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`,
     );
-    expect(recipeIdForDpad("generate", "sheet")).toBe(`sprite-gen-${DPAD_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`);
+    expect(recipeIdForDpad("generate", "sheet")).toBe(`sprite-gen-${DPAD_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
   });
 
   it("throws without outBase", () => {

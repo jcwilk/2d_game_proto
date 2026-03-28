@@ -10,7 +10,7 @@ import { countFullyTransparentPercent } from "./png-region.mjs";
 
 describe("chroma-key", () => {
   it("exports CHROMA_FALLBACK_TOLERANCE_MIN unchanged", () => {
-    expect(CHROMA_FALLBACK_TOLERANCE_MIN).toBe(52);
+    expect(CHROMA_FALLBACK_TOLERANCE_MIN).toBe(64);
   });
 
   it("applyChromaKeyToPngBuffer: primary key removes matching pixels deterministically", () => {

@@ -17,12 +17,19 @@ import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
 import { log } from "./sprite-generation/logging.mjs";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
-import { createPreset, DEFAULT_FAL_ENDPOINT, SHEET_SIZE, TILE_SIZE } from "./sprite-generation/presets/dpad.mjs";
+import {
+  createPreset,
+  DEFAULT_FAL_ENDPOINT,
+  SHEET_HEIGHT,
+  SHEET_WIDTH,
+  TILE_SIZE,
+} from "./sprite-generation/presets/dpad.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_BASE = join(__dirname, "..", "public", "art", "dpad");
 
-const DEFAULT_CHROMA_TOLERANCE = 42;
+/** Euclidean RGB distance vs key — default tuned for FLUX magenta drift + fringe removal. */
+const DEFAULT_CHROMA_TOLERANCE = 72;
 
 function parseHexRgb(hex) {
   const s = String(hex).trim();
@@ -36,7 +43,7 @@ function parseArgs(argv) {
   /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; useControlCanny: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
   const opts = {
     mode: "mock",
-    strategy: "per-tile",
+    strategy: "sheet",
     endpoint: DEFAULT_FAL_ENDPOINT,
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
     keepSheet: false,
@@ -130,19 +137,18 @@ D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
-  --strategy sheet|per-tile   For generate only. Default: per-tile = one fal call per frame with the
-                         SAME integer --seed and shared fal extras (reliable direction semantics).
-                         sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE} image + 2×2 crop (shared style;
-                         quadrant→direction often wrong in practice).
+  --strategy sheet|per-tile   For generate only. Default: **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
+                         (control Canny + composite triangle mask unless --no-control).
+                         per-tile = one fal call per frame (same --seed when set).
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
-  --no-control           With --mode generate --strategy per-tile: use plain fal-ai/flux/dev (no Canny control mask).
+  --no-control           With --mode generate: use plain fal-ai/flux/dev (no Canny control mask; per-tile or sheet).
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
-                         Ignored for sheet (sheet is always ${SHEET_SIZE}x${SHEET_SIZE}).
+                         Ignored for sheet (sheet is always ${SHEET_WIDTH}x${SHEET_HEIGHT}).
   --seed <int>           Optional fal seed: one job (sheet) or the SAME seed every per-tile call.
   --chroma-key <#RRGGBB>  Screen color in prompts + post removal (default: ${DEFAULT_CHROMA_KEY_HEX}).
-  --chroma-tolerance <0-255>  Per-channel RGB distance for key match (default: ${DEFAULT_CHROMA_TOLERANCE}).
+  --chroma-tolerance <0-255>  Euclidean RGB distance from key for transparency (default: ${DEFAULT_CHROMA_TOLERANCE}).
   --skip-qa              Skip png-analyze step.
   --dry-run              Print planned actions only; no writes, no API calls.
                          For --mode generate, does NOT require FAL_KEY (planning only).
@@ -185,7 +191,7 @@ async function main() {
   const preset = createPreset({
     outBase: OUT_BASE,
     provenanceTool: "tools/dpad-workflow.mjs",
-    provenanceVersion: 3,
+    provenanceVersion: 4,
   });
 
   try {

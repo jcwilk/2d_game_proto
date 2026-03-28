@@ -13,13 +13,15 @@ import {
 } from "./prompt.mjs";
 
 describe("sprite-generation prompt", () => {
-  it("interpolatePromptTemplate fills tileSize, sheetSize, chromaKeyHex", () => {
-    const s = interpolatePromptTemplate("a{tileSize}b{sheetSize}c{chromaKeyHex}d", {
+  it("interpolatePromptTemplate fills tileSize, sheetSize, sheetWidth/Height, chromaKeyHex", () => {
+    const s = interpolatePromptTemplate("a{tileSize}b{sheetSize}c{sheetWidth}d{sheetHeight}e{chromaKeyHex}f", {
       tileSize: 256,
       sheetSize: 512,
+      sheetWidth: 400,
+      sheetHeight: 100,
       chromaKeyHex: "#AABBCC",
     });
-    expect(s).toBe("a256b512c#AABBCCd");
+    expect(s).toBe("a256b512c400d100e#AABBCCf");
   });
 
   it("buildPrompt: custom style/composition/subject fragments appear in output", () => {
@@ -52,17 +54,17 @@ describe("sprite-generation prompt", () => {
     expect(out).toContain("TEST_SUBJECT_LINE.");
   });
 
-  it("buildSheetPrompt matches dpad monolith sheet wording for same inputs", () => {
-    const sheetSize = 512;
+  it("buildSheetPrompt matches dpad 1×4 strip wording for same inputs", () => {
     const chroma = "#FF00FF";
     const expected =
-      `2x2 pixel art contact sheet on one ${sheetSize}px canvas: four equal panels. ` +
+      `1×4 horizontal pixel art HUD strip on one 400×100px canvas: four equal square panels in a single row. ` +
       `Entire image background is one flat solid screen color ${chroma} (pure magenta), full bleed, no gradients. ` +
       `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not ${chroma}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. ` +
       DPAD_SHEET_SUBJECT;
 
     const got = buildSheetPrompt({
-      sheetSize,
+      sheetWidth: 400,
+      sheetHeight: 100,
       chromaKeyHex: chroma,
       style: DPAD_SHEET_STYLE,
       composition: DPAD_SHEET_COMPOSITION,

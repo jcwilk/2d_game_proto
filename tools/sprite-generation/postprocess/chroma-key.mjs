@@ -2,8 +2,13 @@ import { PNG } from "pngjs";
 
 import { countFullyTransparentPercent } from "./png-region.mjs";
 
-/** When the prompt hex misses FLUX drift, fallback inferred key uses at least this tolerance. */
-export const CHROMA_FALLBACK_TOLERANCE_MIN = 52;
+/** When the prompt hex misses FLUX drift, fallback inferred key uses at least this tolerance (Euclidean RGB distance). */
+export const CHROMA_FALLBACK_TOLERANCE_MIN = 64;
+
+/**
+ * @typedef {'max' | 'euclidean'} ChromaDistanceMetric
+ * Per-channel max (legacy) vs L2 in RGB — Euclidean removes more magenta/purple fringe for the same nominal scale.
+ */
 
 /**
  * Median RGB from four corner blocks — tends to sample **clean background** vs a full 1px border
@@ -78,11 +83,12 @@ export function inferBackgroundKeyFromBorder(png) {
  * other pixels → opaque RGBA (glyph for HUD overlay).
  *
  * @param {Buffer} pngBuffer
- * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number }} opts
+ * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number; metric?: ChromaDistanceMetric }} opts
  * @returns {Buffer}
  */
 export function applyChromaKeyToPngBuffer(pngBuffer, opts) {
   const { keyRgb, tolerance } = opts;
+  const metric = opts.metric ?? "euclidean";
   const png = PNG.sync.read(pngBuffer);
   const out = new PNG({ width: png.width, height: png.height, colorType: 6 });
   for (let i = 0; i < png.data.length; i += 4) {
@@ -92,7 +98,10 @@ export function applyChromaKeyToPngBuffer(pngBuffer, opts) {
     const dr = Math.abs(r - keyRgb.r);
     const dg = Math.abs(g - keyRgb.g);
     const db = Math.abs(b - keyRgb.b);
-    const match = dr <= tolerance && dg <= tolerance && db <= tolerance;
+    const match =
+      metric === "max"
+        ? dr <= tolerance && dg <= tolerance && db <= tolerance
+        : dr * dr + dg * dg + db * db <= tolerance * tolerance;
     if (match) {
       out.data[i] = 0;
       out.data[i + 1] = 0;
@@ -113,19 +122,20 @@ export function applyChromaKeyToPngBuffer(pngBuffer, opts) {
  * use median border color as the key (valid when the glyph is inset from edges).
  *
  * @param {Buffer} rawFalPng
- * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number; fallbackTolerance: number }} opts
+ * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number; fallbackTolerance: number; metric?: ChromaDistanceMetric }} opts
  * @returns {{ buffer: Buffer; usedPrimaryKey: boolean; keyRgb: { r: number; g: number; b: number } }}
  */
 export function chromaKeyWithBorderFallback(rawFalPng, opts) {
   const { keyRgb, tolerance, fallbackTolerance } = opts;
-  let buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb, tolerance });
+  const metric = opts.metric ?? "euclidean";
+  let buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb, tolerance, metric });
   let usedPrimaryKey = true;
   let effectiveKey = keyRgb;
   const pct = countFullyTransparentPercent(buf);
   if (pct < 0.8) {
     const png = PNG.sync.read(rawFalPng);
     const inferred = inferBackgroundKeyFromCorners(png);
-    buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb: inferred, tolerance: fallbackTolerance });
+    buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb: inferred, tolerance: fallbackTolerance, metric });
     usedPrimaryKey = false;
     effectiveKey = inferred;
   }

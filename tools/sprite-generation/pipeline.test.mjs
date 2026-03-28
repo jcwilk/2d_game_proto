@@ -45,13 +45,13 @@ describe("pipeline (integration)", () => {
       const pngPath = join(dir, id, "dpad.png");
       const buf = await readFile(pngPath);
       const png = PNG.sync.read(buf);
-      expect(png.width).toBe(256);
-      expect(png.height).toBe(256);
+      expect(png.width).toBe(100);
+      expect(png.height).toBe(100);
 
       const qaPath = join(dir, id, "png-analyze.json");
       const qaRaw = JSON.parse(await readFile(qaPath, "utf8"));
-      expect(qaRaw.dimensions?.width).toBe(256);
-      expect(qaRaw.dimensions?.height).toBe(256);
+      expect(qaRaw.dimensions?.width).toBe(100);
+      expect(qaRaw.dimensions?.height).toBe(100);
     }
 
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
@@ -61,7 +61,7 @@ describe("pipeline (integration)", () => {
 
     const refRaw = JSON.parse(await readFile(join(dir, "sprite-ref.json"), "utf8"));
     const parsed = parseFrameKeyRectManifestJson(refRaw);
-    expect(parsed.frames["up"].width).toBe(256);
+    expect(parsed.frames["up"].width).toBe(100);
     expect(refRaw.images?.up).toBe("art/pipeline-test/up/dpad.png");
   });
 
@@ -76,8 +76,8 @@ describe("pipeline (integration)", () => {
       const pngPath = join(dir, id, "dpad.png");
       const buf = await readFile(pngPath);
       const png = PNG.sync.read(buf);
-      expect(png.width).toBe(256);
-      expect(png.height).toBe(256);
+      expect(png.width).toBe(100);
+      expect(png.height).toBe(100);
     }
 
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));

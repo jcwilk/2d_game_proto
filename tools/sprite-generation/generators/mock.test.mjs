@@ -80,7 +80,13 @@ describe("sprite-generation mock generator", () => {
     expect(rgbaAt(png, 0, 0).a).toBe(0);
   });
 
-  it("composes a 2×2 mock sheet with preset-derived DPAD_SHEET_LAYOUT", async () => {
+  it("composes a 2×2 mock sheet from an explicit cell layout (512×512)", async () => {
+    const layout2x2 = {
+      up: { x: 0, y: 0 },
+      right: { x: 1, y: 0 },
+      left: { x: 0, y: 1 },
+      down: { x: 1, y: 1 },
+    };
     const frames = [
       { id: "up", outSubdir: "u", promptVariant: "" },
       { id: "right", outSubdir: "r", promptVariant: "" },
@@ -89,15 +95,32 @@ describe("sprite-generation mock generator", () => {
     ];
     const { buffer, metadata } = await generateSheet(frames, {
       tileSize: 256,
-      sheetLayout: DPAD_SHEET_LAYOUT,
+      sheetLayout: layout2x2,
     });
     expect(metadata.width).toBe(512);
     expect(metadata.height).toBe(512);
     const sheet = PNG.sync.read(buffer);
-    // Top-left cell should match standalone "up" tile corner
     const upAlone = PNG.sync.read((await generate(frames[0], { tileSize: 256 })).buffer);
     expect(rgbaAt(sheet, 0, 0)).toEqual(rgbaAt(upAlone, 0, 0));
-    expect(rgbaAt(sheet, 128, 128).a).toBeGreaterThan(0); // down quadrant has ink somewhere
+    expect(rgbaAt(sheet, 128, 128).a).toBeGreaterThan(0);
+  });
+
+  it("composes 1×4 dpad strip at 100px tile (400×100 sheet)", async () => {
+    const frames = [
+      { id: "up", outSubdir: "u", promptVariant: "" },
+      { id: "down", outSubdir: "d", promptVariant: "" },
+      { id: "left", outSubdir: "l", promptVariant: "" },
+      { id: "right", outSubdir: "r", promptVariant: "" },
+    ];
+    const { buffer, metadata } = await generateSheet(frames, {
+      tileSize: 100,
+      sheetLayout: DPAD_SHEET_LAYOUT,
+    });
+    expect(metadata.width).toBe(400);
+    expect(metadata.height).toBe(100);
+    const sheet = PNG.sync.read(buffer);
+    expect(sheet.width).toBe(400);
+    expect(sheet.height).toBe(100);
   });
 
   it("exports pointInTriangle consistent with raster", () => {

@@ -28,8 +28,11 @@ export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 /** Per-tile generate with **FLUX Control LoRA Canny** + mock-triangle control mask (`control-image.mjs`). */
 export const RECIPE_VERSION_PER_TILE_CONTROL = "v6-control-canny";
 
-/** Bump when sheet fal + crop + chroma contract changes. */
+/** Bump when sheet fal + crop + chroma contract changes (plain flux/dev sheet, no control image). */
 export const RECIPE_VERSION_SHEET = "v13-frames-chroma";
+
+/** Sheet generate with **FLUX Control LoRA Canny** + composite mock triangle mask (e.g. dpad 1×4). */
+export const RECIPE_VERSION_SHEET_CONTROL = "v14-1x4-control-chroma";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; controlCanny?: boolean }} ctx
@@ -43,7 +46,9 @@ export function buildRecipeId(ctx) {
   }
   const strategy = ctx.strategy;
   if (mode === "generate" && strategy === "sheet") {
-    return `${base}-sheet-${RECIPE_VERSION_SHEET}`;
+    const useControl = ctx.controlCanny !== false;
+    const ver = useControl ? RECIPE_VERSION_SHEET_CONTROL : RECIPE_VERSION_SHEET;
+    return `${base}-sheet-${ver}`;
   }
   if (mode === "generate" && strategy === "per-tile") {
     const useControl = ctx.controlCanny !== false;
@@ -54,12 +59,13 @@ export function buildRecipeId(ctx) {
 }
 
 /**
- * @param {{ mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; endpoint: string | null; sheetSize: number; controlCanny?: boolean }} p
+ * @param {{ mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; endpoint: string | null; sheetWidth: number; sheetHeight: number; controlCanny?: boolean }} p
  */
 function buildWorkflowLabel(p) {
   if (p.mode === "mock") return "mock (triangles)";
   if (p.mode === "generate" && p.strategy === "sheet") {
-    return `fal sheet (${p.endpoint}, ${p.sheetSize}px → crop)`;
+    const tag = p.controlCanny ? "control-canny + mock mask" : "txt2img";
+    return `fal sheet (${p.endpoint}, ${p.sheetWidth}×${p.sheetHeight}px, ${tag} → crop)`;
   }
   if (p.mode === "generate" && p.strategy === "per-tile") {
     if (p.controlCanny) {
@@ -76,7 +82,8 @@ function buildWorkflowLabel(p) {
  *   strategy?: 'per-tile' | 'sheet';
  *   chromaKeyHex: string;
  *   tileSize: number;
- *   sheetSize: number;
+ *   sheetWidth: number;
+ *   sheetHeight: number;
  * }} p
  */
 function buildRecipeNote(p) {
@@ -84,7 +91,7 @@ function buildRecipeNote(p) {
     return "Mock: geometry from pngjs triangles, not T2I.";
   }
   if (p.mode === "generate" && p.strategy === "sheet") {
-    return `Real: one fal job at ${p.sheetSize}x${p.sheetSize}, crop to ${p.tileSize}px, then chroma-key (${p.chromaKeyHex}) → RGBA.`;
+    return `Real: one fal job at ${p.sheetWidth}x${p.sheetHeight}, crop to ${p.tileSize}px, then chroma-key (${p.chromaKeyHex}) → RGBA.`;
   }
   return (
     `Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; ` +
@@ -108,6 +115,8 @@ function buildRecipeNote(p) {
  *   imageSize: string;
  *   tileSize: number;
  *   sheetSize?: number;
+ *   sheetWidth?: number;
+ *   sheetHeight?: number;
  *   sheetCropMap?: Record<string, { x: number; y: number }>;
  *   chromaKeyHex: string;
  *   chromaTolerance: number;
@@ -135,6 +144,8 @@ export function buildInitialManifest(input) {
     imageSize,
     tileSize,
     sheetSize = tileSize * 2,
+    sheetWidth,
+    sheetHeight,
     sheetCropMap,
     chromaKeyHex,
     chromaTolerance,
@@ -147,24 +158,28 @@ export function buildInitialManifest(input) {
     specsNaming = null,
   } = input;
 
+  const sheetW = sheetWidth ?? sheetSize;
+  const sheetH = sheetHeight ?? sheetSize;
+
   const workflow = buildWorkflowLabel({
     mode,
     strategy,
     endpoint,
-    sheetSize,
+    sheetWidth: sheetW,
+    sheetHeight: sheetH,
     controlCanny,
   });
 
-  const recipeNote = buildRecipeNote({ mode, strategy, chromaKeyHex, tileSize, sheetSize });
+  const recipeNote = buildRecipeNote({ mode, strategy, chromaKeyHex, tileSize, sheetWidth: sheetW, sheetHeight: sheetH });
 
   /** @type {Record<string, unknown>} */
   const specs = {
     tileSize: { width: tileSize, height: tileSize },
     framePreset: frames.map((f) => ({ id: f.id, outSubdir: f.outSubdir })),
     ...(mode === "generate" && strategy === "sheet" && sheetCropMap
-      ? { sheetSize: { width: sheetSize, height: sheetSize }, sheetCropMap }
+      ? { sheetSize: { width: sheetW, height: sheetH }, sheetCropMap }
       : {}),
-    imageSize: mode === "generate" && strategy === "sheet" ? `${sheetSize}x${sheetSize}` : imageSize,
+    imageSize: mode === "generate" && strategy === "sheet" ? `${sheetW}x${sheetH}` : imageSize,
     naming: specsNaming ?? `${pngBasename} per frame folder (outSubdir)`,
     ...(mode === "generate" && strategy ? { strategy } : {}),
     ...(mode === "generate" && keyRgbForManifest
@@ -174,7 +189,7 @@ export function buildInitialManifest(input) {
             keyRgb: keyRgbForManifest,
             tolerance: chromaTolerance,
             postProcess:
-              "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance",
+              "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance",
           },
           seedPolicyPerTile: strategy === "per-tile" ? "Same integer --seed passed to every fal.subscribe in this batch when --seed is set." : null,
         }

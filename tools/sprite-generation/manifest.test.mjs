@@ -8,6 +8,7 @@ import {
   RECIPE_VERSION_PER_TILE,
   RECIPE_VERSION_PER_TILE_CONTROL,
   RECIPE_VERSION_SHEET,
+  RECIPE_VERSION_SHEET_CONTROL,
   buildInitialManifest,
   buildRecipeId,
 } from "./manifest.mjs";
@@ -30,9 +31,9 @@ const FAL_EXTRAS_TILE = {
 
 const SHEET_CROPS_FIXTURE = {
   up: { x: 0, y: 0 },
-  right: { x: 256, y: 0 },
-  left: { x: 0, y: 256 },
-  down: { x: 256, y: 256 },
+  down: { x: 100, y: 0 },
+  left: { x: 200, y: 0 },
+  right: { x: 300, y: 0 },
 };
 
 const KEY_RGB = { r: 255, g: 0, b: 255 };
@@ -57,9 +58,11 @@ describe("manifest builder", () => {
       controlCanny: false,
     });
     const sheet = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
+    const sheetPlain = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet", controlCanny: false });
     expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
     expect(perTilePlain).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
-    expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
+    expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
+    expect(sheetPlain).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
     expect(perTile).not.toBe(sheet);
   });
 
@@ -73,9 +76,11 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "mock",
       endpoint: null,
-      imageSize: "256x256",
-      tileSize: 256,
-      sheetSize: 512,
+      imageSize: "100x100",
+      tileSize: 100,
+      sheetSize: 400,
+      sheetWidth: 400,
+      sheetHeight: 100,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 42,
@@ -100,7 +105,7 @@ describe("manifest builder", () => {
 
     const specs = /** @type {{ framePreset: { id: string; outSubdir: string }[] }} */ (m.specs);
     expect(specs.framePreset.map((f) => f.id)).toEqual(["up", "down", "left", "right"]);
-    expect(specs.tileSize).toEqual({ width: 256, height: 256 });
+    expect(specs.tileSize).toEqual({ width: 100, height: 100 });
     expect(specs).not.toHaveProperty("strategy");
     expect(specs).not.toHaveProperty("chroma");
     expect(specs.naming).toBe("dpad.png per frame folder (outSubdir)");
@@ -125,9 +130,11 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "mock",
       endpoint: null,
-      imageSize: "256x256",
-      tileSize: 256,
-      sheetSize: 512,
+      imageSize: "100x100",
+      tileSize: 100,
+      sheetSize: 400,
+      sheetWidth: 400,
+      sheetHeight: 100,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 42,
@@ -155,9 +162,11 @@ describe("manifest builder", () => {
       strategy: "per-tile",
       controlCanny: true,
       endpoint: "fal-ai/flux-control-lora-canny",
-      imageSize: "256x256",
-      tileSize: 256,
-      sheetSize: 512,
+      imageSize: "100x100",
+      tileSize: 100,
+      sheetSize: 400,
+      sheetWidth: 400,
+      sheetHeight: 100,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 42,
@@ -186,7 +195,7 @@ describe("manifest builder", () => {
     expect(specs.chroma.keyHex).toBe("#FF00FF");
   });
 
-  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet", () => {
+  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (control-canny strip)", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const m = buildInitialManifest({
       kind: "dpad_tile_set",
@@ -196,63 +205,66 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      endpoint: "fal-ai/flux/dev",
-      imageSize: "512x512",
-      tileSize: 256,
-      sheetSize: 512,
+      controlCanny: true,
+      endpoint: "fal-ai/flux-control-lora-canny",
+      imageSize: "400x100",
+      tileSize: 100,
+      sheetSize: 400,
+      sheetWidth: 400,
+      sheetHeight: 100,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
-      chromaTolerance: 42,
+      chromaTolerance: 72,
       keyRgbForManifest: KEY_RGB,
-      falExtrasPerTile: FAL_EXTRAS_TILE,
+      falExtrasPerTile: null,
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
       pngBasename: "dpad.png",
     });
 
-    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
+    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
     expect(m.workflow).toContain("fal sheet");
-    expect(m.workflow).toContain("512px");
+    expect(m.workflow).toContain("400×100");
 
     const gr = /** @type {{ falExtrasPerTile: null; falExtrasSheet: object }} */ (m.generationRecipe);
     expect(gr.falExtrasPerTile).toBeNull();
     expect(gr.falExtrasSheet).toEqual(FAL_EXTRAS_TILE);
-    expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("512");
+    expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("400x100");
 
-    const specs = /** @type {{ sheetSize: { width: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
+    const specs = /** @type {{ sheetSize: { width: number; height: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
     expect(specs.strategy).toBe("sheet");
-    expect(specs.sheetSize).toEqual({ width: 512, height: 512 });
+    expect(specs.sheetSize).toEqual({ width: 400, height: 100 });
     expect(specs.sheetCropMap).toEqual(SHEET_CROPS_FIXTURE);
-    expect(specs.imageSize).toBe("512x512");
+    expect(specs.imageSize).toBe("400x100");
   });
 
   it("structural field names align with checked-in public/art/dpad/manifest.json sample", async () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const sample = JSON.parse(await readFile(join(__dirname, "../../public/art/dpad/manifest.json"), "utf8"));
 
-    const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "per-tile" });
+    const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "mock" });
     const built = buildInitialManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
       createdAt: CREATED_AT,
       frames: DPAD_FRAMES_FIXTURE,
-      mode: "generate",
-      strategy: "per-tile",
-      controlCanny: true,
-      endpoint: "fal-ai/flux-control-lora-canny",
-      imageSize: "256x256",
-      tileSize: 256,
-      sheetSize: 512,
+      mode: "mock",
+      endpoint: null,
+      imageSize: "100x100",
+      tileSize: 100,
+      sheetSize: 400,
+      sheetWidth: 400,
+      sheetHeight: 100,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
-      chromaTolerance: 42,
-      keyRgbForManifest: KEY_RGB,
+      chromaTolerance: 72,
+      keyRgbForManifest: null,
       falExtrasPerTile: FAL_EXTRAS_TILE,
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
-      provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      provenance: { tool: "tools/dpad-workflow.mjs", version: 4 },
       pngBasename: "dpad.png",
     });
 
@@ -266,11 +278,15 @@ describe("manifest builder", () => {
     const builtGrKeys = Object.keys(/** @type {object} */ (built.generationRecipe)).sort();
     expect(builtGrKeys).toEqual(sampleGrKeys);
 
-    expect(Object.keys(/** @type {object} */ (sample.specs.chroma)).sort()).toEqual(
-      Object.keys(/** @type {{ chroma: object }} */ (built.specs).chroma).sort(),
-    );
-    expect(Object.keys(/** @type {object} */ (sample.specs.chroma.keyRgb)).sort()).toEqual(
-      Object.keys(/** @type {{ chroma: { keyRgb: object }} } */ (built.specs).chroma.keyRgb).sort(),
-    );
+    const sampleChroma = /** @type {{ chroma?: object }} */ (sample.specs).chroma;
+    const builtChroma = /** @type {{ chroma?: object }} */ (built.specs).chroma;
+    if (sampleChroma && builtChroma) {
+      expect(Object.keys(sampleChroma).sort()).toEqual(Object.keys(builtChroma).sort());
+      expect(Object.keys(/** @type {object} */ (sampleChroma.keyRgb)).sort()).toEqual(
+        Object.keys(/** @type {object} */ (builtChroma.keyRgb)).sort(),
+      );
+    } else {
+      expect(sampleChroma).toEqual(builtChroma);
+    }
   });
 });

@@ -4,7 +4,7 @@
  * can vary without editing frame lists.
  */
 
-/** @typedef {{ tileSize: number; chromaKeyHex: string; sheetSize?: number }} PromptCtx */
+/** @typedef {{ tileSize: number; chromaKeyHex: string; sheetSize?: number; sheetWidth?: number; sheetHeight?: number }} PromptCtx */
 
 export const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 
@@ -25,20 +25,19 @@ export const DPAD_FRAME_COMPOSITION =
   `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
   `Exactly one filled triangle with three straight sides; the glyph fill is a single solid dark neutral gray (approximately #2A2A2A), not {chromaKeyHex}, not blue-tinted. `;
 
-/** Sheet prompt segments (dpad 2×2 layout). Placeholders: `{sheetSize}`, `{chromaKeyHex}`. */
-export const DPAD_SHEET_STYLE = `2x2 pixel art contact sheet on one {sheetSize}px canvas: four equal panels. `;
+/** Sheet prompt segments (dpad 1×4 horizontal strip). Placeholders: `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}`. */
+export const DPAD_SHEET_STYLE =
+  `1×4 horizontal pixel art HUD strip on one {sheetWidth}×{sheetHeight}px canvas: four equal square panels in a single row. `;
 
 export const DPAD_SHEET_COMPOSITION =
   `Entire image background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients. ` +
   `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not {chromaKeyHex}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. `;
 
 export const DPAD_SHEET_SUBJECT =
-  `Walk clockwise from top-left: ` +
-  `(1) top-left points up, (2) top-right points right, (3) bottom-right points down, (4) bottom-left points left. ` +
-  `Each step the triangle rotates 90 degrees from the previous panel — four distinct orientations, not four copies of the same rotation.`;
+  `Panel order left to right: (1) up, (2) down, (3) left, (4) right — one triangle per panel, four distinct orientations.`;
 
 /**
- * Replace `{tileSize}`, `{sheetSize}`, `{chromaKeyHex}` in a template string.
+ * Replace `{tileSize}`, `{sheetSize}`, `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}` in a template string.
  * @param {string} template
  * @param {PromptCtx} ctx
  */
@@ -46,6 +45,8 @@ export function interpolatePromptTemplate(template, ctx) {
   let s = String(template);
   if (ctx.tileSize !== undefined) s = s.replaceAll("{tileSize}", String(ctx.tileSize));
   if (ctx.sheetSize !== undefined) s = s.replaceAll("{sheetSize}", String(ctx.sheetSize));
+  if (ctx.sheetWidth !== undefined) s = s.replaceAll("{sheetWidth}", String(ctx.sheetWidth));
+  if (ctx.sheetHeight !== undefined) s = s.replaceAll("{sheetHeight}", String(ctx.sheetHeight));
   s = s.replaceAll("{chromaKeyHex}", ctx.chromaKeyHex);
   return s;
 }
@@ -71,14 +72,25 @@ export function buildPrompt({ tileSize, chromaKeyHex, style, composition, subjec
  * Sheet / contact-sheet prompt: style + composition + subject (no separate trailing suffix).
  *
  * @param {object} params
- * @param {number} params.sheetSize — canvas edge length in px (e.g. 512 for 2×2 of 256px tiles)
+ * @param {number} [params.sheetSize] — legacy square canvas edge (used when `sheetWidth`/`sheetHeight` omitted)
+ * @param {number} [params.sheetWidth] — rectangular canvas width (px)
+ * @param {number} [params.sheetHeight] — rectangular canvas height (px)
  * @param {string} [params.chromaKeyHex]
- * @param {string} params.style — may include `{sheetSize}` and `{chromaKeyHex}`
- * @param {string} params.composition — may include `{sheetSize}` and `{chromaKeyHex}`
+ * @param {string} params.style — may include `{sheetWidth}`, `{sheetHeight}`, `{sheetSize}`, `{chromaKeyHex}`
+ * @param {string} params.composition — may include `{chromaKeyHex}`
  * @param {string} params.subject
  */
-export function buildSheetPrompt({ sheetSize, chromaKeyHex, style, composition, subject }) {
+export function buildSheetPrompt({ sheetSize, sheetWidth, sheetHeight, chromaKeyHex, style, composition, subject }) {
   const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
-  const ctx = /** @type {PromptCtx} */ ({ tileSize: sheetSize, sheetSize, chromaKeyHex: bg });
+  const sw = sheetWidth ?? sheetSize;
+  const sh = sheetHeight ?? sheetSize;
+  const ss = sheetSize ?? sw;
+  const ctx = /** @type {PromptCtx} */ ({
+    tileSize: ss,
+    sheetSize: ss,
+    sheetWidth: sw,
+    sheetHeight: sh,
+    chromaKeyHex: bg,
+  });
   return interpolatePromptTemplate(style, ctx) + interpolatePromptTemplate(composition, ctx) + subject;
 }

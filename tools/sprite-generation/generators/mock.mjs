@@ -27,7 +27,7 @@ export function pointInTriangle(p, a, b, c) {
  * @returns {[{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }]}
  */
 export function triangleForDirection(dir, tileSize = 256) {
-  const m = 32;
+  const m = Math.max(4, Math.round((tileSize * 32) / 256));
   const cx = tileSize / 2;
   const cy = tileSize / 2;
   switch (dir) {
@@ -136,7 +136,6 @@ export async function generate(frame, config = {}) {
  */
 export async function generateSheet(frames, config = {}) {
   const tileSize = config.tileSize ?? 256;
-  const sheetSize = tileSize * 2;
   const layout = config.sheetLayout;
   if (!layout) {
     throw new Error(
@@ -144,14 +143,24 @@ export async function generateSheet(frames, config = {}) {
     );
   }
 
-  const png = new PNG({ width: sheetSize, height: sheetSize, colorType: 6 });
-  png.data.fill(0);
-
+  let sheetWidth = 0;
+  let sheetHeight = 0;
   for (const frame of frames) {
     const cell = layout[frame.id];
     if (!cell) {
       throw new Error(`mock generateSheet: missing sheet layout cell for frame id "${frame.id}"`);
     }
+    const x0 = cell.x * tileSize;
+    const y0 = cell.y * tileSize;
+    sheetWidth = Math.max(sheetWidth, x0 + tileSize);
+    sheetHeight = Math.max(sheetHeight, y0 + tileSize);
+  }
+
+  const png = new PNG({ width: sheetWidth, height: sheetHeight, colorType: 6 });
+  png.data.fill(0);
+
+  for (const frame of frames) {
+    const cell = layout[frame.id];
     const { buffer } = await generate(frame, config);
     const tile = PNG.sync.read(buffer);
     if (tile.width !== tileSize || tile.height !== tileSize) {
@@ -162,7 +171,7 @@ export async function generateSheet(frames, config = {}) {
     for (let y = 0; y < tileSize; y++) {
       for (let x = 0; x < tileSize; x++) {
         const si = (tile.width * y + x) << 2;
-        const di = (sheetSize * (y0 + y) + (x0 + x)) << 2;
+        const di = (sheetWidth * (y0 + y) + (x0 + x)) << 2;
         png.data[di] = tile.data[si];
         png.data[di + 1] = tile.data[si + 1];
         png.data[di + 2] = tile.data[si + 2];
@@ -174,8 +183,8 @@ export async function generateSheet(frames, config = {}) {
   return {
     buffer: PNG.sync.write(png),
     metadata: {
-      width: sheetSize,
-      height: sheetSize,
+      width: sheetWidth,
+      height: sheetHeight,
       mode: "mock",
       seed: config.seed,
     },

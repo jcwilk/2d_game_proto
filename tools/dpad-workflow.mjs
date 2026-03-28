@@ -69,6 +69,16 @@ const SHEET_CROPS = {
 /** fal endpoint: pinned to same model as tools/fal-raster-generate.mjs unless --endpoint overrides. */
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
 
+/**
+ * Extra fal input for sheet jobs (`FluxDevInput` in @fal-ai/client — no `negative_prompt` on flux/dev).
+ * Positive-only main prompt avoids attention on forbidden nouns; `acceleration: "none"` prefers quality over speed.
+ */
+const SHEET_FAL_EXTRA_INPUT = {
+  num_inference_steps: 40,
+  guidance_scale: 4.5,
+  acceleration: "none",
+};
+
 /** Grid cell size for png-analyze (8×8 cells on 256²). */
 const QA_SPRITE_W = 32;
 const QA_SPRITE_H = 32;
@@ -279,30 +289,26 @@ async function downloadToFile(url, destPath) {
  * @param {'up'|'down'|'left'|'right'} direction
  */
 function buildGenerationPrompt(direction) {
-  const negatives =
-    "full d-pad, four directions, game controller, gamepad, A B X Y buttons, analog sticks, cables, hands, text, watermark, border, frame, drop shadow, 3d render.";
   return (
-    `Orthographic top-down pixel art UI tile: ONLY the ${direction} segment of a single directional control (one wedge or arrow pointing ${direction}). ` +
-    `Centered, fills the frame edge-to-edge, flat solid colors, no gradients, no other buttons, no controller body, HUD game UI element, crisp pixel edges, 16-bit style. ` +
-    `Negative: ${negatives}`
+    `Flat ${TILE_SIZE}px square pixel art, two solid flat colors only (background + shape), crisp edges, no gradients. ` +
+    `Exactly one filled triangle with three straight sides, centered with large margin; the triangle points ${direction}. ` +
+    `No other shapes, no text, no frames, no shadows, no hardware.`
   );
 }
 
 /**
  * One fal job covering all four directions in a fixed 2×2 layout — shared latent/style.
  * Cropping is deterministic in code (see SHEET_CROPS).
+ * Empirically: strong style lock; FLUX may repeat the same triangle rotation in every cell.
+ * For reliable per-direction glyphs, prefer `--strategy per-tile` + `buildGenerationPrompt`.
  */
 function buildSheetPrompt() {
   return (
-    `Single square pixel art HUD image, exactly ${SHEET_SIZE} by ${SHEET_SIZE} pixels, ` +
-    `strictly divided into four equal quadrants in a 2x2 grid (no border lines, no gaps, seamless). ` +
-    `Top-left quadrant: ONLY an upward-pointing directional wedge or arrow for “up”. ` +
-    `Top-right quadrant: ONLY a rightward-pointing wedge or arrow. ` +
-    `Bottom-left quadrant: ONLY a leftward-pointing wedge or arrow. ` +
-    `Bottom-right quadrant: ONLY a downward-pointing wedge or arrow. ` +
-    `Use the SAME palette, stroke weight, and pixel style in all four quadrants; flat colors, 16-bit game UI look, orthographic top-down. ` +
-    `No full D-pad cross, no gamepad, no face buttons, no text, no labels. ` +
-    `Negative: full controller, gamepad body, A B X Y, analog sticks, cables, hands, watermark, photorealistic, 3d render, drop shadow.`
+    `2x2 pixel art contact sheet on one ${SHEET_SIZE}px canvas: four equal panels. ` +
+    `One solid filled triangle per panel (same triangle ink color everywhere); flat matte background; triangles small, centered, generous margin; no text, no shadows, no hardware, no pinwheel. ` +
+    `Walk clockwise around the grid starting at top-left: ` +
+    `(1) top-left points up, (2) top-right points right, (3) bottom-right points down, (4) bottom-left points left. ` +
+    `Each step the triangle rotates 90 degrees from the previous panel — four distinct orientations, not four copies of the same rotation.`
   );
 }
 
@@ -423,10 +429,11 @@ function extractPngRegion(src, x0, y0, w, h) {
  * @param {string} params.imageSize
  * @param {number|undefined} params.seed
  * @param {boolean} params.quiet
+ * @param {Record<string, unknown>|undefined} params.falExtraInput  Merged into fal input (e.g. guidance_scale).
  * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
  */
 async function falSubscribeToBuffer(params) {
-  const { endpoint, prompt, imageSize, seed, quiet } = params;
+  const { endpoint, prompt, imageSize, seed, quiet, falExtraInput } = params;
 
   const image_size = parseImageSize(imageSize);
   const input = {
@@ -434,6 +441,7 @@ async function falSubscribeToBuffer(params) {
     image_size,
     num_images: 1,
     output_format: "png",
+    ...(falExtraInput && typeof falExtraInput === "object" ? falExtraInput : {}),
   };
   if (seed !== undefined) {
     input.seed = seed;
@@ -562,7 +570,7 @@ async function main() {
     opts.mode === "mock"
       ? "dpad-workflow-mock-v1"
       : opts.strategy === "sheet"
-        ? "dpad-workflow-fal-sheet-v1"
+        ? "dpad-workflow-fal-sheet-v12"
         : "dpad-workflow-fal-per-tile-v1";
 
   log("INFO", "init", "starting", {
@@ -707,6 +715,7 @@ async function main() {
         imageSize: `${SHEET_SIZE}x${SHEET_SIZE}`,
         seed: opts.seed,
         quiet,
+        falExtraInput: opts.endpoint === DEFAULT_FAL_ENDPOINT ? SHEET_FAL_EXTRA_INPUT : undefined,
       });
       timings.sheetFal = wallMs;
       if (opts.keepSheet) {

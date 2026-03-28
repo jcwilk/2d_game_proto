@@ -3,7 +3,7 @@
     "width": 256,
     "height": 256
   },
-  "fileSizeBytes": 62512,
+  "fileSizeBytes": 36890,
   "alpha": {
     "fullyTransparentPercent": 0,
     "fullyOpaquePercent": 100,
@@ -281,7 +281,7 @@
     "divisible": true,
     "columns": 8,
     "rows": 8,
-    "meanVerticalBoundaryEdge": 3.4989938616071425,
-    "meanHorizontalBoundaryEdge": 2.006839508928571
+    "meanVerticalBoundaryEdge": 0.68232109375,
+    "meanHorizontalBoundaryEdge": 0.6447248883928566
   }
 }

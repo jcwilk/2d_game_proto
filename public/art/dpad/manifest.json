@@ -1,7 +1,7 @@
 {
   "kind": "dpad_tile_set",
-  "recipeId": "dpad-workflow-fal-sheet-v1",
-  "createdAt": "2026-03-28T12:50:34.329Z",
+  "recipeId": "dpad-workflow-fal-sheet-v12",
+  "createdAt": "2026-03-28T13:25:48.926Z",
   "workflow": "fal sheet (fal-ai/flux/dev, 512px → crop)",
   "specs": {
     "tileSize": {
@@ -52,32 +52,32 @@
   },
   "generationResults": {
     "up": {
-      "seed": 54207449,
-      "wallMs": 1653,
+      "seed": 1075969354,
+      "wallMs": 1694,
       "fromSheet": true,
       "cropOrigin": "0,0"
     },
     "down": {
-      "seed": 54207449,
-      "wallMs": 1653,
+      "seed": 1075969354,
+      "wallMs": 1694,
       "fromSheet": true,
       "cropOrigin": "256,256"
     },
     "left": {
-      "seed": 54207449,
-      "wallMs": 1653,
+      "seed": 1075969354,
+      "wallMs": 1694,
       "fromSheet": true,
       "cropOrigin": "0,256"
     },
     "right": {
-      "seed": 54207449,
-      "wallMs": 1653,
+      "seed": 1075969354,
+      "wallMs": 1694,
       "fromSheet": true,
       "cropOrigin": "256,0"
     },
     "_sheet": {
-      "seed": 54207449,
-      "wallMs": 1653,
+      "seed": 1075969354,
+      "wallMs": 1694,
       "strategy": "sheet"
     }
   }

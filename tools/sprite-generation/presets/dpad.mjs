@@ -19,11 +19,16 @@
  *
  * **`generatorConfig`** — Merged via **`resolveGeneratorConfig`** into mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — generate mode only: ordered postprocess ids (**`POSTPROCESS_REGISTRY`** in **`../pipeline-stages.mjs`**); mock mode does not run these. Default when omitted: **`['chromaKey']`**.
  *
+ * ## Determinism vs T2I / chroma variance
+ *
+ * **Deterministic:** **`TILE_SIZE`**, **`SHEET_SIZE`**, **`SHEET_CROPS`**, **`QA_SPRITE_W`** / **`QA_SPRITE_H`** — sheet layout, crop coords, and png-analyze grid are fixed by these constants. **Variable:** model pixels and chroma/tolerance effects on keyed output. See **`../README.md`** and **`../pipeline.mjs`** (postprocess + **`runPngAnalyzeBridge`**).
+ *
  * ## `recipeId`
  *
  * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Use **`recipeIdForDpad(mode, strategy)`** to obtain the same id outside the pipeline. Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation semantics change.
  *
- * @see `../pipeline.mjs` — orchestration
+ * @see `../README.md` — deterministic geometry vs stochastic T2I/chroma
+ * @see `../pipeline.mjs` — orchestration, postprocess, QA analyze
  * @see `../manifest.mjs` — `buildRecipeId`, recipe version slugs
  */
 

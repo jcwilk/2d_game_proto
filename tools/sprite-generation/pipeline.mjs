@@ -6,6 +6,13 @@
  * Supports **per-tile** (one `generate()` per frame) and **sheet** (`generateSheet()` then
  * deterministic crops using **`preset.sheet.size`** and **`preset.sheet.crops`**).
  *
+ * **Determinism vs variance:** sheet/tile **geometry** (crops, dimensions) and the **QA cell grid**
+ * (`preset.qa`) are deterministic. **T2I** output and **chroma** postprocess (tolerance, heuristics) are
+ * stochastic — see **`README.md`** in this directory.
+ *
+ * @see `README.md` — T2I/chroma variance vs enforced grid geometry
+ * @see `pipeline-stages.mjs` — `applyPostprocessPipeline`, chroma and other postprocess steps
+ * @see `qa/analyze-bridge.mjs` — QA png-analyze bridge (`runPngAnalyzeBridge`)
  * @see `generators/types.mjs` — generator contracts
  * @see `presets/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  */

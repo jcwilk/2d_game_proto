@@ -1,6 +1,6 @@
 ---
 id: 2gp-cgn7
-status: open
+status: closed
 deps: [2gp-6iay]
 links: []
 created: 2026-03-28T21:34:23Z
@@ -27,3 +27,19 @@ Add or extend tests under `tools/sprite-generation/` or documented QA steps; avo
 - Manual: numbered steps + measurable criteria + sign-off role; not vague “looks OK.”
 - Covers all four directions (up/down/left/right).
 
+
+## Notes
+
+**2026-03-28T21:41:33Z**
+
+**Closure (2gp-cgn7):** **Automated** regression QA (preferred path).
+
+- **Where:** `tools/sprite-generation/presets/dpad-distinguishability.test.mjs` (Vitest).
+- **Pass/fail:** `npm test` (repo root); no separate sprite-gen script added.
+- **What:** Deterministic stages only (no fal/chroma golden hashes):
+  1. Mock `generate()` at preset `TILE_SIZE` — pairwise **SHA-256** of PNG buffers differ for all six direction pairs (up/down/left/right).
+  2. `renderControlMaskBuffer` + `triangleForDirection` at same tile size — pairwise buffer hashes differ (Canny control geometry).
+  3. **Measurable metric:** luminance-weighted centroid of opaque pixels — Manhattan separation ≥ 8 px between every pair (guards against accidental identical geometry).
+- **CI:** Same as other `tools/sprite-generation/*.test.mjs` tests.
+
+Sign-off: automated; maintainers rely on green `npm test` in CI/local.

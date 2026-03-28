@@ -1,6 +1,6 @@
 ---
 id: 2gp-eaer
-status: open
+status: closed
 deps: [2gp-swz6, 2gp-1voe]
 links: []
 created: 2026-03-28T03:23:57Z

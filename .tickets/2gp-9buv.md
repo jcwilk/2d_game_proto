@@ -1,6 +1,6 @@
 ---
 id: 2gp-9buv
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T03:23:56Z
@@ -24,3 +24,9 @@ CI ordering for `typecheck` → `test` → `build` is owned by **Integrate typec
 
 1) Rollup above is satisfied at closure. 2) Closure notes reference how CI runs tests (workflow path or `./tk` link).
 
+
+## Notes
+
+**2026-03-28T04:07:22Z**
+
+CI: .github/workflows/pages.yml runs npm ci, typecheck, npm test (Vitest), build (VITE_BASE). Playwright test:e2e optional locally; not in CI. README §Tests.

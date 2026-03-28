@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,
+  RECIPE_VERSION_PER_TILE_CONTROL,
   RECIPE_VERSION_SHEET,
   buildInitialManifest,
   buildRecipeId,
@@ -49,8 +50,15 @@ describe("manifest builder", () => {
 
   it("buildRecipeId: per-tile vs sheet produce distinct stable ids", () => {
     const perTile = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "per-tile" });
+    const perTilePlain = buildRecipeId({
+      preset: "dpad_four_way",
+      mode: "generate",
+      strategy: "per-tile",
+      controlCanny: false,
+    });
     const sheet = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
-    expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
+    expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
+    expect(perTilePlain).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
     expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
     expect(perTile).not.toBe(sheet);
   });
@@ -145,7 +153,8 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "per-tile",
-      endpoint: "fal-ai/flux/dev",
+      controlCanny: true,
+      endpoint: "fal-ai/flux-control-lora-canny",
       imageSize: "256x256",
       tileSize: 256,
       sheetSize: 512,
@@ -160,12 +169,13 @@ describe("manifest builder", () => {
       pngBasename: "dpad.png",
     });
 
-    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
+    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
+    expect(String(m.workflow)).toContain("control-canny");
     const gr = /** @type {{ mode: string; endpoint: string; seedRequested: number; falExtrasPerTile: object; falExtrasSheet: null }} */ (
       m.generationRecipe
     );
     expect(gr.mode).toBe("generate");
-    expect(gr.endpoint).toBe("fal-ai/flux/dev");
+    expect(gr.endpoint).toBe("fal-ai/flux-control-lora-canny");
     expect(gr.seedRequested).toBe(1084367636);
     expect(gr.falExtrasPerTile).toEqual(FAL_EXTRAS_TILE);
     expect(gr.falExtrasSheet).toBeNull();
@@ -230,7 +240,8 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "per-tile",
-      endpoint: "fal-ai/flux/dev",
+      controlCanny: true,
+      endpoint: "fal-ai/flux-control-lora-canny",
       imageSize: "256x256",
       tileSize: 256,
       sheetSize: 512,

@@ -22,14 +22,17 @@
 /** Bump a slug when mock path semantics (frames list, mock generator contract) change. */
 export const RECIPE_VERSION_MOCK = "v2-frames";
 
-/** Bump when per-tile fal + chroma postprocess contract changes. */
+/** Bump when per-tile fal + chroma postprocess contract changes (plain txt2img, no control image). */
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
+
+/** Per-tile generate with **FLUX Control LoRA Canny** + mock-triangle control mask (`control-image.mjs`). */
+export const RECIPE_VERSION_PER_TILE_CONTROL = "v6-control-canny";
 
 /** Bump when sheet fal + crop + chroma contract changes. */
 export const RECIPE_VERSION_SHEET = "v13-frames-chroma";
 
 /**
- * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx
+ * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; controlCanny?: boolean }} ctx
  * @returns {string}
  */
 export function buildRecipeId(ctx) {
@@ -43,13 +46,15 @@ export function buildRecipeId(ctx) {
     return `${base}-sheet-${RECIPE_VERSION_SHEET}`;
   }
   if (mode === "generate" && strategy === "per-tile") {
-    return `${base}-per-tile-${RECIPE_VERSION_PER_TILE}`;
+    const useControl = ctx.controlCanny !== false;
+    const ver = useControl ? RECIPE_VERSION_PER_TILE_CONTROL : RECIPE_VERSION_PER_TILE;
+    return `${base}-per-tile-${ver}`;
   }
   throw new Error(`buildRecipeId: need strategy when mode is generate (got ${String(strategy)})`);
 }
 
 /**
- * @param {{ mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; endpoint: string | null; sheetSize: number }} p
+ * @param {{ mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; endpoint: string | null; sheetSize: number; controlCanny?: boolean }} p
  */
 function buildWorkflowLabel(p) {
   if (p.mode === "mock") return "mock (triangles)";
@@ -57,6 +62,9 @@ function buildWorkflowLabel(p) {
     return `fal sheet (${p.endpoint}, ${p.sheetSize}px → crop)`;
   }
   if (p.mode === "generate" && p.strategy === "per-tile") {
+    if (p.controlCanny) {
+      return `fal per-tile control-canny (${p.endpoint}) + mock triangle mask`;
+    }
     return `fal per-tile (${p.endpoint})`;
   }
   return "mock (triangles)";
@@ -95,6 +103,7 @@ function buildRecipeNote(p) {
  *   frames: Array<{ id: string; outSubdir: string }>;
  *   mode: 'mock' | 'generate';
  *   strategy?: 'per-tile' | 'sheet';
+ *   controlCanny?: boolean
  *   endpoint: string | null;
  *   imageSize: string;
  *   tileSize: number;
@@ -121,6 +130,7 @@ export function buildInitialManifest(input) {
     frames,
     mode,
     strategy,
+    controlCanny = false,
     endpoint,
     imageSize,
     tileSize,
@@ -142,6 +152,7 @@ export function buildInitialManifest(input) {
     strategy,
     endpoint,
     sheetSize,
+    controlCanny,
   });
 
   const recipeNote = buildRecipeNote({ mode, strategy, chromaKeyHex, tileSize, sheetSize });

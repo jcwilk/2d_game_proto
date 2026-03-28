@@ -1,9 +1,9 @@
 {
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
-  "recipeId": "dpad-workflow-fal-per-tile-v4-frames-chroma",
-  "createdAt": "2026-03-28T15:56:31.580Z",
-  "workflow": "fal per-tile (fal-ai/flux/dev)",
+  "recipeId": "sprite-gen-dpad_four_way-per-tile-v6-control-canny",
+  "createdAt": "2026-03-28T18:58:17.352Z",
+  "workflow": "fal per-tile control-canny (fal-ai/flux-control-lora-canny) + mock triangle mask",
   "specs": {
     "tileSize": {
       "width": 256,
@@ -38,18 +38,20 @@
         "b": 255
       },
       "tolerance": 42,
-      "postProcess": "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median 1px border RGB + higher tolerance"
+      "postProcess": "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
     },
     "seedPolicyPerTile": "Same integer --seed passed to every fal.subscribe in this batch when --seed is set."
   },
   "generationRecipe": {
     "mode": "generate",
-    "endpoint": "fal-ai/flux/dev",
+    "endpoint": "fal-ai/flux-control-lora-canny",
     "seedRequested": null,
     "falExtrasPerTile": {
-      "num_inference_steps": 40,
-      "guidance_scale": 4.5,
-      "acceleration": "none"
+      "num_inference_steps": 28,
+      "guidance_scale": 3.5,
+      "output_format": "png",
+      "preprocess_depth": false,
+      "control_lora_strength": 0.95
     },
     "falExtrasSheet": null,
     "note": "Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (#FF00FF) → RGBA after each download."
@@ -58,45 +60,49 @@
     {
       "id": "up",
       "outSubdir": "up",
-      "seed": 1084367636,
+      "seed": 16135734872193294000,
       "seedRequested": null,
-      "wallMs": 2226,
+      "wallMs": 276729,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
       "notes": []
     },
     {
       "id": "down",
       "outSubdir": "down",
-      "seed": 1186422369,
+      "seed": 7019681669367725000,
       "seedRequested": null,
-      "wallMs": 1792,
+      "wallMs": 2648,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
-      "notes": [
-        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (down); see down/vision-qa.json. No mirror/flip hack applied."
-      ]
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
+      "notes": []
     },
     {
       "id": "left",
       "outSubdir": "left",
-      "seed": 1874664465,
+      "seed": 451229582341178000,
       "seedRequested": null,
-      "wallMs": 1616,
+      "wallMs": 3336,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
-      "notes": [
-        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (left); see left/vision-qa.json. No mirror/flip hack applied."
-      ]
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
+      "notes": []
     },
     {
       "id": "right",
       "outSubdir": "right",
-      "seed": 624420392,
+      "seed": 11084690433266876000,
       "seedRequested": null,
-      "wallMs": 1562,
+      "wallMs": 3417,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
       "notes": []
     }
   ],
@@ -106,39 +112,43 @@
   },
   "generationResults": {
     "up": {
-      "seed": 1084367636,
+      "seed": 16135734872193294000,
       "seedRequested": null,
-      "wallMs": 2226,
+      "wallMs": 276729,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
       "notes": []
     },
     "down": {
-      "seed": 1186422369,
+      "seed": 7019681669367725000,
       "seedRequested": null,
-      "wallMs": 1792,
+      "wallMs": 2648,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
-      "notes": [
-        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (down); see down/vision-qa.json. No mirror/flip hack applied."
-      ]
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
+      "notes": []
     },
     "left": {
-      "seed": 1874664465,
+      "seed": 451229582341178000,
       "seedRequested": null,
-      "wallMs": 1616,
+      "wallMs": 3336,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
-      "notes": [
-        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (left); see left/vision-qa.json. No mirror/flip hack applied."
-      ]
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
+      "notes": []
     },
     "right": {
-      "seed": 624420392,
+      "seed": 11084690433266876000,
       "seedRequested": null,
-      "wallMs": 1562,
+      "wallMs": 3417,
       "chromaApplied": true,
-      "chromaKeySource": "border-median",
+      "chromaKeySource": "corner-median",
+      "controlCanny": true,
+      "controlMask": "mock triangle silhouette (white on black)",
       "notes": []
     }
   }

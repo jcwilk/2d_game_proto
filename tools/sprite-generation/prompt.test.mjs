@@ -58,7 +58,7 @@ describe("sprite-generation prompt", () => {
     const expected =
       `2x2 pixel art contact sheet on one ${sheetSize}px canvas: four equal panels. ` +
       `Entire image background is one flat solid screen color ${chroma} (pure magenta), full bleed, no gradients. ` +
-      `One solid filled triangle per panel (same triangle ink color everywhere, not ${chroma}); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel. ` +
+      `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not ${chroma}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. ` +
       DPAD_SHEET_SUBJECT;
 
     const got = buildSheetPrompt({

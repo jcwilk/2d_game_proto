@@ -57,8 +57,11 @@ export const TILE_SIZE = 256;
  */
 export const SHEET_SIZE = 512;
 
-/** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
+/** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. Plain txt2img when **`--no-control`**. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
+
+/** Per-tile generate with mock triangle control mask (Canny). See **`../control-image.mjs`**. */
+export const DEFAULT_FAL_CONTROL_ENDPOINT = "fal-ai/flux-control-lora-canny";
 
 /**
  * Extra fal input for sheet and per-tile jobs (`FluxDevInput` — no `negative_prompt` on flux/dev).
@@ -68,6 +71,18 @@ export const DPAD_FAL_EXTRA_INPUT = {
   /** FLUX/dev: small A/B range 3–5; lower can reduce over-stylized color fringing vs SDXL-style CFG. */
   guidance_scale: 4,
   acceleration: "none",
+};
+
+/**
+ * fal input for **`fal-ai/flux-control-lora-canny`** (no `acceleration`; **`preprocess_depth: false`** for Canny edges).
+ * @see https://fal.ai/models/fal-ai/flux-control-lora-canny/api
+ */
+export const DPAD_FAL_CONTROL_EXTRA_INPUT = {
+  num_inference_steps: 28,
+  guidance_scale: 3.5,
+  output_format: "png",
+  preprocess_depth: false,
+  control_lora_strength: 0.95,
 };
 
 /** Grid cell size for png-analyze (8×8 cells on 256²). */
@@ -205,8 +220,12 @@ export function createPreset(opts) {
     },
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
+      controlEndpoint: DEFAULT_FAL_CONTROL_ENDPOINT,
+      /** When **true** (default), per-tile **`mode: generate`** uses control Canny + **`control-image`** mask. CLI **`--no-control`** sets false. */
+      useControlCanny: true,
       falExtrasPerTile: { ...DPAD_FAL_EXTRA_INPUT },
       falExtrasSheet: { ...DPAD_FAL_EXTRA_INPUT },
+      falExtrasControl: { ...DPAD_FAL_CONTROL_EXTRA_INPUT },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },

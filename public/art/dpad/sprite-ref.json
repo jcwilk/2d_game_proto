@@ -1,0 +1,34 @@
+{
+  "frames": {
+    "up": {
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    },
+    "down": {
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    },
+    "left": {
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    },
+    "right": {
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    }
+  },
+  "images": {
+    "up": "art/dpad/up/dpad.png",
+    "down": "art/dpad/down/dpad.png",
+    "left": "art/dpad/left/dpad.png",
+    "right": "art/dpad/right/dpad.png"
+  }
+}

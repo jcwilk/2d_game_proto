@@ -22,8 +22,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 
-import { falSubscribeToBuffer, formatFalClientError, resolveFalCredentials } from "./generators/fal.mjs";
-import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
+import { renderControlMaskBuffer } from "./control-image.mjs";
+import {
+  falSubscribeControlCannyToBuffer,
+  falSubscribeToBuffer,
+  formatFalClientError,
+  pngBufferToDataUri,
+  resolveFalCredentials,
+} from "./generators/fal.mjs";
+import { generate as mockGenerate, generateSheet as mockGenerateSheet, triangleForDirection } from "./generators/mock.mjs";
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
@@ -76,6 +83,7 @@ function maskSecret(s) {
  * @property {string} [imageSize]  Per-tile fal size, e.g. `256x256`
  * @property {boolean} [keepSheet]  Write `sheet.png` under `outBase` (sheet strategy).
  * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
+ * @property {boolean} [useControlCanny]  Per-tile generate: use **`fal-ai/flux-control-lora-canny`** + mock triangle mask (default **true** when preset has **`controlEndpoint`**; set **false** for plain **`fal-ai/flux/dev`**).
  */
 
 /**
@@ -87,7 +95,7 @@ function maskSecret(s) {
  * @property {number} tileSize
  * @property {{ size: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'`.
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string }} prompt
- * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null }} fal
+ * @property {{ defaultEndpoint?: string; controlEndpoint?: string; useControlCanny?: boolean; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; falExtrasControl?: Record<string, unknown> | null }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
@@ -110,10 +118,21 @@ export async function runPipeline(preset, opts) {
   const chromaKeyHex = opts.chromaKeyHex ?? DEFAULT_CHROMA_KEY_HEX;
   const chromaTolerance = opts.chromaTolerance ?? 42;
   const seed = opts.seed;
-  const endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
   const imageSize = opts.imageSize ?? `${preset.tileSize}x${preset.tileSize}`;
   const keepSheet = Boolean(opts.keepSheet);
   const savePreChroma = Boolean(opts.savePreChroma);
+
+  const useControlCanny =
+    opts.useControlCanny !== false &&
+    preset.fal?.useControlCanny !== false &&
+    Boolean(preset.fal?.controlEndpoint) &&
+    mode === "generate" &&
+    strategy === "per-tile";
+
+  let endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
+  if (useControlCanny && preset.fal?.controlEndpoint) {
+    endpoint = preset.fal.controlEndpoint;
+  }
 
   const frames = preset.frames;
   for (const f of frames) {
@@ -130,6 +149,7 @@ export async function runPipeline(preset, opts) {
     preset: preset.presetId,
     mode,
     ...(mode === "generate" ? { strategy } : {}),
+    ...(mode === "generate" && strategy === "per-tile" ? { controlCanny: useControlCanny } : {}),
   });
 
   const createdAt = new Date().toISOString();
@@ -142,6 +162,7 @@ export async function runPipeline(preset, opts) {
     frameCount: frames.length,
     dryRun,
     endpoint: mode === "generate" ? endpoint : null,
+    useControlCanny: mode === "generate" && strategy === "per-tile" ? useControlCanny : undefined,
   });
 
   if (dryRun) {
@@ -236,6 +257,11 @@ export async function runPipeline(preset, opts) {
           : undefined,
     });
   } else {
+    const falExtrasPerTileRun = useControlCanny
+      ? preset.fal?.falExtrasControl ?? undefined
+      : endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)
+        ? preset.fal?.falExtrasPerTile ?? undefined
+        : undefined;
     await runGeneratePerTilePath({
       preset,
       generationResultsById,
@@ -247,10 +273,8 @@ export async function runPipeline(preset, opts) {
       imageSize,
       quiet,
       savePreChroma,
-      falExtras:
-        endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)
-          ? preset.fal?.falExtrasPerTile ?? undefined
-          : undefined,
+      useControlCanny,
+      falExtras: falExtrasPerTileRun,
     });
   }
 
@@ -296,8 +320,12 @@ export async function runPipeline(preset, opts) {
       chromaKeyHex,
       chromaTolerance,
       keyRgbForManifest,
-      falExtrasPerTile: preset.fal?.falExtrasPerTile ?? null,
+      falExtrasPerTile:
+        mode === "generate" && strategy === "per-tile" && useControlCanny
+          ? preset.fal?.falExtrasControl ?? null
+          : preset.fal?.falExtrasPerTile ?? null,
       falExtrasSheet: preset.fal?.falExtrasSheet ?? null,
+      controlCanny: mode === "generate" && strategy === "per-tile" ? useControlCanny : false,
       seed: seed ?? null,
       provenance: preset.provenance,
       pngBasename: pngBasename(preset),
@@ -473,6 +501,7 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
  * @param {string} p.endpoint
  * @param {boolean} p.quiet
  * @param {boolean} [p.savePreChroma]
+ * @param {boolean} [p.useControlCanny]
  * @param {Record<string, unknown>} [p.falExtras]
  */
 async function runGeneratePerTilePath({
@@ -486,6 +515,7 @@ async function runGeneratePerTilePath({
   imageSize,
   quiet,
   savePreChroma = false,
+  useControlCanny = false,
   falExtras,
 }) {
   const pngName = pngBasename(preset);
@@ -506,17 +536,43 @@ async function runGeneratePerTilePath({
     });
     log("INFO", "prompt", `built per-tile prompt [${frame.id}]`, { chars: text.length });
 
-    log("INFO", `tile:${frame.id}`, "begin fal generate", { outPng });
+    log("INFO", `tile:${frame.id}`, "begin fal generate", { outPng, useControlCanny });
     const t0 = Date.now();
-    const { buffer, seed: outSeed, wallMs } = await falSubscribeToBuffer({
-      endpoint,
-      prompt: text,
-      imageSize,
-      seed,
-      quiet,
-      falExtraInput: falExtras,
-      log,
-    });
+    let buffer;
+    let outSeed;
+    let wallMs;
+    if (useControlCanny) {
+      const dir = /** @type {'up' | 'down' | 'left' | 'right'} */ (frame.id);
+      const vertices = triangleForDirection(dir, tileSize);
+      const controlBuf = renderControlMaskBuffer({ tileSize, vertices });
+      const controlUrl = pngBufferToDataUri(controlBuf);
+      const gen = await falSubscribeControlCannyToBuffer({
+        endpoint,
+        prompt: text,
+        imageSize,
+        seed,
+        quiet,
+        falExtraInput: falExtras,
+        controlImageUrl: controlUrl,
+        log,
+      });
+      buffer = gen.buffer;
+      outSeed = gen.seed;
+      wallMs = gen.wallMs;
+    } else {
+      const gen = await falSubscribeToBuffer({
+        endpoint,
+        prompt: text,
+        imageSize,
+        seed,
+        quiet,
+        falExtraInput: falExtras,
+        log,
+      });
+      buffer = gen.buffer;
+      outSeed = gen.seed;
+      wallMs = gen.wallMs;
+    }
     if (savePreChroma) {
       const rawName = pngName.replace(/\.png$/i, "") + "-pre-chroma.png";
       const rawPath = join(folder, rawName);
@@ -536,6 +592,7 @@ async function runGeneratePerTilePath({
       wallMs: timings[frame.id],
       chromaApplied,
       chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
+      ...(useControlCanny ? { controlCanny: true, controlMask: "mock triangle silhouette (white on black)" } : {}),
       notes: [],
     };
     log("INFO", `tile:${frame.id}`, "fal PNG + chroma saved", generationResultsById[frame.id]);

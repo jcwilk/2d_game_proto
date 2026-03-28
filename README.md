@@ -27,4 +27,4 @@ From the repo root:
 ./tk help
 ```
 
-Create `.env` from `.env.example` if you use tools that need API keys or path overrides.
+Copy **`.env.example`** to **`.env`** when you need local API keys or path overrides. For the AI pipeline, set **`FAL_KEY`** and **`OPENAI_API_KEY`** as described in **`.cursor/plans/project-implementation-deep-dive.md`** §E.0.

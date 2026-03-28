@@ -1,6 +1,6 @@
 ---
 id: 2gp-mzk3
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:04Z
@@ -20,7 +20,7 @@ Extract from **`tools/dpad-workflow.mjs`** ~**496–628** into pure-buffer modul
 
 ## Acceptance criteria
 
-- [ ] **Vitest** tests live under **`tools/sprite-generation/postprocess/*.test.mjs`** (included by existing **`tools/**/*.test.mjs`** config).
-- [ ] **No live API** and **no calls to generators**; inputs are synthetic buffers only.
-- [ ] Tests cover: chroma match path, **border-median / fallback** path, and **invalid crop bounds** (error behavior preserved vs monolith).
-- [ ] **Design note** in PR/ticket: functions remain **pure** (buffer in → buffer/stats out).
+- [x] **Vitest** tests live under **`tools/sprite-generation/postprocess/*.test.mjs`** (included by existing **`tools/**/*.test.mjs`** config).
+- [x] **No live API** and **no calls to generators**; inputs are synthetic buffers only.
+- [x] Tests cover: chroma match path, **border-median / fallback** path, and **invalid crop bounds** (error behavior preserved vs monolith).
+- [x] **Design note** in PR/ticket: functions remain **pure** (buffer in → buffer/stats out).

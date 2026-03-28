@@ -37,6 +37,8 @@ import { PNG } from "pngjs";
 
 import { falSubscribeToBuffer, formatFalClientError, resolveFalCredentials } from "./sprite-generation/generators/fal.mjs";
 import { generate as mockGenerate } from "./sprite-generation/generators/mock.mjs";
+import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./sprite-generation/postprocess/chroma-key.mjs";
+import { countFullyTransparentPercent, extractPngRegion } from "./sprite-generation/postprocess/png-region.mjs";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -93,8 +95,6 @@ const PER_TILE_FAL_EXTRA_INPUT = SHEET_FAL_EXTRA_INPUT;
  */
 const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 const DEFAULT_CHROMA_TOLERANCE = 42;
-/** When the prompt hex misses FLUX drift, border-median key uses at least this tolerance. */
-const CHROMA_FALLBACK_TOLERANCE_MIN = 52;
 
 function parseHexRgb(hex) {
   const s = String(hex).trim();
@@ -354,139 +354,6 @@ function buildSheetPrompt(chromaKeyHex) {
 // ---------------------------------------------------------------------------
 // fal: shared subscribe → buffer (implementation in sprite-generation/generators/fal.mjs)
 // ---------------------------------------------------------------------------
-
-/**
- * @param {import('pngjs').PNG} src
- * @param {number} x0
- * @param {number} y0
- * @param {number} w
- * @param {number} h
- */
-function extractPngRegion(src, x0, y0, w, h) {
-  if (x0 + w > src.width || y0 + h > src.height) {
-    throw new Error(`crop out of bounds: ${x0},${y0} ${w}x${h} vs ${src.width}x${src.height}`);
-  }
-  const dst = new PNG({ width: w, height: h, colorType: src.colorType });
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const sx = x0 + x;
-      const sy = y0 + y;
-      const si = (src.width * sy + sx) << 2;
-      const di = (w * y + x) << 2;
-      dst.data[di] = src.data[si];
-      dst.data[di + 1] = src.data[si + 1];
-      dst.data[di + 2] = src.data[si + 2];
-      dst.data[di + 3] = src.data[si + 3];
-    }
-  }
-  return PNG.sync.write(dst);
-}
-
-/**
- * @param {import('pngjs').PNG} png
- */
-function inferBackgroundKeyFromBorder(png) {
-  const w = png.width;
-  const h = png.height;
-  const rs = [];
-  const gs = [];
-  const bs = [];
-  const push = (x, y) => {
-    const i = (w * y + x) << 2;
-    rs.push(png.data[i]);
-    gs.push(png.data[i + 1]);
-    bs.push(png.data[i + 2]);
-  };
-  for (let x = 0; x < w; x++) {
-    push(x, 0);
-    push(x, h - 1);
-  }
-  for (let y = 1; y < h - 1; y++) {
-    push(0, y);
-    push(w - 1, y);
-  }
-  const median = (arr) => {
-    const s = [...arr].sort((a, b) => a - b);
-    return s[Math.floor(s.length / 2)];
-  };
-  return { r: median(rs), g: median(gs), b: median(bs) };
-}
-
-/**
- * @param {Buffer} pngBuffer
- */
-function countFullyTransparentPercent(pngBuffer) {
-  const png = PNG.sync.read(pngBuffer);
-  let transparent = 0;
-  const n = png.width * png.height;
-  for (let i = 3; i < png.data.length; i += 4) {
-    if (png.data[i] === 0) transparent++;
-  }
-  return (transparent / n) * 100;
-}
-
-/**
- * Deterministic chroma-key: pixels within per-channel RGB tolerance of `keyRgb` → alpha 0;
- * other pixels → opaque RGBA (glyph for HUD overlay).
- *
- * @param {Buffer} pngBuffer
- * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number }} opts
- * @returns {Buffer}
- */
-function applyChromaKeyToPngBuffer(pngBuffer, opts) {
-  const { keyRgb, tolerance } = opts;
-  const png = PNG.sync.read(pngBuffer);
-  const out = new PNG({ width: png.width, height: png.height, colorType: 6 });
-  for (let i = 0; i < png.data.length; i += 4) {
-    const r = png.data[i];
-    const g = png.data[i + 1];
-    const b = png.data[i + 2];
-    const dr = Math.abs(r - keyRgb.r);
-    const dg = Math.abs(g - keyRgb.g);
-    const db = Math.abs(b - keyRgb.b);
-    const match = dr <= tolerance && dg <= tolerance && db <= tolerance;
-    if (match) {
-      out.data[i] = 0;
-      out.data[i + 1] = 0;
-      out.data[i + 2] = 0;
-      out.data[i + 3] = 0;
-    } else {
-      out.data[i] = r;
-      out.data[i + 1] = g;
-      out.data[i + 2] = b;
-      out.data[i + 3] = 255;
-    }
-  }
-  return PNG.sync.write(out);
-}
-
-/**
- * FLUX often drifts from the exact prompt hex; if the primary key removes almost nothing,
- * use median border color as the key (valid when the glyph is inset from edges).
- *
- * @param {Buffer} rawFalPng
- * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number; fallbackTolerance: number }} opts
- * @returns {{ buffer: Buffer; usedPrimaryKey: boolean; keyRgb: { r: number; g: number; b: number } }}
- */
-function chromaKeyWithBorderFallback(rawFalPng, opts) {
-  const { keyRgb, tolerance, fallbackTolerance } = opts;
-  let buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb, tolerance });
-  let usedPrimaryKey = true;
-  let effectiveKey = keyRgb;
-  const pct = countFullyTransparentPercent(buf);
-  if (pct < 0.8) {
-    const png = PNG.sync.read(rawFalPng);
-    const inferred = inferBackgroundKeyFromBorder(png);
-    buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb: inferred, tolerance: fallbackTolerance });
-    usedPrimaryKey = false;
-    effectiveKey = inferred;
-    log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
-      inferred,
-      transparentPercentAfter: countFullyTransparentPercent(buf).toFixed(2),
-    });
-  }
-  return { buffer: buf, usedPrimaryKey, keyRgb: effectiveKey };
-}
 
 // ---------------------------------------------------------------------------
 // QA: png-analyze
@@ -763,11 +630,17 @@ async function main() {
       for (const frame of frames) {
         const { x, y } = SHEET_CROPS[/** @type {keyof typeof SHEET_CROPS} */ (frame.id)];
         const tileBufRaw = extractPngRegion(png, x, y, TILE_SIZE, TILE_SIZE);
-        const { buffer: tileBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(tileBufRaw, {
+        const { buffer: tileBuf, usedPrimaryKey, keyRgb: effectiveChromaKey } = chromaKeyWithBorderFallback(tileBufRaw, {
           keyRgb,
           tolerance: opts.chromaTolerance,
           fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
         });
+        if (!usedPrimaryKey) {
+          log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
+            inferred: effectiveChromaKey,
+            transparentPercentAfter: countFullyTransparentPercent(tileBuf).toFixed(2),
+          });
+        }
         await writeFile(join(OUT_BASE, frame.outSubdir, "dpad.png"), tileBuf);
         pushFrameReport(frame.id, {
           seed,
@@ -809,11 +682,17 @@ async function main() {
           falExtraInput: opts.endpoint === DEFAULT_FAL_ENDPOINT ? PER_TILE_FAL_EXTRA_INPUT : undefined,
           log,
         });
-        const { buffer: outBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(buffer, {
+        const { buffer: outBuf, usedPrimaryKey, keyRgb: effectiveChromaKey } = chromaKeyWithBorderFallback(buffer, {
           keyRgb,
           tolerance: opts.chromaTolerance,
           fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
         });
+        if (!usedPrimaryKey) {
+          log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
+            inferred: effectiveChromaKey,
+            transparentPercentAfter: countFullyTransparentPercent(outBuf).toFixed(2),
+          });
+        }
         await writeFile(outPng, outBuf);
         timings[frame.id] = Date.now() - t0;
         pushFrameReport(frame.id, {

@@ -5,7 +5,8 @@
  * - **`frameKeyRect`** — Top-level **`frames`** matches **`FrameKeyRectManifestJson`**
  *   (`parseFrameKeyRectManifestJson`). Optional **`images`** maps the same keys to
  *   paths under the Vite **`public/`** URL layout (no `public/` prefix), e.g.
- *   **`art/dpad/up/dpad.png`** — same convention as **`publicArtUrl`** in
+ *   **`art/dpad/up/dpad.png`** (basename from preset or **`DEFAULT_TILE_PNG_BASENAME`**) —
+ *   same convention as **`publicArtUrl`** in
  *   **`src/art/atlasLoader.ts`**. Extra keys are ignored by the parser but are
  *   part of the on-disk contract for loaders that pair rects with per-frame files.
  *
@@ -19,6 +20,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 /**
+ * Default per-frame PNG basename when **`spriteRef.pngFilename`** is omitted.
+ * Shared pipeline default (not D-pad–specific); the d-pad preset sets **`pngFilename: 'dpad.png'`**.
+ */
+export const DEFAULT_TILE_PNG_BASENAME = 'tile.png';
+
+/**
  * @typedef {import('./generators/types.mjs').GeneratorFrame} GeneratorFrame
  */
 
@@ -27,7 +34,7 @@ import { dirname, join } from 'node:path';
  * @property {'frameKeyRect'} kind
  * @property {string} [jsonRelativePath='sprite-ref.json']  Written under `outBase`.
  * @property {string} artUrlPrefix  e.g. `art/dpad` (site-root-relative, no leading slash).
- * @property {string} [pngFilename='dpad.png']  Basename in each tile directory.
+ * @property {string} [pngFilename]  Basename in each tile directory; defaults to **`DEFAULT_TILE_PNG_BASENAME`**.
  */
 
 /**
@@ -81,7 +88,7 @@ function buildFrameKeyRectPayload(preset) {
   if (sr.kind !== 'frameKeyRect') {
     throw new Error('sprite-ref: internal kind mismatch');
   }
-  const png = sr.pngFilename ?? 'dpad.png';
+  const png = sr.pngFilename ?? DEFAULT_TILE_PNG_BASENAME;
   const prefix = sr.artUrlPrefix.replace(/\/$/, '');
   /** @type {Record<string, { x: number; y: number; width: number; height: number }>} */
   const frames = {};

@@ -1,6 +1,6 @@
 ---
 id: 2gp-c7tr
-status: open
+status: closed
 deps: [2gp-csxt]
 links: []
 created: 2026-03-28T17:16:51Z

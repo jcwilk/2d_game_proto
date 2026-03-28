@@ -107,6 +107,8 @@ function buildRecipeNote(p) {
  *   falExtrasSheet: Record<string, unknown> | null;
  *   seed?: number | null;
  *   provenance: { tool: string; version: number };
+ *   pngBasename: string;
+ *   specsNaming?: string | null;
  * }} input
  * @returns {Record<string, unknown>}
  */
@@ -131,6 +133,8 @@ export function buildInitialManifest(input) {
     falExtrasSheet,
     seed = null,
     provenance,
+    pngBasename,
+    specsNaming = null,
   } = input;
 
   const workflow = buildWorkflowLabel({
@@ -150,7 +154,7 @@ export function buildInitialManifest(input) {
       ? { sheetSize: { width: sheetSize, height: sheetSize }, sheetCropMap }
       : {}),
     imageSize: mode === "generate" && strategy === "sheet" ? `${sheetSize}x${sheetSize}` : imageSize,
-    naming: "dpad.png per frame folder (outSubdir)",
+    naming: specsNaming ?? `${pngBasename} per frame folder (outSubdir)`,
     ...(mode === "generate" && strategy ? { strategy } : {}),
     ...(mode === "generate" && keyRgbForManifest
       ? {

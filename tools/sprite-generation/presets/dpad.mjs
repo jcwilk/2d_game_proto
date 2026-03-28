@@ -17,7 +17,7 @@
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
  *
- * **`generatorConfig`** / **`postprocessSteps`** — Not used by **`runPipeline`** today; chroma and crops are inlined in the pipeline. Callers may extend the returned object if a future stage consumes them.
+ * **`generatorConfig`** — Passed to mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — reserved; chroma and crops are inlined in the pipeline.
  *
  * ## `recipeId`
  *
@@ -27,6 +27,7 @@
  * @see `../manifest.mjs` — `buildRecipeId`, recipe version slugs
  */
 
+import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import { buildRecipeId } from "../manifest.mjs";
 import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 import {
@@ -203,6 +204,10 @@ export function createPreset(opts) {
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },
+    generatorConfig: {
+      shapeForFrame: defaultDpadShapeForFrame,
+      sheetLayout: DPAD_SHEET_LAYOUT,
+    },
     spriteRef: {
       kind: "frameKeyRect",
       jsonRelativePath: spriteRefJsonRelativePath,

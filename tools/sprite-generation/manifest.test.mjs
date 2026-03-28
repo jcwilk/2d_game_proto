@@ -76,6 +76,7 @@ describe("manifest builder", () => {
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      pngBasename: "dpad.png",
     });
 
     for (const k of requiredTopLevelKeys()) {
@@ -94,6 +95,7 @@ describe("manifest builder", () => {
     expect(specs.tileSize).toEqual({ width: 256, height: 256 });
     expect(specs).not.toHaveProperty("strategy");
     expect(specs).not.toHaveProperty("chroma");
+    expect(specs.naming).toBe("dpad.png per frame folder (outSubdir)");
 
     const gr = /** @type {{ mode: string; endpoint: unknown; falExtrasPerTile: unknown; falExtrasSheet: unknown; note: string }} */ (
       m.generationRecipe
@@ -103,6 +105,34 @@ describe("manifest builder", () => {
     expect(gr.falExtrasPerTile).toBeNull();
     expect(gr.falExtrasSheet).toBeNull();
     expect(gr.note).toContain("Mock:");
+  });
+
+  it("specs.naming is derived from pngBasename unless specsNaming overrides", () => {
+    const recipeId = buildRecipeId({ preset: "other_preset", mode: "mock" });
+    const base = {
+      kind: "tile_set",
+      preset: "other_preset",
+      recipeId,
+      createdAt: CREATED_AT,
+      frames: DPAD_FRAMES_FIXTURE,
+      mode: "mock",
+      endpoint: null,
+      imageSize: "256x256",
+      tileSize: 256,
+      sheetSize: 512,
+      sheetCropMap: SHEET_CROPS_FIXTURE,
+      chromaKeyHex: "#FF00FF",
+      chromaTolerance: 42,
+      keyRgbForManifest: null,
+      falExtrasPerTile: FAL_EXTRAS_TILE,
+      falExtrasSheet: FAL_EXTRAS_TILE,
+      seed: null,
+      provenance: { tool: "test", version: 1 },
+    };
+    const generic = buildInitialManifest({ ...base, pngBasename: "tile.png" });
+    expect(generic.specs.naming).toBe("tile.png per frame folder (outSubdir)");
+    const custom = buildInitialManifest({ ...base, pngBasename: "tile.png", specsNaming: "Custom naming line" });
+    expect(custom.specs.naming).toBe("Custom naming line");
   });
 
   it("per-tile generate manifest: recipeId + generationRecipe fal extras and chroma specs", () => {
@@ -127,6 +157,7 @@ describe("manifest builder", () => {
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: 1084367636,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      pngBasename: "dpad.png",
     });
 
     expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
@@ -167,6 +198,7 @@ describe("manifest builder", () => {
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      pngBasename: "dpad.png",
     });
 
     expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
@@ -210,6 +242,7 @@ describe("manifest builder", () => {
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      pngBasename: "dpad.png",
     });
 
     expect(Object.keys(built).sort()).toEqual(Object.keys(sample).sort());

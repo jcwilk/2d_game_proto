@@ -23,7 +23,7 @@ import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.
 import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./postprocess/chroma-key.mjs";
 import { countFullyTransparentPercent, extractPngRegion } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
-import { writeSpriteRef } from "./sprite-ref.mjs";
+import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
 import { sheetLayoutFromCrops } from "./sheet-layout.mjs";
 
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
@@ -75,6 +75,8 @@ function maskSecret(s) {
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
+ * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock-only: **`shapeForFrame`**, **`sheetLayout`**, etc.; d-pad preset injects D-pad geometry + sheet cell map.
+ * @property {string} [specsNaming]  Optional override for manifest **`specs.naming`** (else derived from resolved PNG basename).
  */
 
 /**
@@ -279,6 +281,8 @@ export async function runPipeline(preset, opts) {
       falExtrasSheet: preset.fal?.falExtrasSheet ?? null,
       seed: seed ?? null,
       provenance: preset.provenance,
+      pngBasename: pngBasename(preset),
+      specsNaming: preset.specsNaming ?? null,
     })
   );
 
@@ -326,9 +330,9 @@ export async function runPipeline(preset, opts) {
 function pngBasename(preset) {
   const sr = preset.spriteRef;
   if (sr && sr.kind === "frameKeyRect") {
-    return sr.pngFilename ?? "dpad.png";
+    return sr.pngFilename ?? DEFAULT_TILE_PNG_BASENAME;
   }
-  return "dpad.png";
+  return DEFAULT_TILE_PNG_BASENAME;
 }
 
 /**
@@ -361,7 +365,11 @@ async function runMockPerTilePath({ preset, generationResultsById, timings, seed
 
     log("INFO", `tile:${frame.id}`, "begin mock generate", { outPng });
     const t0 = Date.now();
-    const { buffer: buf } = await mockGenerate(frame, { tileSize, seed });
+    const { buffer: buf } = await mockGenerate(frame, {
+      ...preset.generatorConfig,
+      tileSize,
+      seed,
+    });
     timings[frame.id] = Date.now() - t0;
     await writeFile(outPng, buf);
     generationResultsById[frame.id] = {
@@ -406,8 +414,13 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
   log("INFO", "sheet", "mock generateSheet + crop", { sheetPx: sheet.size });
   const t0 = Date.now();
   // Pixel crop top-left → mock compositor cells: same grid as extractPngRegion (origins ÷ tileSize).
-  const sheetLayout = sheetLayoutFromCrops(sheet.crops, tileSize);
-  const { buffer } = await mockGenerateSheet(frames, { tileSize, seed, sheetLayout });
+  const sheetLayout = preset.generatorConfig?.sheetLayout ?? sheetLayoutFromCrops(sheet.crops, tileSize);
+  const { buffer } = await mockGenerateSheet(frames, {
+    ...preset.generatorConfig,
+    tileSize,
+    seed,
+    sheetLayout,
+  });
   timings.mockSheet = Date.now() - t0;
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);

@@ -9,7 +9,7 @@ import {
   parseFrameKeyRectManifestJson,
   parseGridFrameKeysManifestJson,
 } from '../../src/art/atlasTypes.ts';
-import { buildSpriteRefPayload, writeSpriteRef } from './sprite-ref.mjs';
+import { buildSpriteRefPayload, DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from './sprite-ref.mjs';
 
 /** D-pad preset: **individual tiles** — **`FrameKeyRectManifestJson`** + **`images`** paths. */
 function dpadTilePreset() {
@@ -63,6 +63,20 @@ function dpadGridPreset() {
 }
 
 describe('sprite-ref', () => {
+  it('frameKeyRect without pngFilename uses DEFAULT_TILE_PNG_BASENAME in image paths', () => {
+    const preset = {
+      id: 'generic',
+      tileSize: 64,
+      frames: [{ id: 'a', outSubdir: 'a', promptVariant: '' }],
+      spriteRef: {
+        kind: 'frameKeyRect',
+        artUrlPrefix: 'art/foo',
+      },
+    };
+    const raw = buildSpriteRefPayload(preset);
+    expect(raw['images']?.['a']).toBe(`art/foo/a/${DEFAULT_TILE_PNG_BASENAME}`);
+  });
+
   it('dpad tile preset: JSON validates with parseFrameKeyRectManifestJson; paths match public/ layout', () => {
     const preset = dpadTilePreset();
     const raw = buildSpriteRefPayload(preset);

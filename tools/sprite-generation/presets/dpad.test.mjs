@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
+import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import {
   createPreset,
   DPAD_FRAMES,
   DPAD_KIND,
   DPAD_PRESET_ID,
+  DPAD_SHEET_LAYOUT,
   recipeIdForDpad,
   SHEET_CROPS,
   SHEET_SIZE,
@@ -29,6 +31,8 @@ describe("presets/dpad", () => {
     expect(p.fal?.falExtrasPerTile).toMatchObject({ acceleration: "none" });
     expect(p.qa.spriteWidth).toBe(32);
     expect(p.qa.spriteHeight).toBe(32);
+    expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);
+    expect(p.generatorConfig?.sheetLayout).toEqual(DPAD_SHEET_LAYOUT);
   });
 
   it("SHEET_CROPS covers every frame id", () => {

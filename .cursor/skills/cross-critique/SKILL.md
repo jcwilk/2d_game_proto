@@ -64,4 +64,3 @@ Each critique Task needs a **self-contained** prompt (critics do **not** see the
 - **Read-only critics** — no ticket closure, commits, or file writes from critique lanes.
 - **Parallelism** — Prefer four Task calls in **one** parent message.
 - **Proportionality** — If the user’s ask is trivial, shrink the context pack; still run all four lanes.
-- **Repo norms** — For product behavior targets, reconciliation respects giterloper **spec → test → code** precedence (`AGENTS.md`).

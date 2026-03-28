@@ -14,7 +14,3 @@
 - Prefer type guards, narrowing, and better type design over type assertions.
 - Avoid `as` in normal flow code. It is not forbidden, but treat it as an exception for practical edge cases when inference cannot reasonably express intent.
 - If you feel forced to use repeated `as` assertions, refactor types first (e.g., introduce better domain types, discriminated unions, helper guards, or generic constraints).
-
-## External retries (git, GitHub)
-
-Transient network and GitHub REST retries live in `lib/retry-external.ts`: bounded attempt counts and jittered backoff. Each retry appends one JSON line to the append-only `logs/giterloper-retry.log` under the resolved product root (`GITERLOPER_PROJECT_ROOT` when set; otherwise the layout rules in `resolveProductRoot`). Typical fields include ISO timestamp, process id, optional `sessionId` and `role` (`cli` / `mcp` / `test`), an operation label, attempt and `maxAttempts`, wait milliseconds, and a short error snippet. If the file cannot be written, the same line is emitted once on stderr. Do not surface retry chatter on MCP or CLI JSON stdout. See epic `git-0kbo` for background.

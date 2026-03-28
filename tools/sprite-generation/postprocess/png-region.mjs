@@ -41,3 +41,35 @@ export function countFullyTransparentPercent(pngBuffer) {
   }
   return (transparent / n) * 100;
 }
+
+/**
+ * Nearest-neighbor resize (pixel-art friendly). Used when fal returns a fixed square (e.g. 512²)
+ * but the preset sheet is rectangular (e.g. 400×100).
+ *
+ * @param {Buffer} pngBuffer
+ * @param {number} targetW
+ * @param {number} targetH
+ * @returns {Buffer}
+ */
+export function resizePngBufferNearest(pngBuffer, targetW, targetH) {
+  const src = PNG.sync.read(pngBuffer);
+  if (src.width === targetW && src.height === targetH) {
+    return pngBuffer;
+  }
+  const dst = new PNG({ width: targetW, height: targetH, colorType: 6 });
+  const sw = src.width;
+  const sh = src.height;
+  for (let y = 0; y < targetH; y++) {
+    for (let x = 0; x < targetW; x++) {
+      const sx = Math.min(sw - 1, Math.floor((x * sw) / targetW));
+      const sy = Math.min(sh - 1, Math.floor((y * sh) / targetH));
+      const si = (sw * sy + sx) << 2;
+      const di = (targetW * y + x) << 2;
+      dst.data[di] = src.data[si];
+      dst.data[di + 1] = src.data[si + 1];
+      dst.data[di + 2] = src.data[si + 2];
+      dst.data[di + 3] = src.data[si + 3];
+    }
+  }
+  return PNG.sync.write(dst);
+}

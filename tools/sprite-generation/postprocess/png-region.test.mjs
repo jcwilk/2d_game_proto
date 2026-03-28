@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { countFullyTransparentPercent, extractPngRegion } from "./png-region.mjs";
+import { countFullyTransparentPercent, extractPngRegion, resizePngBufferNearest } from "./png-region.mjs";
 
 describe("png-region", () => {
   it("countFullyTransparentPercent matches deterministic alpha pattern", () => {
@@ -26,6 +26,28 @@ describe("png-region", () => {
     expect(out.width).toBe(2);
     expect(out.height).toBe(2);
     expect([out.data[0], out.data[1], out.data[2], out.data[3]]).toEqual([1, 2, 3, 255]);
+  });
+
+  it("resizePngBufferNearest maps corners when upscaling 2×2 → 4×4", () => {
+    const png = new PNG({ width: 2, height: 2, colorType: 6 });
+    png.data.fill(0);
+    const set = (x, y, r, g, b) => {
+      const i = (png.width * y + x) << 2;
+      png.data[i] = r;
+      png.data[i + 1] = g;
+      png.data[i + 2] = b;
+      png.data[i + 3] = 255;
+    };
+    set(0, 0, 10, 0, 0);
+    set(1, 0, 20, 0, 0);
+    set(0, 1, 30, 0, 0);
+    set(1, 1, 40, 0, 0);
+    const buf = PNG.sync.write(png);
+    const out = PNG.sync.read(resizePngBufferNearest(buf, 4, 4));
+    expect(out.width).toBe(4);
+    expect(out.height).toBe(4);
+    expect(out.data[0]).toBe(10);
+    expect(out.data[(out.width * 0 + 3) << 2]).toBe(20);
   });
 
   it("extractPngRegion throws the same crop-bounds error as the monolith", () => {

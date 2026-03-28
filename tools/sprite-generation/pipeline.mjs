@@ -35,7 +35,7 @@ import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
 import { applyPostprocessPipeline, resolveGeneratorConfig, resolvePostprocessSteps } from "./pipeline-stages.mjs";
-import { extractPngRegion } from "./postprocess/png-region.mjs";
+import { extractPngRegion, resizePngBufferNearest } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
 import { sheetLayoutFromCrops } from "./sheet-layout.mjs";
@@ -144,8 +144,15 @@ export async function runPipeline(preset, opts) {
     mode === "generate" &&
     strategy === "per-tile";
 
+  const useControlCannySheet =
+    opts.useControlCanny !== false &&
+    preset.fal?.useControlCanny !== false &&
+    Boolean(preset.fal?.controlEndpoint) &&
+    mode === "generate" &&
+    strategy === "sheet";
+
   let endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
-  if (useControlCanny && preset.fal?.controlEndpoint) {
+  if ((useControlCanny || useControlCannySheet) && preset.fal?.controlEndpoint) {
     endpoint = preset.fal.controlEndpoint;
   }
 
@@ -727,13 +734,18 @@ async function runGenerateSheetPath({
   }
 
   timings.sheetFal = wallMs;
+  let png = PNG.sync.read(buffer);
+  if (png.width !== sheetW || png.height !== sheetH) {
+    log("WARN", "sheet", "fal output dimensions differ from requested; resizing to preset sheet size", {
+      got: `${png.width}x${png.height}`,
+      want: `${sheetW}x${sheetH}`,
+    });
+    buffer = resizePngBufferNearest(buffer, sheetW, sheetH);
+    png = PNG.sync.read(buffer);
+  }
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
-    log("INFO", "sheet", "wrote sheet.png (keepSheet, pre-chroma)");
-  }
-  const png = PNG.sync.read(buffer);
-  if (png.width !== sheetW || png.height !== sheetH) {
-    throw new Error(`expected fal output ${sheetW}x${sheetH}, got ${png.width}x${png.height}`);
+    log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops, pre-chroma)");
   }
   for (const frame of frames) {
     const { x, y } = sheet.crops[frame.id];

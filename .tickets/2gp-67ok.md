@@ -1,6 +1,6 @@
 ---
 id: 2gp-67ok
-status: open
+status: closed
 deps: [2gp-awrr, 2gp-edpj]
 links: []
 created: 2026-03-28T03:23:57Z
@@ -21,3 +21,9 @@ Add or update `package.json` `scripts` and `tools/README.md` **together** in the
 
 1) `tools/README.md` documents each analyze/generate command name and the **Node entry file** it runs. 2) `package.json` `scripts` uses **those same names** as keys (closure notes if you rename from examples like `analyze:sprite`). 3) After a normal `npm install`, `npm run` (no script argument) prints the full script list; that list **includes** every name from (2). 4) For each script key from (2), `npm run <key>` executes the path given in `tools/README.md` for that name.
 
+
+## Notes
+
+**2026-03-28T04:08:15Z**
+
+package.json scripts: generate:raster, analyze:png, qa:vision — names match tools/README.md table; each runs the documented Node entry.

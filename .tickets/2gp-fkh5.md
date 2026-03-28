@@ -1,6 +1,6 @@
 ---
 id: 2gp-fkh5
-status: open
+status: closed
 deps: [2gp-04c6, 2gp-edpj]
 links: []
 created: 2026-03-28T03:23:57Z
@@ -21,3 +21,9 @@ Implement under `tools/` (exact filename in closure notes). `OPENAI_VISION_MODEL
 
 1) Vision model is configurable via environment (e.g. `OPENAI_VISION_MODEL`). 2) When **`OPENAI_API_KEY`** is unset, the script **exits 0** and prints a clear **skipped** message **or** `tools/README.md` documents the exact behavior. 3) `rg` (or repo search) shows **no** `openai` package imports and **no** OpenAI client usage under `src/`. 4) `tools/README.md` names the chosen API surface (**Chat Completions** *or* **Responses**, not both) and links OpenAI **data / API** policy for sending pixels to OpenAI (§E.5.1). 5) Closure notes name the API surface and the pinned **model** string, and state that the model supports **vision + structured outputs** together per §E.5.1 (use **web-research** subagent if the model matrix is unclear before closing).
 
+
+## Notes
+
+**2026-03-28T04:08:13Z**
+
+Implemented tools/openai-vision-qa.mjs: Chat Completions (/v1/chat/completions), default model gpt-4o (OPENAI_VISION_MODEL), vision + json_schema strict structured outputs per §E.5.1. Skips with exit 0 when OPENAI_API_KEY unset.

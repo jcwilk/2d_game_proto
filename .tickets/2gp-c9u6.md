@@ -1,6 +1,6 @@
 ---
 id: 2gp-c9u6
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T03:23:56Z
@@ -24,3 +24,9 @@ fal raster scripts, deterministic PNG analysis, optional OpenAI vision; `.env.ex
 
 1) Rollup above is satisfied at closure.
 
+
+## Notes
+
+**2026-03-28T04:08:16Z**
+
+Epic rollup: all children closed. Added openai-vision-qa.mjs, npm scripts (generate:raster, analyze:png, qa:vision), expanded tools/README (roles, loop, observability, bundle checks). .env.example OPENAI_VISION_MODEL placeholder.

@@ -12,7 +12,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:raster": "node tools/fal-raster-generate.mjs",
+    "analyze:png": "node tools/png-analyze.mjs",
+    "qa:vision": "node tools/openai-vision-qa.mjs"
   },
   "devDependencies": {
     "@fal-ai/client": "^1.9.5",

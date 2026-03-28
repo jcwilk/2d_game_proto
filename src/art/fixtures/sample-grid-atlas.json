@@ -1,0 +1,8 @@
+{
+  "grid": {
+    "rows": 2,
+    "columns": 2,
+    "spriteWidth": 32,
+    "spriteHeight": 32
+  }
+}

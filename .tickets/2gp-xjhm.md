@@ -1,6 +1,6 @@
 ---
 id: 2gp-xjhm
-status: open
+status: closed
 deps: [2gp-lo9d]
 links: []
 created: 2026-03-28T03:23:56Z

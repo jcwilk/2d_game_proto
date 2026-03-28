@@ -9,7 +9,7 @@ This note supports D-pad sprite work (see epic **2gp-p4js**): the pipeline reque
 | Before `subscribe()` | **`subscribe() request input (redacted)`** or **`subscribe() control-canny request input (redacted)`** — full serialized `input` after **`redactFalInputForLog`**: `control_lora_image_url` data URIs become a short prefix + payload length; `prompt` becomes `{ length, sha256Hex16 }`; suspicious key names become `"<redacted>"`. |
 | After download | **`subscribe() done`** includes **`requestedImageSize`** (string preset or `{ width, height }` from `parseImageSize`), **`falResponseImagePx`** when the queue result includes `images[0].width` / `.height` (OpenAPI **`Image`**), and **`pngDecodedPx`** from **`readPngBufferDimensions`** — **`PNG.sync.read`** first, else IHDR parse. |
 
-Pipeline consumers (`pipeline.mjs`) are unchanged; the first place dimensions appear after the network round-trip is inside these **`falSubscribe*ToBuffer`** helpers.
+Pipeline consumers (`pipeline.mjs`) apply **`normalizeDecodedSheetToPreset`** when decode ≠ preset, then **`assertPngBufferDimensions`** at named stages (**2gp-6iay**). The first decode after the network round-trip is still logged inside **`falSubscribe*ToBuffer`** helpers.
 
 ## `falExtras` / `falExtraInput` (answer **c**)
 
@@ -43,6 +43,13 @@ FAL_KEY=… node tools/sprite-generation/probe-fal-control-canny-sizes.mjs
 ```
 
 Copy **`requestedImageSize`**, **`falResponseImagePx`**, and **`pngDecodedPx`** from the **`subscribe() done`** logs into the table.
+
+## Invariant: control PNG vs normalized raster (**2gp-6iay**)
+
+- **Checkpoint:** after **`normalizeDecodedSheetToPreset`** (same **2gp-r67u** crop-then-uniform-NN policy for sheet and square per-tile jobs) and **before** **`extractPngRegion`** / chroma.
+- **Sheet:** **`renderControlSheetMaskBuffer`** uses **`sheetWidth`** / **`sheetHeight`** from the preset; **`assertPngBufferDimensions`** labels **`pipeline:control-canny-sheet`** and **`pipeline:raster-after-sheet-normalize`**.
+- **Per-tile:** **`renderControlMaskBuffer`** is **`tileSize`²**; **`assertPngBufferDimensions`** labels **`pipeline:control-canny-tile`** and **`pipeline:raster-after-tile-normalize:`** + frame id.
+- **Tests:** `generators/fal.test.mjs` (`assertPngBufferDimensions`); **`control-image.test.mjs`** (explicit sheet dimensions).
 
 ## Answers
 

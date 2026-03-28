@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 
 import {
+  assertPngBufferDimensions,
   downloadToBuffer,
   falSubscribeToBuffer,
   formatFalClientError,
@@ -37,6 +38,17 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(String(r.control_lora_image_url)).toContain("payloadChars=");
     expect(r.api_token).toBe("<redacted>");
     expect(r.image_size).toEqual({ width: 400, height: 100 });
+  });
+
+  it("assertPngBufferDimensions passes on exact WxH and throws with stage label on mismatch", () => {
+    const png = new PNG({ width: 100, height: 100, colorType: 6 });
+    png.data.fill(0);
+    for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+    const ok = PNG.sync.write(png);
+    assertPngBufferDimensions(ok, 100, 100, "test:ok");
+    expect(() => assertPngBufferDimensions(ok, 99, 100, "test:bad")).toThrow(
+      "test:bad: expected 99x100, got 100x100",
+    );
   });
 
   it("readPngBufferDimensions reads pngjs and IHDR fallback", () => {

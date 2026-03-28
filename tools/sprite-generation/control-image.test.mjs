@@ -39,6 +39,47 @@ describe("control-image", () => {
     expect(png.height).toBe(100);
   });
 
+  it("renderControlSheetMaskBuffer with explicit sheetWidth/sheetHeight matches preset geometry (2gp-6iay)", () => {
+    const tileSize = 100;
+    const crops = {
+      up: { x: 0, y: 0 },
+      down: { x: 100, y: 0 },
+      left: { x: 200, y: 0 },
+      right: { x: 300, y: 0 },
+    };
+    const frames = [
+      { id: "up", outSubdir: "u", promptVariant: "" },
+      { id: "down", outSubdir: "d", promptVariant: "" },
+      { id: "left", outSubdir: "l", promptVariant: "" },
+      { id: "right", outSubdir: "r", promptVariant: "" },
+    ];
+    const buf = renderControlSheetMaskBuffer({
+      frames,
+      tileSize,
+      crops,
+      sheetWidth: 400,
+      sheetHeight: 100,
+    });
+    const png = PNG.sync.read(buf);
+    expect(png.width).toBe(400);
+    expect(png.height).toBe(100);
+  });
+
+  it("renderControlSheetMaskBuffer throws when crop exceeds explicit sheet dimensions", () => {
+    const tileSize = 100;
+    const crops = { up: { x: 350, y: 0 } };
+    const frames = [{ id: "up", outSubdir: "u", promptVariant: "" }];
+    expect(() =>
+      renderControlSheetMaskBuffer({
+        frames,
+        tileSize,
+        crops,
+        sheetWidth: 400,
+        sheetHeight: 100,
+      }),
+    ).toThrow("exceeds sheet 400x100");
+  });
+
   it("softenControlMaskBuffer introduces grayscale fringe (non-binary) pixels", () => {
     const tileSize = 32;
     const vertices = triangleForDirection("up", tileSize);

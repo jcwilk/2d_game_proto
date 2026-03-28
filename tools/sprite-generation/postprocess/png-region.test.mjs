@@ -62,6 +62,15 @@ describe("png-region", () => {
     expect(normalizeDecodedSheetToPreset(buf, 400, 100)).toBe(buf);
   });
 
+  it("normalizeDecodedSheetToPreset maps square fal-like per-tile output to tileSize (512² → 100², 2gp-r67u / per-tile path)", () => {
+    const png = new PNG({ width: 512, height: 512, colorType: 6 });
+    png.data.fill(0);
+    const buf = PNG.sync.write(png);
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 100, 100));
+    expect(out.width).toBe(100);
+    expect(out.height).toBe(100);
+  });
+
   it("normalizeDecodedSheetToPreset yields preset dimensions from square fal-like output (512² → 400×100)", () => {
     const png = new PNG({ width: 512, height: 512, colorType: 6 });
     png.data.fill(0);

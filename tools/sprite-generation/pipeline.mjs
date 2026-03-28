@@ -15,6 +15,13 @@
  * @see `qa/analyze-bridge.mjs` — QA png-analyze bridge (`runPngAnalyzeBridge`)
  * @see `generators/types.mjs` — generator contracts
  * @see `presets/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
+ *
+ * ## Control vs raster WxH (**2gp-6iay**, normalization **2gp-r67u** in **`postprocess/png-region.mjs`**)
+ *
+ * After fal download, **`normalizeDecodedSheetToPreset`** may run so the decoded PNG matches **`preset.sheet`**
+ * (sheet path) or **`tileSize`** (per-tile). **`assertPngBufferDimensions`** then checks **`generators/fal.mjs`**
+ * at **`pipeline:control-canny-*`** (control buffer) and **`pipeline:raster-after-*-normalize`** (model output).
+ * See **`control-image.mjs`** module header.
  */
 
 import { fal } from "@fal-ai/client";
@@ -24,6 +31,7 @@ import { PNG } from "pngjs";
 
 import { renderControlMaskBuffer, renderControlSheetMaskBuffer, softenControlMaskBuffer } from "./control-image.mjs";
 import {
+  assertPngBufferDimensions,
   falSubscribeControlCannyToBuffer,
   falSubscribeToBuffer,
   formatFalClientError,
@@ -593,6 +601,7 @@ async function runGeneratePerTilePath({
       const dir = /** @type {'up' | 'down' | 'left' | 'right'} */ (frame.id);
       const vertices = triangleForDirection(dir, tileSize);
       const controlBuf = renderControlMaskBuffer({ tileSize, vertices });
+      assertPngBufferDimensions(controlBuf, tileSize, tileSize, "pipeline:control-canny-tile");
       const controlUrl = pngBufferToDataUri(controlBuf);
       const gen = await falSubscribeControlCannyToBuffer({
         endpoint,
@@ -620,6 +629,17 @@ async function runGeneratePerTilePath({
       buffer = gen.buffer;
       outSeed = gen.seed;
       wallMs = gen.wallMs;
+    }
+    {
+      let png = PNG.sync.read(buffer);
+      if (png.width !== tileSize || png.height !== tileSize) {
+        log("WARN", `tile:${frame.id}`, "fal output dimensions differ from preset tile; center-crop to square aspect then uniform nearest-neighbor scale (2gp-r67u policy)", {
+          got: `${png.width}x${png.height}`,
+          want: `${tileSize}x${tileSize}`,
+        });
+        buffer = normalizeDecodedSheetToPreset(buffer, tileSize, tileSize);
+      }
+      assertPngBufferDimensions(buffer, tileSize, tileSize, `pipeline:raster-after-tile-normalize:${frame.id}`);
     }
     if (savePreChroma) {
       const rawName = pngName.replace(/\.png$/i, "") + "-pre-chroma.png";
@@ -702,8 +722,15 @@ async function runGenerateSheetPath({
   let outSeed;
   let wallMs;
   if (useControlCanny) {
-    let controlBuf = renderControlSheetMaskBuffer({ frames, tileSize, crops: sheet.crops });
+    let controlBuf = renderControlSheetMaskBuffer({
+      frames,
+      tileSize,
+      crops: sheet.crops,
+      sheetWidth: sheetW,
+      sheetHeight: sheetH,
+    });
     controlBuf = softenControlMaskBuffer(controlBuf, 1);
+    assertPngBufferDimensions(controlBuf, sheetW, sheetH, "pipeline:control-canny-sheet");
     const controlUrl = pngBufferToDataUri(controlBuf);
     const gen = await falSubscribeControlCannyToBuffer({
       endpoint,
@@ -736,7 +763,7 @@ async function runGenerateSheetPath({
   timings.sheetFal = wallMs;
   let png = PNG.sync.read(buffer);
   if (png.width !== sheetW || png.height !== sheetH) {
-    // Sheet decode policy: center-crop to preset aspect then uniform NN — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**).
+    // Sheet decode policy: center-crop to preset aspect then uniform NN — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
     log("WARN", "sheet", "fal output dimensions differ from preset; center-cropping to strip aspect then uniform nearest-neighbor scale", {
       got: `${png.width}x${png.height}`,
       want: `${sheetW}x${sheetH}`,
@@ -744,6 +771,7 @@ async function runGenerateSheetPath({
     buffer = normalizeDecodedSheetToPreset(buffer, sheetW, sheetH);
     png = PNG.sync.read(buffer);
   }
+  assertPngBufferDimensions(buffer, sheetW, sheetH, "pipeline:raster-after-sheet-normalize");
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
     log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops, pre-chroma)");

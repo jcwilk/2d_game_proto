@@ -1,6 +1,6 @@
 ---
 id: 2gp-6iay
-status: open
+status: closed
 deps: [2gp-r67u]
 links: []
 created: 2026-03-28T21:34:23Z

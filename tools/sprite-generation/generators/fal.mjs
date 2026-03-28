@@ -101,6 +101,26 @@ export function readPngBufferDimensions(buf) {
   }
 }
 
+/**
+ * **Pipeline checkpoint** (control vs raster): assert decoded PNG dimensions match the preset raster
+ * **`expectedW`×`expectedH`** after **`normalizeDecodedSheetToPreset`** (sheet and per-tile) per **2gp-r67u**
+ * / **2gp-6iay**. Use a stable **`stageLabel`** for logs and tests (e.g. `pipeline:control-canny-sheet`).
+ *
+ * @param {Buffer} buf
+ * @param {number} expectedW
+ * @param {number} expectedH
+ * @param {string} stageLabel
+ */
+export function assertPngBufferDimensions(buf, expectedW, expectedH, stageLabel) {
+  const d = readPngBufferDimensions(buf);
+  if (!d) {
+    throw new Error(`${stageLabel}: expected valid PNG buffer`);
+  }
+  if (d.width !== expectedW || d.height !== expectedH) {
+    throw new Error(`${stageLabel}: expected ${expectedW}x${expectedH}, got ${d.width}x${d.height}`);
+  }
+}
+
 export function resolveFalCredentials() {
   const direct = process.env.FAL_KEY;
   if (direct !== undefined && String(direct).trim() !== "") {

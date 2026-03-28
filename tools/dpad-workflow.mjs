@@ -13,9 +13,10 @@
  * -----
  *   --mode mock      No network. Draws simple RGBA triangles (proves geometry + alpha
  *                    pipeline without T2I composition issues).
- *   --mode generate  fal + FAL_KEY. Default --strategy sheet: ONE image (512²) then
- *                    crop to four tiles (shared style). Use --strategy per-tile for
- *                    legacy one API call per direction (inconsistent style).
+ *   --mode generate  fal + FAL_KEY. Default --strategy per-tile: four calls (same --seed,
+ *                    PER_TILE_FAL_EXTRA_INPUT) + chromaKeyWithBorderFallback (#FF00FF then
+ *                    border-median if FLUX misses exact hex). Use --strategy sheet for one
+ *                    512² image + crop (shared style; quadrant→direction often wrong).
  *
  * Security
  * --------
@@ -79,6 +80,26 @@ const SHEET_FAL_EXTRA_INPUT = {
   acceleration: "none",
 };
 
+/** Same tuning for per-tile jobs (identical across the batch; paired with shared --seed). */
+const PER_TILE_FAL_EXTRA_INPUT = SHEET_FAL_EXTRA_INPUT;
+
+/**
+ * Chroma-key screen color (flat background in prompt). Pixels within per-channel tolerance
+ * become transparent; glyph should not use this RGB (see buildGenerationPrompt).
+ */
+const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
+const DEFAULT_CHROMA_TOLERANCE = 42;
+/** When the prompt hex misses FLUX drift, border-median key uses at least this tolerance. */
+const CHROMA_FALLBACK_TOLERANCE_MIN = 52;
+
+function parseHexRgb(hex) {
+  const s = String(hex).trim();
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(s);
+  if (!m) throw new Error(`invalid hex color: ${hex}`);
+  const n = Number.parseInt(m[1], 16);
+  return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
+}
+
 /** Grid cell size for png-analyze (8×8 cells on 256²). */
 const QA_SPRITE_W = 32;
 const QA_SPRITE_H = 32;
@@ -90,10 +111,10 @@ const DIRECTIONS = /** @type {const} */ (["up", "down", "left", "right"]);
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
   const opts = {
     mode: "mock",
-    strategy: "sheet",
+    strategy: "per-tile",
     endpoint: DEFAULT_FAL_ENDPOINT,
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
     keepSheet: false,
@@ -101,6 +122,8 @@ function parseArgs(argv) {
     dryRun: false,
     quiet: false,
     help: false,
+    chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
+    chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -145,6 +168,19 @@ function parseArgs(argv) {
       case "-q":
         opts.quiet = true;
         break;
+      case "--chroma-key": {
+        const v = next();
+        opts.chromaKeyHex = v;
+        break;
+      }
+      case "--chroma-tolerance": {
+        const v = Number.parseInt(next(), 10);
+        if (Number.isNaN(v) || v < 0 || v > 255) {
+          throw new Error("--chroma-tolerance must be an integer 0–255");
+        }
+        opts.chromaTolerance = v;
+        break;
+      }
       case "--help":
       case "-h":
         opts.help = true;
@@ -163,15 +199,18 @@ Hardcoded D-pad pipeline: manifest + four directional tiles + png-analyze QA.
 
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
-                         generate = fal (needs FAL_KEY).
-  --strategy sheet|per-tile   For generate only. Default: sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE}
-                         fal image, then crop 2×2 into four ${TILE_SIZE}px tiles (best style match).
-                         per-tile = separate fal call per direction (legacy; style often drifts).
+                         generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
+  --strategy sheet|per-tile   For generate only. Default: per-tile = four fal calls with the
+                         SAME integer --seed and shared fal extras (reliable direction semantics).
+                         sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE} image + 2×2 crop (shared style;
+                         quadrant→direction often wrong in practice).
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
                          Ignored for sheet (sheet is always ${SHEET_SIZE}x${SHEET_SIZE}).
-  --seed <int>           Optional fal seed (one job for sheet; each job for per-tile).
+  --seed <int>           Optional fal seed: one job (sheet) or the SAME seed every per-tile call.
+  --chroma-key <#RRGGBB>  Screen color in prompts + post removal (default: ${DEFAULT_CHROMA_KEY_HEX}).
+  --chroma-tolerance <0-255>  Per-channel RGB distance for key match (default: ${DEFAULT_CHROMA_TOLERANCE}).
   --skip-qa              Skip png-analyze step.
   --dry-run              Print planned actions only; no writes, no API calls.
                          For --mode generate, does NOT require FAL_KEY (planning only).
@@ -184,7 +223,7 @@ Environment (generate mode):
 Examples:
   node tools/dpad-workflow.mjs --mode mock
   node --env-file=.env tools/dpad-workflow.mjs --mode generate
-  node --env-file=.env tools/dpad-workflow.mjs --mode generate --strategy per-tile
+  node --env-file=.env tools/dpad-workflow.mjs --mode generate --strategy sheet --keep-sheet
 `);
 }
 
@@ -283,16 +322,58 @@ async function downloadToFile(url, destPath) {
 // ---------------------------------------------------------------------------
 
 /**
- * Build a direction-specific prompt. Keep structure identical across directions
- * except for the direction word — helps when comparing seeds across siblings.
+ * Direction-specific layout hint so FLUX does not default every triangle to “up”.
+ * Same sentence slot for all directions (template parity).
  *
  * @param {'up'|'down'|'left'|'right'} direction
  */
-function buildGenerationPrompt(direction) {
+function directionLayoutHint(direction) {
+  switch (direction) {
+    case "up":
+      return (
+        `Flat 2D only: a single filled upward-pointing arrowhead (isosceles triangle), orthographic, no perspective. ` +
+        `Apex at top-center flush with the top edge; horizontal base below. No cube, pyramid, prism, or 3D extrusion.`
+      );
+    case "down":
+      return (
+        `Flat 2D only: a single filled downward-pointing arrowhead (isosceles triangle), orthographic, no perspective. ` +
+        `Apex at bottom-center flush with the bottom edge; horizontal base above. No cube, pyramid, prism, or 3D extrusion.`
+      );
+    case "left":
+      return (
+        `Flat 2D only: WEST-facing horizontal arrow: the triangle is wide left-to-right (its “height” is small, “width” is large); ` +
+        `the tip is on the LEFT edge at vertical center; the base is a vertical segment on the RIGHT — reads as LEFT, not up and not down. ` +
+        `Do not draw a vertical arrow or a downward-pointing chevron. ` +
+        `Orthographic, no perspective. No cube, pyramid, prism, or 3D extrusion.`
+      );
+    case "right":
+      return (
+        `Flat 2D only: EAST-facing arrow: a single filled arrowhead pointing RIGHT (toward the right side of the canvas). ` +
+        `The tip touches the RIGHT edge at right-center; the wide base is on the LEFT half. Must NOT point left or up. ` +
+        `Orthographic, no perspective. No cube, pyramid, prism, or 3D extrusion.`
+      );
+    default:
+      throw new Error(String(direction));
+  }
+}
+
+/**
+ * Build a direction-specific prompt. Template is identical across directions except
+ * the direction block — pairs with shared seed + PER_TILE_FAL_EXTRA_INPUT for style lock.
+ *
+ * @param {'up'|'down'|'left'|'right'} direction
+ * @param {string} chromaKeyHex e.g. "#FF00FF" — must match post chroma-key removal
+ */
+function buildGenerationPrompt(direction, chromaKeyHex) {
+  const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
+  const layout = directionLayoutHint(direction);
   return (
-    `Flat ${TILE_SIZE}px square pixel art, two solid flat colors only (background + shape), crisp edges, no gradients. ` +
-    `Exactly one filled triangle with three straight sides, centered with large margin; the triangle points ${direction}. ` +
-    `No other shapes, no text, no frames, no shadows, no hardware.`
+    `Flat ${TILE_SIZE}px square pixel art. ` +
+    `The entire background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients, no vignette. ` +
+    `Exactly one filled triangle with three straight sides, a single solid flat color that is NOT ${bg} (e.g. dark gray or navy). ` +
+    layout +
+    ` The shape is optically centered as a whole (equal margin to the canvas edges). ` +
+    `Crisp edges, no soft glow, no gradients inside the shape, no shading, no lighting. No other shapes, no text, no frames, no shadows, no hardware, no grid lines.`
   );
 }
 
@@ -301,12 +382,15 @@ function buildGenerationPrompt(direction) {
  * Cropping is deterministic in code (see SHEET_CROPS).
  * Empirically: strong style lock; FLUX may repeat the same triangle rotation in every cell.
  * For reliable per-direction glyphs, prefer `--strategy per-tile` + `buildGenerationPrompt`.
+ * @param {string} chromaKeyHex
  */
-function buildSheetPrompt() {
+function buildSheetPrompt(chromaKeyHex) {
+  const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
   return (
     `2x2 pixel art contact sheet on one ${SHEET_SIZE}px canvas: four equal panels. ` +
-    `One solid filled triangle per panel (same triangle ink color everywhere); flat matte background; triangles small, centered, generous margin; no text, no shadows, no hardware, no pinwheel. ` +
-    `Walk clockwise around the grid starting at top-left: ` +
+    `Entire image background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients. ` +
+    `One solid filled triangle per panel (same triangle ink color everywhere, not ${bg}); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel. ` +
+    `Walk clockwise from top-left: ` +
     `(1) top-left points up, (2) top-right points right, (3) bottom-right points down, (4) bottom-left points left. ` +
     `Each step the triangle rotates 90 degrees from the previous panel — four distinct orientations, not four copies of the same rotation.`
   );
@@ -423,6 +507,112 @@ function extractPngRegion(src, x0, y0, w, h) {
 }
 
 /**
+ * @param {import('pngjs').PNG} png
+ */
+function inferBackgroundKeyFromBorder(png) {
+  const w = png.width;
+  const h = png.height;
+  const rs = [];
+  const gs = [];
+  const bs = [];
+  const push = (x, y) => {
+    const i = (w * y + x) << 2;
+    rs.push(png.data[i]);
+    gs.push(png.data[i + 1]);
+    bs.push(png.data[i + 2]);
+  };
+  for (let x = 0; x < w; x++) {
+    push(x, 0);
+    push(x, h - 1);
+  }
+  for (let y = 1; y < h - 1; y++) {
+    push(0, y);
+    push(w - 1, y);
+  }
+  const median = (arr) => {
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];
+  };
+  return { r: median(rs), g: median(gs), b: median(bs) };
+}
+
+/**
+ * @param {Buffer} pngBuffer
+ */
+function countFullyTransparentPercent(pngBuffer) {
+  const png = PNG.sync.read(pngBuffer);
+  let transparent = 0;
+  const n = png.width * png.height;
+  for (let i = 3; i < png.data.length; i += 4) {
+    if (png.data[i] === 0) transparent++;
+  }
+  return (transparent / n) * 100;
+}
+
+/**
+ * Deterministic chroma-key: pixels within per-channel RGB tolerance of `keyRgb` → alpha 0;
+ * other pixels → opaque RGBA (glyph for HUD overlay).
+ *
+ * @param {Buffer} pngBuffer
+ * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number }} opts
+ * @returns {Buffer}
+ */
+function applyChromaKeyToPngBuffer(pngBuffer, opts) {
+  const { keyRgb, tolerance } = opts;
+  const png = PNG.sync.read(pngBuffer);
+  const out = new PNG({ width: png.width, height: png.height, colorType: 6 });
+  for (let i = 0; i < png.data.length; i += 4) {
+    const r = png.data[i];
+    const g = png.data[i + 1];
+    const b = png.data[i + 2];
+    const dr = Math.abs(r - keyRgb.r);
+    const dg = Math.abs(g - keyRgb.g);
+    const db = Math.abs(b - keyRgb.b);
+    const match = dr <= tolerance && dg <= tolerance && db <= tolerance;
+    if (match) {
+      out.data[i] = 0;
+      out.data[i + 1] = 0;
+      out.data[i + 2] = 0;
+      out.data[i + 3] = 0;
+    } else {
+      out.data[i] = r;
+      out.data[i + 1] = g;
+      out.data[i + 2] = b;
+      out.data[i + 3] = 255;
+    }
+  }
+  return PNG.sync.write(out);
+}
+
+/**
+ * FLUX often drifts from the exact prompt hex; if the primary key removes almost nothing,
+ * use median border color as the key (valid when the glyph is inset from edges).
+ *
+ * @param {Buffer} rawFalPng
+ * @param {{ keyRgb: { r: number; g: number; b: number }; tolerance: number; fallbackTolerance: number }} opts
+ * @returns {{ buffer: Buffer; usedPrimaryKey: boolean; keyRgb: { r: number; g: number; b: number } }}
+ */
+function chromaKeyWithBorderFallback(rawFalPng, opts) {
+  const { keyRgb, tolerance, fallbackTolerance } = opts;
+  let buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb, tolerance });
+  let usedPrimaryKey = true;
+  let effectiveKey = keyRgb;
+  const pct = countFullyTransparentPercent(buf);
+  if (pct < 0.8) {
+    const png = PNG.sync.read(rawFalPng);
+    const inferred = inferBackgroundKeyFromBorder(png);
+    buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb: inferred, tolerance: fallbackTolerance });
+    usedPrimaryKey = false;
+    effectiveKey = inferred;
+    log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
+      inferred,
+      transparentPercentAfter: countFullyTransparentPercent(buf).toFixed(2),
+    });
+  }
+  return { buffer: buf, usedPrimaryKey, keyRgb: effectiveKey };
+}
+
+/**
  * @param {object} params
  * @param {string} params.endpoint
  * @param {string} params.prompt
@@ -500,18 +690,6 @@ async function falSubscribeToBuffer(params) {
   return { buffer, seed: outSeed, wallMs };
 }
 
-/**
- * @param {object} params
- * @param {string} params.outFile
- */
-async function generateOneWithFal(params) {
-  const { outFile, ...rest } = params;
-  const { buffer, seed, wallMs } = await falSubscribeToBuffer(rest);
-  await writeFile(outFile, buffer);
-  log("INFO", "fal:write", "wrote file", { path: outFile });
-  return { seed, wallMs };
-}
-
 // ---------------------------------------------------------------------------
 // QA: png-analyze
 // ---------------------------------------------------------------------------
@@ -565,13 +743,22 @@ async function main() {
     process.exit(0);
   }
 
+  if (opts.mode === "generate") {
+    try {
+      parseHexRgb(opts.chromaKeyHex);
+    } catch (e) {
+      console.error(`error: invalid --chroma-key: ${e instanceof Error ? e.message : e}`);
+      process.exit(1);
+    }
+  }
+
   const quiet = opts.quiet;
   const recipeId =
     opts.mode === "mock"
       ? "dpad-workflow-mock-v1"
       : opts.strategy === "sheet"
-        ? "dpad-workflow-fal-sheet-v12"
-        : "dpad-workflow-fal-per-tile-v1";
+        ? "dpad-workflow-fal-sheet-v12-chroma"
+        : "dpad-workflow-fal-per-tile-v3-chroma";
 
   log("INFO", "init", "starting", {
     mode: opts.mode,
@@ -596,7 +783,7 @@ async function main() {
           seed: opts.seed ?? null,
           keepSheet: opts.keepSheet,
         });
-        log("DEBUG", "dry-run", "sheet prompt preview", { text: buildSheetPrompt().slice(0, 200) + "…" });
+        log("DEBUG", "dry-run", "sheet prompt preview", { text: buildSheetPrompt(opts.chromaKeyHex).slice(0, 200) + "…" });
         log("INFO", "dry-run", "would crop quadrants per SHEET_CROPS (up,right,left,down)");
       } else {
         log("INFO", "dry-run", "would call fal.subscribe once per direction (per-tile)", {
@@ -605,7 +792,9 @@ async function main() {
           seed: opts.seed ?? null,
         });
         for (const d of DIRECTIONS) {
-          log("DEBUG", "dry-run", `prompt preview [${d}]`, { text: buildGenerationPrompt(d).slice(0, 120) + "…" });
+          log("DEBUG", "dry-run", `prompt preview [${d}]`, {
+            text: buildGenerationPrompt(d, opts.chromaKeyHex).slice(0, 120) + "…",
+          });
         }
       }
     }
@@ -631,12 +820,14 @@ async function main() {
 
   await mkdir(OUT_BASE, { recursive: true });
 
+  const keyRgbForManifest = opts.mode === "generate" ? parseHexRgb(opts.chromaKeyHex) : null;
+
   const recipeNote =
     opts.mode === "mock"
       ? "Mock: geometry from pngjs triangles, not T2I."
       : opts.strategy === "sheet"
-        ? `Real: one fal job at ${SHEET_SIZE}x${SHEET_SIZE}, deterministic 2x2 crop to ${TILE_SIZE}px (see SHEET_CROPS in dpad-workflow.mjs).`
-        : "Real: one fal.subscribe per direction (style may drift); see generationResults.";
+        ? `Real: one fal job at ${SHEET_SIZE}x${SHEET_SIZE}, crop to ${TILE_SIZE}px, then chroma-key (${opts.chromaKeyHex}) → RGBA.`
+        : `Real: one fal.subscribe per direction with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (${opts.chromaKeyHex}) → RGBA after each download.`;
 
   // --- Manifest (written before tiles so partial runs still leave a trace)
   const manifest = {
@@ -661,16 +852,33 @@ async function main() {
       naming: "dpad.png per direction folder",
       directions: [...DIRECTIONS],
       ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
+      ...(opts.mode === "generate" && keyRgbForManifest
+        ? {
+            chroma: {
+              keyHex: opts.chromaKeyHex,
+              keyRgb: keyRgbForManifest,
+              tolerance: opts.chromaTolerance,
+              postProcess:
+                "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median 1px border RGB + higher tolerance",
+            },
+            seedPolicyPerTile:
+              opts.strategy === "per-tile"
+                ? "Same integer --seed passed to every fal.subscribe in this batch when --seed is set."
+                : null,
+          }
+        : {}),
     },
     generationRecipe: {
       mode: opts.mode,
       endpoint: opts.mode === "generate" ? opts.endpoint : null,
       seedRequested: opts.seed ?? null,
+      falExtrasPerTile: opts.mode === "generate" && opts.strategy === "per-tile" ? PER_TILE_FAL_EXTRA_INPUT : null,
+      falExtrasSheet: opts.mode === "generate" && opts.strategy === "sheet" ? SHEET_FAL_EXTRA_INPUT : null,
       note: recipeNote,
     },
     provenance: {
       tool: "tools/dpad-workflow.mjs",
-      version: 1,
+      version: 2,
     },
     generationResults,
   };
@@ -707,8 +915,9 @@ async function main() {
       await mkdir(join(OUT_BASE, dir), { recursive: true });
     }
     try {
-      const prompt = buildSheetPrompt();
-      log("INFO", "sheet", "single fal job + crop (shared style)", { sheetPx: SHEET_SIZE });
+      const prompt = buildSheetPrompt(opts.chromaKeyHex);
+      const keyRgb = parseHexRgb(opts.chromaKeyHex);
+      log("INFO", "sheet", "single fal job + crop + chroma (shared style)", { sheetPx: SHEET_SIZE });
       const { buffer, seed, wallMs } = await falSubscribeToBuffer({
         endpoint: opts.endpoint,
         prompt,
@@ -720,7 +929,7 @@ async function main() {
       timings.sheetFal = wallMs;
       if (opts.keepSheet) {
         await writeFile(join(OUT_BASE, "sheet.png"), buffer);
-        log("INFO", "sheet", "wrote public/art/dpad/sheet.png (--keep-sheet)");
+        log("INFO", "sheet", "wrote public/art/dpad/sheet.png (--keep-sheet, pre-chroma)");
       }
       const png = PNG.sync.read(buffer);
       if (png.width !== SHEET_SIZE || png.height !== SHEET_SIZE) {
@@ -728,15 +937,22 @@ async function main() {
       }
       for (const dir of DIRECTIONS) {
         const { x, y } = SHEET_CROPS[dir];
-        const tileBuf = extractPngRegion(png, x, y, TILE_SIZE, TILE_SIZE);
+        const tileBufRaw = extractPngRegion(png, x, y, TILE_SIZE, TILE_SIZE);
+        const { buffer: tileBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(tileBufRaw, {
+          keyRgb,
+          tolerance: opts.chromaTolerance,
+          fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
+        });
         await writeFile(join(OUT_BASE, dir, "dpad.png"), tileBuf);
         generationResults[dir] = {
           seed,
           wallMs,
           fromSheet: true,
           cropOrigin: `${x},${y}`,
+          chromaApplied: true,
+          chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
         };
-        log("INFO", `tile:${dir}`, "cropped from sheet", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
+        log("INFO", `tile:${dir}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
       }
       generationResults._sheet = { seed, wallMs, strategy: "sheet" };
     } catch (e) {
@@ -754,19 +970,32 @@ async function main() {
       const outPng = join(folder, "dpad.png");
       log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
       try {
-        const prompt = buildGenerationPrompt(dir);
+        const prompt = buildGenerationPrompt(dir, opts.chromaKeyHex);
+        const keyRgb = parseHexRgb(opts.chromaKeyHex);
         const t0 = Date.now();
-        const r = await generateOneWithFal({
+        const { buffer, seed, wallMs } = await falSubscribeToBuffer({
           endpoint: opts.endpoint,
           prompt,
           imageSize: opts.imageSize,
-          outFile: outPng,
           seed: opts.seed,
           quiet,
+          falExtraInput: opts.endpoint === DEFAULT_FAL_ENDPOINT ? PER_TILE_FAL_EXTRA_INPUT : undefined,
         });
+        const { buffer: outBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(buffer, {
+          keyRgb,
+          tolerance: opts.chromaTolerance,
+          fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
+        });
+        await writeFile(outPng, outBuf);
         timings[dir] = Date.now() - t0;
-        generationResults[dir] = { seed: r.seed, wallMs: r.wallMs };
-        log("INFO", `tile:${dir}`, "fal PNG saved", generationResults[dir]);
+        generationResults[dir] = {
+          seed,
+          wallMs,
+          chromaApplied: true,
+          seedRequested: opts.seed ?? null,
+          chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
+        };
+        log("INFO", `tile:${dir}`, "fal PNG + chroma saved", generationResults[dir]);
       } catch (e) {
         const msg = formatFalClientError(e);
         generationResults[dir] = { error: msg };

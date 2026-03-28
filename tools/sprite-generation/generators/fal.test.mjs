@@ -1,11 +1,16 @@
 import { ApiError } from "@fal-ai/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { PNG } from "pngjs";
+
 import {
   downloadToBuffer,
   falSubscribeToBuffer,
   formatFalClientError,
+  hashPromptForLog,
   parseImageSize,
+  readPngBufferDimensions,
+  redactFalInputForLog,
   resolveFalCredentials,
 } from "./fal.mjs";
 
@@ -18,6 +23,31 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(parseImageSize("256x256")).toEqual({ width: 256, height: 256 });
     expect(parseImageSize("  512x384  ")).toEqual({ width: 512, height: 384 });
     expect(parseImageSize("landscape_16_9")).toBe("landscape_16_9");
+  });
+
+  it("redactFalInputForLog hides data URIs and prompt body", () => {
+    const r = redactFalInputForLog({
+      prompt: "secret phrase",
+      image_size: { width: 400, height: 100 },
+      control_lora_image_url: "data:image/png;base64,AAAA",
+      api_token: "x",
+    });
+    expect(r.prompt).toEqual({ length: 13, sha256Hex16: hashPromptForLog("secret phrase") });
+    expect(String(r.control_lora_image_url)).toContain("data-uri");
+    expect(String(r.control_lora_image_url)).toContain("payloadChars=");
+    expect(r.api_token).toBe("<redacted>");
+    expect(r.image_size).toEqual({ width: 400, height: 100 });
+  });
+
+  it("readPngBufferDimensions reads pngjs and IHDR fallback", () => {
+    const one = new PNG({ width: 17, height: 19 });
+    one.data.fill(0);
+    for (let i = 3; i < one.data.length; i += 4) one.data[i] = 255;
+    const bytes = PNG.sync.write(one);
+    const d = readPngBufferDimensions(bytes);
+    expect(d).toEqual({ width: 17, height: 19, decode: "pngjs" });
+
+    expect(readPngBufferDimensions(Buffer.from([1, 2, 3]))).toBeNull();
   });
 
   it("resolveFalCredentials reads FAL_KEY or FAL_KEY_ID + FAL_KEY_SECRET", () => {
@@ -77,7 +107,10 @@ describe("sprite-generation fal helpers (no network)", () => {
         seed: 99,
       },
     }));
-    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const pngOne = new PNG({ width: 1, height: 1 });
+    pngOne.data[0] = pngOne.data[1] = pngOne.data[2] = 0;
+    pngOne.data[3] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
     const fetchMock = vi.fn(async () => ({
       ok: true,
       arrayBuffer: async () =>
@@ -100,5 +133,10 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(subscribe).toHaveBeenCalledOnce();
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(r.wallMs).toBeGreaterThanOrEqual(0);
+    const done = logs.find((x) => x.message === "subscribe() done");
+    expect(done?.extra?.pngDecodedPx).toEqual({ width: 1, height: 1, decode: "pngjs" });
+    const req = logs.find((x) => x.message === "subscribe() request input (redacted)");
+    expect(req?.extra?.image_size).toEqual({ width: 256, height: 256 });
+    expect(req?.extra?.prompt).toMatchObject({ length: 4, sha256Hex16: expect.any(String) });
   });
 });

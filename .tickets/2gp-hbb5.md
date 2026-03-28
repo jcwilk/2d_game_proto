@@ -1,6 +1,6 @@
 ---
 id: 2gp-hbb5
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T03:23:56Z
@@ -24,3 +24,9 @@ Child tickets split grid vs packed paths; **Expose stable frame key** (`2gp-x4js
 
 1) Rollup above is satisfied at closure.
 
+
+## Notes
+
+**2026-03-28T04:10:09Z**
+
+Epic rollup: all six children closed (lo9d, kcik, 1vxu, x4js, xjhm, ku5j). Code path: DefaultLoader + Resource JSON + ImageSource → grid/packed SpriteSheet + frame lookup per plan §C.

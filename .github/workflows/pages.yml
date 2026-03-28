@@ -27,7 +27,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # Project Pages: hashed assets must resolve under /<repo>/ (see plan §A.2.1). Do not inject API keys into the client build.
       - run: npm run build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

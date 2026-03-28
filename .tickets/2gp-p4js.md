@@ -1,6 +1,6 @@
 ---
 id: 2gp-p4js
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T21:34:15Z
@@ -21,3 +21,9 @@ The D-pad sprite pipeline requests **400×100** from `fal-ai/flux-control-lora-c
 
 **Done when:** All child tickets under this epic are closed and `./tk dep cycle` is clean.
 
+
+## Notes
+
+**2026-03-28T21:42:12Z**
+
+**Epic closure:** All child tickets with `parent: 2gp-p4js` are closed (2gp-svav, 2gp-r67u, 2gp-6iay, 2gp-cgn7). `./tk dep cycle` clean.

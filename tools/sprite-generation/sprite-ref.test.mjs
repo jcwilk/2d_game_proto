@@ -1,0 +1,112 @@
+import { readFile } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import { describe, expect, it } from 'vitest';
+
+import {
+  parseFrameKeyRectManifestJson,
+  parseGridFrameKeysManifestJson,
+} from '../../src/art/atlasTypes.ts';
+import { buildSpriteRefPayload, writeSpriteRef } from './sprite-ref.mjs';
+
+/** D-pad preset: **individual tiles** — **`FrameKeyRectManifestJson`** + **`images`** paths. */
+function dpadTilePreset() {
+  return {
+    id: 'dpad',
+    tileSize: 256,
+    frames: [
+      { id: 'up', outSubdir: 'up', promptVariant: '' },
+      { id: 'down', outSubdir: 'down', promptVariant: '' },
+      { id: 'left', outSubdir: 'left', promptVariant: '' },
+      { id: 'right', outSubdir: 'right', promptVariant: '' },
+    ],
+    spriteRef: {
+      kind: 'frameKeyRect',
+      jsonRelativePath: 'sprite-ref.json',
+      artUrlPrefix: 'art/dpad',
+      pngFilename: 'dpad.png',
+    },
+  };
+}
+
+/** Sheet strategy: **grid + frame keys** — **`AtlasGridWithFrameKeysManifestJson`**. */
+function dpadGridPreset() {
+  return {
+    id: 'dpad',
+    tileSize: 256,
+    frames: [
+      { id: 'up', outSubdir: 'up', promptVariant: '' },
+      { id: 'right', outSubdir: 'right', promptVariant: '' },
+      { id: 'left', outSubdir: 'left', promptVariant: '' },
+      { id: 'down', outSubdir: 'down', promptVariant: '' },
+    ],
+    sheet: {
+      rows: 2,
+      columns: 2,
+      spriteWidth: 256,
+      spriteHeight: 256,
+    },
+    frameSheetCells: {
+      up: { column: 0, row: 0 },
+      right: { column: 1, row: 0 },
+      left: { column: 0, row: 1 },
+      down: { column: 1, row: 1 },
+    },
+    spriteRef: {
+      kind: 'gridFrameKeys',
+      jsonRelativePath: 'sprite-ref.json',
+      sheetImageRelativePath: 'art/dpad/sheet.png',
+    },
+  };
+}
+
+describe('sprite-ref', () => {
+  it('dpad tile preset: JSON validates with parseFrameKeyRectManifestJson; paths match public/ layout', () => {
+    const preset = dpadTilePreset();
+    const raw = buildSpriteRefPayload(preset);
+    const manifest = parseFrameKeyRectManifestJson(raw);
+
+    expect(manifest.frames['up']).toEqual({ x: 0, y: 0, width: 256, height: 256 });
+    expect(manifest.frames['down']).toEqual({ x: 0, y: 0, width: 256, height: 256 });
+
+    expect(raw['images']).toEqual({
+      up: 'art/dpad/up/dpad.png',
+      down: 'art/dpad/down/dpad.png',
+      left: 'art/dpad/left/dpad.png',
+      right: 'art/dpad/right/dpad.png',
+    });
+  });
+
+  it('dpad grid preset: JSON validates with parseGridFrameKeysManifestJson', () => {
+    const preset = dpadGridPreset();
+    const raw = buildSpriteRefPayload(preset);
+    const manifest = parseGridFrameKeysManifestJson(raw);
+
+    expect(manifest.grid).toEqual({
+      rows: 2,
+      columns: 2,
+      spriteWidth: 256,
+      spriteHeight: 256,
+    });
+    expect(manifest.frames['up']).toEqual({ column: 0, row: 0 });
+    expect(manifest.frames['down']).toEqual({ column: 1, row: 1 });
+    expect(raw['image']).toBe('art/dpad/sheet.png');
+  });
+
+  it('writeSpriteRef writes parseable JSON under outBase', async () => {
+    const dir = join(tmpdir(), `sprite-ref-test-${process.pid}-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    try {
+      const preset = dpadTilePreset();
+      const path = await writeSpriteRef(preset, dir);
+      const text = await readFile(path, 'utf8');
+      const parsed = JSON.parse(text);
+      parseFrameKeyRectManifestJson(parsed);
+      expect(parsed['images']['left']).toBe('art/dpad/left/dpad.png');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

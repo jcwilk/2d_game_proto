@@ -1,9 +1,9 @@
 {
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
-  "recipeId": "sprite-gen-dpad_four_way-sheet-v14-1x4-control-chroma",
-  "createdAt": "2026-03-28T21:21:15.937Z",
-  "workflow": "fal sheet (fal-ai/flux-control-lora-canny, 400×100px, control-canny + mock mask → crop)",
+  "recipeId": "sprite-gen-dpad_four_way-mock-v2-frames",
+  "createdAt": "2026-03-28T21:38:01.604Z",
+  "workflow": "mock (triangles)",
   "specs": {
     "tileSize": {
       "width": 100,
@@ -27,112 +27,60 @@
         "outSubdir": "right"
       }
     ],
-    "sheetSize": {
-      "width": 400,
-      "height": 100
-    },
-    "sheetCropMap": {
-      "up": {
-        "x": 0,
-        "y": 0
-      },
-      "down": {
-        "x": 100,
-        "y": 0
-      },
-      "left": {
-        "x": 200,
-        "y": 0
-      },
-      "right": {
-        "x": 300,
-        "y": 0
-      }
-    },
-    "imageSize": "400x100",
-    "naming": "dpad.png per frame folder (outSubdir)",
-    "strategy": "sheet",
-    "chroma": {
-      "keyHex": "#FF00FF",
-      "keyRgb": {
-        "r": 255,
-        "g": 0,
-        "b": 255
-      },
-      "tolerance": 72,
-      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
-    },
-    "seedPolicyPerTile": null
+    "imageSize": "100x100",
+    "naming": "dpad.png per frame folder (outSubdir)"
   },
   "generationRecipe": {
-    "mode": "generate",
-    "endpoint": "fal-ai/flux-control-lora-canny",
+    "mode": "mock",
+    "endpoint": null,
     "seedRequested": null,
     "falExtrasPerTile": null,
-    "falExtrasSheet": {
-      "num_inference_steps": 32,
-      "guidance_scale": 4,
-      "output_format": "png",
-      "preprocess_depth": false,
-      "control_lora_strength": 0.58
-    },
-    "note": "Real: one fal job at 400x100, crop to 100px, then chroma-key (#FF00FF) → RGBA."
+    "falExtrasSheet": null,
+    "note": "Mock: geometry from pngjs triangles, not T2I."
   },
   "frames": [
     {
       "id": "up",
       "outSubdir": "up",
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "0,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "down",
       "outSubdir": "down",
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "100,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "left",
       "outSubdir": "left",
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "200,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "right",
       "outSubdir": "right",
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "300,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     }
   ],
@@ -142,58 +90,45 @@
   },
   "generationResults": {
     "up": {
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "0,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "down": {
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "100,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "left": {
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "200,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "right": {
-      "seed": 1143757981903915900,
+      "wallMs": 29,
       "seedRequested": null,
-      "wallMs": 3032,
       "fromSheet": true,
       "cropOrigin": "300,0",
-      "chromaApplied": true,
-      "chromaKeySource": "corner-median",
-      "controlCanny": true,
-      "controlMask": "mock triangle sheet (white on black, softened 3×3)",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "_sheet": {
-      "seed": 1143757981903915900,
-      "wallMs": 3032,
+      "wallMs": 29,
       "strategy": "sheet",
-      "controlCanny": true
+      "mode": "mock"
     }
   }
 }

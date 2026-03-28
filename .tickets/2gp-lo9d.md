@@ -1,6 +1,6 @@
 ---
 id: 2gp-lo9d
-status: open
+status: closed
 deps: [2gp-kcik]
 links: []
 created: 2026-03-28T03:23:56Z
@@ -21,3 +21,9 @@ Sample JSON under `public/` or `src`/fixtures; paths must be loadable over HTTP(
 
 1) `Loader` preloads JSON using `Resource` with `responseType: 'json'` (or the current documented equivalent in Excalibur’s API) **and** preloads the atlas image on the same engine-start path. 2) New code uses **`ImageSource`** for rasters—no legacy `Texture` construction patterns (**`.cursor/plans/project-implementation-deep-dive.md`** §C.2, API drift note). 3) JSON → typed parse is implemented so a **pure function** (or module) can be unit-tested with Vitest **without** a browser.
 
+
+## Notes
+
+**2026-03-28T03:48:06Z**
+
+Implementation: createSampleAtlasLoader() — DefaultLoader with Resource(path,'json') + ImageSource for public/art/sample-atlas.{json,png}; engine.start('main',{loader}). parsePackedAtlasOrderedJson after load; Vitest: atlasJsonParse.test.ts + fixture.

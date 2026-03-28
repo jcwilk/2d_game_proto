@@ -1,6 +1,6 @@
 ---
 id: 2gp-fz69
-status: open
+status: closed
 deps: [2gp-1voe]
 links: []
 created: 2026-03-28T03:23:56Z
@@ -21,3 +21,9 @@ Implement pure helpers under `src/` (e.g. `src/camera/math.ts`) with colocated `
 
 1) At least **three** distinct test cases (e.g. origin mapping, negative world coords, clamp or bounds behavior) with **≥3 assertions** total across them. 2) `npm test` exits 0. 3) Closure notes list the helper module path(s) and matching `*.test.ts` path(s).
 
+
+## Notes
+
+**2026-03-28T03:51:59Z**
+
+Implemented src/camera/math.ts (worldToScreen, screenToWorld, clampCameraToWorldBounds) with colocated src/camera/math.test.ts: origin mapping, negative coords, round-trip, viewport-larger-than-world pin, and axis clamp. npm test passes.

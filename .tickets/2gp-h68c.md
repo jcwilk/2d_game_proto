@@ -1,6 +1,6 @@
 ---
 id: 2gp-h68c
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:05Z
@@ -17,6 +17,6 @@ Preserve **semantic parity** with current dpad prompts (chroma background, prohi
 
 ## Acceptance criteria
 
-- [ ] Vitest string assertions: outputs **contain** expected fragments for given **style/composition/subject** fixtures (chroma hex, “no gradient”-class rules, frame variant text).
-- [ ] **Sheet** prompt text matches the monolith’s **SHEET** layout description for the same inputs.
-- [ ] **No API calls** — prompt functions are pure strings.
+- [x] Vitest string assertions: outputs **contain** expected fragments for given **style/composition/subject** fixtures (chroma hex, “no gradient”-class rules, frame variant text).
+- [x] **Sheet** prompt text matches the monolith’s **SHEET** layout description for the same inputs.
+- [x] **No API calls** — prompt functions are pure strings.

@@ -37,6 +37,16 @@ import { PNG } from "pngjs";
 
 import { falSubscribeToBuffer, formatFalClientError, resolveFalCredentials } from "./sprite-generation/generators/fal.mjs";
 import { generate as mockGenerate } from "./sprite-generation/generators/mock.mjs";
+import {
+  buildPrompt,
+  buildSheetPrompt,
+  DEFAULT_CHROMA_KEY_HEX,
+  DPAD_FRAME_COMPOSITION,
+  DPAD_FRAME_STYLE,
+  DPAD_SHEET_COMPOSITION,
+  DPAD_SHEET_STYLE,
+  DPAD_SHEET_SUBJECT,
+} from "./sprite-generation/prompt.mjs";
 import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./sprite-generation/postprocess/chroma-key.mjs";
 import { countFullyTransparentPercent, extractPngRegion } from "./sprite-generation/postprocess/png-region.mjs";
 
@@ -91,9 +101,8 @@ const PER_TILE_FAL_EXTRA_INPUT = SHEET_FAL_EXTRA_INPUT;
 
 /**
  * Chroma-key screen color (flat background in prompt). Pixels within per-channel tolerance
- * become transparent; glyph should not use this RGB (see buildFramePrompt).
+ * become transparent; glyph should not use this RGB (see buildPrompt in sprite-generation/prompt.mjs).
  */
-const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 const DEFAULT_CHROMA_TOLERANCE = 42;
 
 function parseHexRgb(hex) {
@@ -308,48 +317,7 @@ function maskSecret(s) {
   return `len=${t.length} suffix=...${t.slice(-4)}`;
 }
 
-// ---------------------------------------------------------------------------
-// Prompts — one template; per-frame text lives only in the frame preset (data).
-// ---------------------------------------------------------------------------
-
-/**
- * Build the full T2I prompt for one frame. Shared structure for every frame; `frame.promptVariant`
- * carries the only semantic delta (no per-frame CLI, no mirror hacks).
- *
- * @param {WorkflowFrame} frame
- * @param {string} chromaKeyHex e.g. "#FF00FF" — must match post chroma-key removal
- */
-function buildFramePrompt(frame, chromaKeyHex) {
-  const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
-  return (
-    `Flat ${TILE_SIZE}px square pixel art HUD icon. ` +
-    `The entire background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
-    `Exactly one filled triangle with three straight sides; the ink is a single solid flat color that is NOT ${bg} (e.g. dark gray or navy). ` +
-    frame.promptVariant +
-    ` The glyph is optically centered in the square (roughly equal empty margin on all four sides). ` +
-    `Crisp pixel edges, no soft glow, no gradients inside the shape, no shading, no lighting. ` +
-    `No other shapes, no text, no duplicate triangles, no shadows, no hardware chrome, no grid lines, no watermark.`
-  );
-}
-
-/**
- * One fal job covering all four directions in a fixed 2×2 layout — shared latent/style.
- * Cropping is deterministic in code (see SHEET_CROPS).
- * Empirically: strong style lock; FLUX may repeat the same triangle rotation in every cell.
- * For reliable per-direction glyphs, prefer `--strategy per-tile` + `buildFramePrompt`.
- * @param {string} chromaKeyHex
- */
-function buildSheetPrompt(chromaKeyHex) {
-  const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
-  return (
-    `2x2 pixel art contact sheet on one ${SHEET_SIZE}px canvas: four equal panels. ` +
-    `Entire image background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients. ` +
-    `One solid filled triangle per panel (same triangle ink color everywhere, not ${bg}); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel. ` +
-    `Walk clockwise from top-left: ` +
-    `(1) top-left points up, (2) top-right points right, (3) bottom-right points down, (4) bottom-left points left. ` +
-    `Each step the triangle rotates 90 degrees from the previous panel — four distinct orientations, not four copies of the same rotation.`
-  );
-}
+// Prompts: shared builders in ./sprite-generation/prompt.mjs (buildPrompt / buildSheetPrompt).
 
 // ---------------------------------------------------------------------------
 // fal: shared subscribe → buffer (implementation in sprite-generation/generators/fal.mjs)
@@ -452,7 +420,16 @@ async function main() {
           seed: opts.seed ?? null,
           keepSheet: opts.keepSheet,
         });
-        log("DEBUG", "dry-run", "sheet prompt preview", { text: buildSheetPrompt(opts.chromaKeyHex).slice(0, 200) + "…" });
+        log("DEBUG", "dry-run", "sheet prompt preview", {
+          text:
+            buildSheetPrompt({
+              sheetSize: SHEET_SIZE,
+              chromaKeyHex: opts.chromaKeyHex,
+              style: DPAD_SHEET_STYLE,
+              composition: DPAD_SHEET_COMPOSITION,
+              subject: DPAD_SHEET_SUBJECT,
+            }).slice(0, 200) + "…",
+        });
         log("INFO", "dry-run", "would crop quadrants per SHEET_CROPS (frame ids)");
       } else {
         log("INFO", "dry-run", "would call fal.subscribe once per frame (per-tile)", {
@@ -462,7 +439,14 @@ async function main() {
         });
         for (const frame of frames) {
           log("DEBUG", "dry-run", `prompt preview [${frame.id}]`, {
-            text: buildFramePrompt(frame, opts.chromaKeyHex).slice(0, 120) + "…",
+            text:
+              buildPrompt({
+                tileSize: TILE_SIZE,
+                chromaKeyHex: opts.chromaKeyHex,
+                style: DPAD_FRAME_STYLE,
+                composition: DPAD_FRAME_COMPOSITION,
+                subject: frame.promptVariant,
+              }).slice(0, 120) + "…",
           });
         }
       }
@@ -606,7 +590,13 @@ async function main() {
       await mkdir(join(OUT_BASE, frame.outSubdir), { recursive: true });
     }
     try {
-      const prompt = buildSheetPrompt(opts.chromaKeyHex);
+      const prompt = buildSheetPrompt({
+        sheetSize: SHEET_SIZE,
+        chromaKeyHex: opts.chromaKeyHex,
+        style: DPAD_SHEET_STYLE,
+        composition: DPAD_SHEET_COMPOSITION,
+        subject: DPAD_SHEET_SUBJECT,
+      });
       const keyRgb = parseHexRgb(opts.chromaKeyHex);
       log("INFO", "sheet", "single fal job + crop + chroma (shared style)", { sheetPx: SHEET_SIZE });
       const { buffer, seed, wallMs } = await falSubscribeToBuffer({
@@ -670,7 +660,13 @@ async function main() {
       const outPng = join(folder, "dpad.png");
       log("INFO", `tile:${frame.id}`, "begin", { outPng: join("public/art/dpad", frame.outSubdir, "dpad.png") });
       try {
-        const prompt = buildFramePrompt(frame, opts.chromaKeyHex);
+        const prompt = buildPrompt({
+          tileSize: TILE_SIZE,
+          chromaKeyHex: opts.chromaKeyHex,
+          style: DPAD_FRAME_STYLE,
+          composition: DPAD_FRAME_COMPOSITION,
+          subject: frame.promptVariant,
+        });
         const keyRgb = parseHexRgb(opts.chromaKeyHex);
         const t0 = Date.now();
         const { buffer, seed, wallMs } = await falSubscribeToBuffer({

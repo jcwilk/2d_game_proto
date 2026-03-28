@@ -1,6 +1,6 @@
 ---
 id: 2gp-1voe
-status: open
+status: closed
 deps: [2gp-5d4y]
 links: []
 created: 2026-03-28T03:23:56Z

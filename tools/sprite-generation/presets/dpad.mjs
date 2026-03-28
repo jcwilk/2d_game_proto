@@ -28,6 +28,7 @@
  */
 
 import { buildRecipeId } from "../manifest.mjs";
+import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 import {
   DPAD_FRAME_COMPOSITION,
   DPAD_FRAME_STYLE,
@@ -122,6 +123,14 @@ export const SHEET_CROPS = Object.freeze({
   left: { x: 0, y: TILE_SIZE },
   down: { x: TILE_SIZE, y: TILE_SIZE },
 });
+
+/**
+ * Mock `generateSheet` cell layout — **not** independent of **`SHEET_CROPS`**; same mapping as
+ * **`sheetLayoutFromCrops`** in **`../sheet-layout.mjs`** so compositor placement matches crop extraction.
+ *
+ * @type {Readonly<Record<string, { x: number; y: number }>>}
+ */
+export const DPAD_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE));
 
 /**
  * Same **`recipeId`** string **`runPipeline`** writes to **`manifest.json`** for this preset.

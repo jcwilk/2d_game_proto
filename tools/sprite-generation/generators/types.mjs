@@ -46,7 +46,7 @@
  * @property {number} [seed]  Carried in metadata for parity with fal; mock geometry ignores it unless a preset uses it.
  * @property {ShapeForFrameFn} [shapeForFrame]  Override triangle (or other) shape per frame; defaults to D-pad triangles from `frame.id`.
  * @property {{ r: number; g: number; b: number; a: number }} [fill]  Opaque glyph color; background stays transparent.
- * @property {MockSheetLayout} [sheetLayout]  For mock `generateSheet`: where each `frame.id` sits on a 2×2 sheet (cell coords).
+ * @property {MockSheetLayout} [sheetLayout]  **Required** for mock `generateSheet`: cell coords per `frame.id` (use `sheetLayoutFromCrops` with `preset.sheet.crops`).
  */
 
 /**

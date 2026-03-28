@@ -1,8 +1,8 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
+import { DPAD_SHEET_LAYOUT } from "../presets/dpad.mjs";
 import {
-  DEFAULT_DPAD_SHEET_LAYOUT,
   defaultDpadShapeForFrame,
   generate,
   generateSheet,
@@ -80,7 +80,7 @@ describe("sprite-generation mock generator", () => {
     expect(rgbaAt(png, 0, 0).a).toBe(0);
   });
 
-  it("composes a 2×2 mock sheet with DEFAULT_DPAD_SHEET_LAYOUT", async () => {
+  it("composes a 2×2 mock sheet with preset-derived DPAD_SHEET_LAYOUT", async () => {
     const frames = [
       { id: "up", outSubdir: "u", promptVariant: "" },
       { id: "right", outSubdir: "r", promptVariant: "" },
@@ -89,7 +89,7 @@ describe("sprite-generation mock generator", () => {
     ];
     const { buffer, metadata } = await generateSheet(frames, {
       tileSize: 256,
-      sheetLayout: DEFAULT_DPAD_SHEET_LAYOUT,
+      sheetLayout: DPAD_SHEET_LAYOUT,
     });
     expect(metadata.width).toBe(512);
     expect(metadata.height).toBe(512);

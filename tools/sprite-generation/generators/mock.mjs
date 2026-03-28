@@ -5,14 +5,6 @@
 
 import { PNG } from "pngjs";
 
-/** Same layout as dpad `SHEET_CROPS`: [ up, right; left, down ] in 2×2 cell coordinates. */
-export const DEFAULT_DPAD_SHEET_LAYOUT = /** @type {const} */ ({
-  up: { x: 0, y: 0 },
-  right: { x: 1, y: 0 },
-  left: { x: 0, y: 1 },
-  down: { x: 1, y: 1 },
-});
-
 /**
  * @param {{ x: number; y: number }} p
  * @param {{ x: number; y: number }} a
@@ -134,16 +126,23 @@ export async function generate(frame, config = {}) {
 }
 
 /**
- * Composite up to four frames into one 2×2 sheet (2×tileSize square). Uses `sheetLayout` or {@link DEFAULT_DPAD_SHEET_LAYOUT}.
+ * Composite up to four frames into one 2×2 sheet (2×tileSize square).
+ * **`sheetLayout`** is required — derive from `preset.sheet.crops` and `tileSize` via
+ * **`sheetLayoutFromCrops`** in **`../sheet-layout.mjs`** (pixel crop origins → cell coordinates).
  *
  * @param {import('./types.mjs').GeneratorFrame[]} frames
- * @param {import('./types.mjs').MockGeneratorConfig} [config]
+ * @param {import('./types.mjs').MockGeneratorConfig} config
  * @returns {Promise<import('./types.mjs').GenerateResult>}
  */
 export async function generateSheet(frames, config = {}) {
   const tileSize = config.tileSize ?? 256;
   const sheetSize = tileSize * 2;
-  const layout = config.sheetLayout ?? DEFAULT_DPAD_SHEET_LAYOUT;
+  const layout = config.sheetLayout;
+  if (!layout) {
+    throw new Error(
+      "mock generateSheet: sheetLayout is required (derive from preset.sheet.crops with sheetLayoutFromCrops)"
+    );
+  }
 
   const png = new PNG({ width: sheetSize, height: sheetSize, colorType: 6 });
   png.data.fill(0);

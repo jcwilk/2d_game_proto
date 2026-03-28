@@ -24,6 +24,7 @@ import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./po
 import { countFullyTransparentPercent, extractPngRegion } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { writeSpriteRef } from "./sprite-ref.mjs";
+import { sheetLayoutFromCrops } from "./sheet-layout.mjs";
 
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
 
@@ -404,7 +405,9 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
 
   log("INFO", "sheet", "mock generateSheet + crop", { sheetPx: sheet.size });
   const t0 = Date.now();
-  const { buffer } = await mockGenerateSheet(frames, { tileSize, seed });
+  // Pixel crop top-left → mock compositor cells: same grid as extractPngRegion (origins ÷ tileSize).
+  const sheetLayout = sheetLayoutFromCrops(sheet.crops, tileSize);
+  const { buffer } = await mockGenerateSheet(frames, { tileSize, seed, sheetLayout });
   timings.mockSheet = Date.now() - t0;
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);

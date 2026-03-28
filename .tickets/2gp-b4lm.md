@@ -1,6 +1,6 @@
 ---
 id: 2gp-b4lm
-status: open
+status: closed
 deps: [2gp-mwst]
 links: []
 created: 2026-03-28T16:21:10Z

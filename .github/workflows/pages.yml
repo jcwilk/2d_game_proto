@@ -33,10 +33,12 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
+  # Requires GitHub Pages with source "GitHub Actions" (Settings → Pages). Otherwise
+  # deploy-pages fails with: Failed to create deployment (status: 404) — Ensure GitHub Pages has been enabled.
   deploy:
     needs: build
     runs-on: ubuntu-latest

@@ -1,0 +1,4 @@
+#game-root {
+  touch-action: none; /* .cursor/plans/project-implementation-deep-dive.md §D.2 */
+  user-select: none;
+}

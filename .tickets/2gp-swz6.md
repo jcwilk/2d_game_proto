@@ -1,6 +1,6 @@
 ---
 id: 2gp-swz6
-status: open
+status: closed
 deps: [2gp-435f, 2gp-dcs7]
 links: []
 created: 2026-03-28T03:23:56Z

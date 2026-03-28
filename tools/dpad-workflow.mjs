@@ -35,6 +35,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 
+import { falSubscribeToBuffer, formatFalClientError, resolveFalCredentials } from "./sprite-generation/generators/fal.mjs";
+import { generate as mockGenerate } from "./sprite-generation/generators/mock.mjs";
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -306,69 +309,6 @@ function maskSecret(s) {
 }
 
 // ---------------------------------------------------------------------------
-// fal helpers (aligned with tools/fal-raster-generate.mjs)
-// ---------------------------------------------------------------------------
-
-function resolveFalCredentials() {
-  const direct = process.env.FAL_KEY;
-  if (direct !== undefined && String(direct).trim() !== "") {
-    return String(direct).trim();
-  }
-  const id = process.env.FAL_KEY_ID;
-  const secret = process.env.FAL_KEY_SECRET;
-  if (id && secret && String(id).trim() && String(secret).trim()) {
-    return `${String(id).trim()}:${String(secret).trim()}`;
-  }
-  return undefined;
-}
-
-/**
- * @param {unknown} err
- */
-function formatFalClientError(err) {
-  if (err instanceof ApiError) {
-    const body = err.body;
-    if (body && typeof body === "object") {
-      const detail = "detail" in body ? body.detail : undefined;
-      const msg = "message" in body ? body.message : undefined;
-      const line = typeof detail === "string" ? detail : typeof msg === "string" ? msg : undefined;
-      if (line) {
-        return `${err.message} (${line})`;
-      }
-    }
-    if (err.requestId) {
-      return `${err.message} (request id: ${err.requestId})`;
-    }
-  }
-  return err instanceof Error ? err.message : String(err);
-}
-
-/**
- * @param {string} s
- * @returns {{ width: number; height: number } | string}
- */
-function parseImageSize(s) {
-  const m = /^(\d+)x(\d+)$/.exec(s.trim());
-  if (m) {
-    return { width: Number(m[1]), height: Number(m[2]) };
-  }
-  return s;
-}
-
-async function downloadToBuffer(url) {
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to download image: HTTP ${res.status} ${res.statusText}`);
-  }
-  return Buffer.from(await res.arrayBuffer());
-}
-
-async function downloadToFile(url, destPath) {
-  const buf = await downloadToBuffer(url);
-  await writeFile(destPath, buf);
-}
-
-// ---------------------------------------------------------------------------
 // Prompts — one template; per-frame text lives only in the frame preset (data).
 // ---------------------------------------------------------------------------
 
@@ -412,86 +352,7 @@ function buildSheetPrompt(chromaKeyHex) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock raster (RGBA triangles)
-// ---------------------------------------------------------------------------
-
-function pointInTriangle(p, a, b, c) {
-  const sign = (p1, p2, p3) =>
-    (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
-  const d1 = sign(p, a, b);
-  const d2 = sign(p, b, c);
-  const d3 = sign(p, c, a);
-  const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
-  const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
-  return !(hasNeg && hasPos);
-}
-
-/**
- * @param {'up'|'down'|'left'|'right'} dir
- */
-function triangleForDirection(dir) {
-  const m = 32;
-  const cx = TILE_SIZE / 2;
-  const cy = TILE_SIZE / 2;
-  switch (dir) {
-    case "up":
-      return [
-        { x: cx, y: m },
-        { x: m, y: TILE_SIZE - m },
-        { x: TILE_SIZE - m, y: TILE_SIZE - m },
-      ];
-    case "down":
-      return [
-        { x: m, y: m },
-        { x: TILE_SIZE - m, y: m },
-        { x: cx, y: TILE_SIZE - m },
-      ];
-    case "left":
-      return [
-        { x: m, y: cy },
-        { x: TILE_SIZE - m, y: m },
-        { x: TILE_SIZE - m, y: TILE_SIZE - m },
-      ];
-    case "right":
-      return [
-        { x: TILE_SIZE - m, y: cy },
-        { x: m, y: m },
-        { x: m, y: TILE_SIZE - m },
-      ];
-    default:
-      throw new Error(String(dir));
-  }
-}
-
-/**
- * @param {'up'|'down'|'left'|'right'} dir
- */
-function renderMockPng(dir) {
-  const [a, b, c] = triangleForDirection(dir);
-  const png = new PNG({ width: TILE_SIZE, height: TILE_SIZE, colorType: 6 });
-  const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
-  for (let y = 0; y < TILE_SIZE; y++) {
-    for (let x = 0; x < TILE_SIZE; x++) {
-      const i = (TILE_SIZE * y + x) << 2;
-      const p = { x, y };
-      if (pointInTriangle(p, a, b, c)) {
-        png.data[i] = fill.r;
-        png.data[i + 1] = fill.g;
-        png.data[i + 2] = fill.b;
-        png.data[i + 3] = fill.a;
-      } else {
-        png.data[i] = 0;
-        png.data[i + 1] = 0;
-        png.data[i + 2] = 0;
-        png.data[i + 3] = 0;
-      }
-    }
-  }
-  return PNG.sync.write(png);
-}
-
-// ---------------------------------------------------------------------------
-// fal: shared subscribe → buffer
+// fal: shared subscribe → buffer (implementation in sprite-generation/generators/fal.mjs)
 // ---------------------------------------------------------------------------
 
 /**
@@ -625,84 +486,6 @@ function chromaKeyWithBorderFallback(rawFalPng, opts) {
     });
   }
   return { buffer: buf, usedPrimaryKey, keyRgb: effectiveKey };
-}
-
-/**
- * @param {object} params
- * @param {string} params.endpoint
- * @param {string} params.prompt
- * @param {string} params.imageSize
- * @param {number|undefined} params.seed
- * @param {boolean} params.quiet
- * @param {Record<string, unknown>|undefined} params.falExtraInput  Merged into fal input (e.g. guidance_scale).
- * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
- */
-async function falSubscribeToBuffer(params) {
-  const { endpoint, prompt, imageSize, seed, quiet, falExtraInput } = params;
-
-  const image_size = parseImageSize(imageSize);
-  const input = {
-    prompt,
-    image_size,
-    num_images: 1,
-    output_format: "png",
-    ...(falExtraInput && typeof falExtraInput === "object" ? falExtraInput : {}),
-  };
-  if (seed !== undefined) {
-    input.seed = seed;
-  }
-
-  log("INFO", `fal:${endpoint}`, "subscribe() starting", {
-    image_size: typeof image_size === "string" ? image_size : image_size,
-    seed: input.seed ?? null,
-    promptChars: prompt.length,
-  });
-  if (!quiet) {
-    log("DEBUG", "fal:prompt", "full prompt follows");
-    console.log(prompt);
-  }
-
-  const t0 = Date.now();
-  let lastStatus = "";
-
-  const result = await fal.subscribe(endpoint, {
-    input,
-    logs: true,
-    onQueueUpdate: (status) => {
-      const s = status && typeof status === "object" && "status" in status ? String(status.status) : "?";
-      if (s !== lastStatus) {
-        lastStatus = s;
-        log("DEBUG", "fal:queue", `status=${s}`, {
-          ...(typeof status === "object" && status !== null && "position" in status
-            ? { position: status.position }
-            : {}),
-        });
-      }
-    },
-  });
-
-  const wallMs = Date.now() - t0;
-  const data = result.data;
-  if (!data || !Array.isArray(data.images) || data.images.length === 0) {
-    throw new Error("fal returned no images in response data");
-  }
-
-  const img0 = data.images[0];
-  if (!img0 || typeof img0.url !== "string") {
-    throw new Error("fal image[0] missing url");
-  }
-
-  log("INFO", `fal:${endpoint}`, "download starting", { urlHost: img0.url ? new URL(img0.url).host : "?" });
-  const buffer = await downloadToBuffer(img0.url);
-
-  const outSeed = data.seed;
-  log("INFO", `fal:${endpoint}`, "subscribe() done", {
-    wallMs,
-    seedReturned: outSeed,
-    bytes: buffer.length,
-  });
-
-  return { buffer, seed: outSeed, wallMs };
 }
 
 // ---------------------------------------------------------------------------
@@ -927,11 +710,10 @@ async function main() {
       const folder = join(OUT_BASE, frame.outSubdir);
       await mkdir(folder, { recursive: true });
       const outPng = join(folder, "dpad.png");
-      const dir = /** @type {'up'|'down'|'left'|'right'} */ (frame.id);
       log("INFO", `tile:${frame.id}`, "begin", { outPng: join("public/art/dpad", frame.outSubdir, "dpad.png") });
       try {
         const t0 = Date.now();
-        const buf = renderMockPng(dir);
+        const { buffer: buf } = await mockGenerate(frame, { tileSize: TILE_SIZE });
         timings[frame.id] = Date.now() - t0;
         await writeFile(outPng, buf);
         pushFrameReport(frame.id, {
@@ -967,6 +749,7 @@ async function main() {
         seed: opts.seed,
         quiet,
         falExtraInput: opts.endpoint === DEFAULT_FAL_ENDPOINT ? SHEET_FAL_EXTRA_INPUT : undefined,
+        log,
       });
       timings.sheetFal = wallMs;
       if (opts.keepSheet) {
@@ -1024,6 +807,7 @@ async function main() {
           seed: opts.seed,
           quiet,
           falExtraInput: opts.endpoint === DEFAULT_FAL_ENDPOINT ? PER_TILE_FAL_EXTRA_INPUT : undefined,
+          log,
         });
         const { buffer: outBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(buffer, {
           keyRgb,

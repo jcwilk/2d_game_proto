@@ -1,6 +1,6 @@
 ---
 id: 2gp-5ixa
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:05Z
@@ -28,6 +28,12 @@ async function generateSheet(frames, config) -> { buffer: Buffer, metadata: {...
 
 ## Acceptance criteria
 
-- [ ] **`generators/mock.mjs`**: Vitest asserts **256×256** output (or preset `tileSize`), alpha channel, and **pixel spot checks** at known coordinates for a fixed seed/shape.
-- [ ] **`generators/fal.mjs`**: Tests use **mocked `fetch` / fal client** or cover **pure helpers only** (`parseImageSize`, credential resolution from env, error formatting) — **no network** in CI.
-- [ ] **`types.mjs`** documents the **`generate` / `generateSheet`** contract for **2gp-98mn**.
+- [x] **`generators/mock.mjs`**: Vitest asserts **256×256** output (or preset `tileSize`), alpha channel, and **pixel spot checks** at known coordinates for a fixed seed/shape.
+- [x] **`generators/fal.mjs`**: Tests use **mocked `fetch` / fal client** or cover **pure helpers only** (`parseImageSize`, credential resolution from env, error formatting) — **no network** in CI.
+- [x] **`types.mjs`** documents the **`generate` / `generateSheet`** contract for **2gp-98mn**.
+
+## Notes
+
+**2026-03-28T16:25:39Z**
+
+Added tools/sprite-generation/generators: mock.mjs (generate/generateSheet, injectable shapeForFrame, dpad defaults), fal.mjs (credentials, parseImageSize, formatFalClientError, download*, falSubscribeToBuffer with injectable log/fal/fetch), types.mjs JSDoc for pipeline contract (2gp-98mn). dpad-workflow.mjs imports mock+fal; Vitest mock.test.mjs + fal.test.mjs (no network).

@@ -7,7 +7,7 @@
  * deterministic crops using **`preset.sheet.size`** and **`preset.sheet.crops`**).
  *
  * @see `generators/types.mjs` — generator contracts
- * @see `presets/dpad.mjs` — D-pad preset (**2gp-mwst**); until then callers pass a compatible object.
+ * @see `presets/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  */
 
 import { fal } from "@fal-ai/client";

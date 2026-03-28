@@ -27,6 +27,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
       # Project Pages: hashed assets must resolve under /<repo>/ (see plan §A.2.1). Do not inject API keys into the client build.
       - run: npm run build
         env:

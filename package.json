@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@fal-ai/client": "^1.9.5",
     "jsdom": "^25.0.1",
     "pngjs": "^7.0.0",
     "typescript": "~5.8.0",

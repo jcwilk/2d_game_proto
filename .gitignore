@@ -26,3 +26,6 @@ Desktop.ini
 
 # Project
 .cursor/plans/
+
+# Tooling outputs (fal raster generation, etc.)
+tools/out/

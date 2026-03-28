@@ -1,6 +1,6 @@
 ---
 id: 2gp-g5bi
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:04Z
@@ -20,3 +20,9 @@ Add **`tools/sprite-generation/logging.mjs`**: structured **`log(level, step, me
 - [ ] File exists at **`tools/sprite-generation/logging.mjs`** and is imported by downstream modules. **Interim:** **`dpad-workflow.mjs`** may keep inline logging until **2gp-b4lm**; after **2gp-b4lm**, the monolith must call the shared module (no duplicate logger).
 - [ ] Log line shape and levels are **documented in the module** (if any field differs from the legacy lines 291–306, the delta is intentional and noted).
 - [ ] No **network**, **fal**, or **filesystem** side effects inside the logger itself.
+
+## Notes
+
+**2026-03-28T16:27:20Z**
+
+Added tools/sprite-generation/logging.mjs: log(level,step,message,extra?) with [sprite-gen] tag (documented delta vs dpad-workflow [dpad-workflow]). fal.mjs defaults to shared log. Vitest logging.test.mjs covers line shape. No I/O beyond console.log in logger.

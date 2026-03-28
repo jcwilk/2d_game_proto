@@ -7,6 +7,8 @@ import { ApiError } from "@fal-ai/client";
 import { fal } from "@fal-ai/client";
 import { writeFile } from "node:fs/promises";
 
+import { log as defaultLog } from "../logging.mjs";
+
 export function resolveFalCredentials() {
   const direct = process.env.FAL_KEY;
   if (direct !== undefined && String(direct).trim() !== "") {
@@ -90,11 +92,7 @@ export async function downloadToFile(url, destPath, fetchImpl = globalThis.fetch
  */
 export async function falSubscribeToBuffer(params) {
   const { endpoint, prompt, imageSize, seed, quiet, falExtraInput, falSubscribe, fetch: fetchImpl } = params;
-  const log =
-    params.log ??
-    (() => {
-      /* noop — dpad-workflow and pipeline pass structured log */
-    });
+  const log = params.log ?? defaultLog;
 
   const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
   const fetchFn = fetchImpl ?? globalThis.fetch;

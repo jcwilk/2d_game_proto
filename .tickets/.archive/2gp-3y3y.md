@@ -1,6 +1,6 @@
 ---
 id: 2gp-3y3y
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-28T16:21:01Z

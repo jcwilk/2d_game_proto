@@ -3,13 +3,12 @@
     "width": 256,
     "height": 256
   },
-  "fileSizeBytes": 1952,
+  "fileSizeBytes": 62512,
   "alpha": {
-    "fullyTransparentPercent": 71.58050537109375,
-    "fullyOpaquePercent": 28.41949462890625,
+    "fullyTransparentPercent": 0,
+    "fullyOpaquePercent": 100,
     "semiTransparentPercent": 0,
     "histogram256": [
-      46911,
       0,
       0,
       0,
@@ -264,14 +263,15 @@
       0,
       0,
       0,
-      18625
+      0,
+      65536
     ]
   },
   "opaqueBbox": {
-    "minX": 32,
-    "minY": 32,
-    "maxX": 224,
-    "maxY": 224
+    "minX": 0,
+    "minY": 0,
+    "maxX": 255,
+    "maxY": 255
   },
   "grid": {
     "spriteWidth": 32,
@@ -281,7 +281,7 @@
     "divisible": true,
     "columns": 8,
     "rows": 8,
-    "meanVerticalBoundaryEdge": 11.839429910714303,
-    "meanHorizontalBoundaryEdge": 0.7974745535714287
+    "meanVerticalBoundaryEdge": 3.4989938616071425,
+    "meanHorizontalBoundaryEdge": 2.006839508928571
   }
 }

@@ -14,7 +14,7 @@ Scripts in this directory run **only on the machine or CI that invokes Node** �
 
 Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-grid-atlas.png --sprite-width 32 --sprite-height 32`.
 
-**`dpad-workflow.mjs`** — opinionated D-pad tile pipeline: manifest under `public/art/dpad/`, one PNG per direction, optional fal generation (`--mode generate` + `FAL_KEY`), verbose STDOUT for debugging, `png-analyze` QA. See `--help`. `tools/mock-dpad-workflow.mjs` forwards to `--mode mock` for back-compat.
+**`dpad-workflow.mjs`** — D-pad tile pipeline: manifest under `public/art/dpad/`, one PNG per direction, `png-analyze` QA, verbose STDOUT. **`--mode generate`** defaults to **`--strategy sheet`**: one **512×512** fal image, then **deterministic 2×2 crops** to 256² tiles (**shared style**, not guaranteed directional semantics or transparency—see `.cursor/plans/fal-precision-assets.md` §4.1). **`--strategy per-tile`**: legacy four API calls. See `--help`. `mock-dpad-workflow.mjs` forwards to `--mode mock`.
 
 ## fal vs OpenAI (roles)
 

@@ -13,7 +13,9 @@
  * -----
  *   --mode mock      No network. Draws simple RGBA triangles (proves geometry + alpha
  *                    pipeline without T2I composition issues).
- *   --mode generate  Calls fal subscribe() once per direction. Requires FAL_KEY.
+ *   --mode generate  fal + FAL_KEY. Default --strategy sheet: ONE image (512²) then
+ *                    crop to four tiles (shared style). Use --strategy per-tile for
+ *                    legacy one API call per direction (inconsistent style).
  *
  * Security
  * --------
@@ -45,6 +47,25 @@ const OUT_BASE = join(REPO_ROOT, "public", "art", "dpad");
 /** Tile pixel size (width = height). Kept fixed for a predictable atlas later. */
 const TILE_SIZE = 256;
 
+/**
+ * Single fal output for sheet strategy: 2×2 grid of tiles, sliced to TILE_SIZE each.
+ * Must match crop map below.
+ */
+const SHEET_SIZE = 512;
+
+/**
+ * Where each direction lives in the 512×512 sheet (top-left origin).
+ * Layout:
+ *   [ up    ] [ right ]
+ *   [ left  ] [ down  ]
+ */
+const SHEET_CROPS = {
+  up: { x: 0, y: 0 },
+  right: { x: TILE_SIZE, y: 0 },
+  left: { x: 0, y: TILE_SIZE },
+  down: { x: TILE_SIZE, y: TILE_SIZE },
+};
+
 /** fal endpoint: pinned to same model as tools/fal-raster-generate.mjs unless --endpoint overrides. */
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
 
@@ -59,11 +80,13 @@ const DIRECTIONS = /** @type {const} */ (["up", "down", "left", "right"]);
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; endpoint: string; imageSize: string; seed?: number; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean }} */
   const opts = {
     mode: "mock",
+    strategy: "sheet",
     endpoint: DEFAULT_FAL_ENDPOINT,
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
+    keepSheet: false,
     skipQa: false,
     dryRun: false,
     quiet: false,
@@ -88,6 +111,15 @@ function parseArgs(argv) {
         break;
       case "--image-size":
         opts.imageSize = next();
+        break;
+      case "--strategy":
+        opts.strategy = /** @type {'sheet'|'per-tile'} */ (next());
+        if (opts.strategy !== "sheet" && opts.strategy !== "per-tile") {
+          throw new Error('--strategy must be "sheet" or "per-tile"');
+        }
+        break;
+      case "--keep-sheet":
+        opts.keepSheet = true;
         break;
       case "--seed":
         opts.seed = Number.parseInt(next(), 10);
@@ -121,10 +153,15 @@ Hardcoded D-pad pipeline: manifest + four directional tiles + png-analyze QA.
 
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
-                         generate = fal text-to-image per direction (needs FAL_KEY).
+                         generate = fal (needs FAL_KEY).
+  --strategy sheet|per-tile   For generate only. Default: sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE}
+                         fal image, then crop 2×2 into four ${TILE_SIZE}px tiles (best style match).
+                         per-tile = separate fal call per direction (legacy; style often drifts).
+  --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
-  --image-size <WxH>     Passed to fal as image_size (default: ${TILE_SIZE}x${TILE_SIZE})
-  --seed <int>           Optional; passed to fal for each direction (repro experiments).
+  --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
+                         Ignored for sheet (sheet is always ${SHEET_SIZE}x${SHEET_SIZE}).
+  --seed <int>           Optional fal seed (one job for sheet; each job for per-tile).
   --skip-qa              Skip png-analyze step.
   --dry-run              Print planned actions only; no writes, no API calls.
                          For --mode generate, does NOT require FAL_KEY (planning only).
@@ -136,7 +173,8 @@ Environment (generate mode):
 
 Examples:
   node tools/dpad-workflow.mjs --mode mock
-  node --env-file=.env node tools/dpad-workflow.mjs --mode generate
+  node --env-file=.env tools/dpad-workflow.mjs --mode generate
+  node --env-file=.env tools/dpad-workflow.mjs --mode generate --strategy per-tile
 `);
 }
 
@@ -217,12 +255,16 @@ function parseImageSize(s) {
   return s;
 }
 
-async function downloadToFile(url, destPath) {
+async function downloadToBuffer(url) {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to download image: HTTP ${res.status} ${res.statusText}`);
   }
-  const buf = Buffer.from(await res.arrayBuffer());
+  return Buffer.from(await res.arrayBuffer());
+}
+
+async function downloadToFile(url, destPath) {
+  const buf = await downloadToBuffer(url);
   await writeFile(destPath, buf);
 }
 
@@ -243,6 +285,24 @@ function buildGenerationPrompt(direction) {
     `Orthographic top-down pixel art UI tile: ONLY the ${direction} segment of a single directional control (one wedge or arrow pointing ${direction}). ` +
     `Centered, fills the frame edge-to-edge, flat solid colors, no gradients, no other buttons, no controller body, HUD game UI element, crisp pixel edges, 16-bit style. ` +
     `Negative: ${negatives}`
+  );
+}
+
+/**
+ * One fal job covering all four directions in a fixed 2×2 layout — shared latent/style.
+ * Cropping is deterministic in code (see SHEET_CROPS).
+ */
+function buildSheetPrompt() {
+  return (
+    `Single square pixel art HUD image, exactly ${SHEET_SIZE} by ${SHEET_SIZE} pixels, ` +
+    `strictly divided into four equal quadrants in a 2x2 grid (no border lines, no gaps, seamless). ` +
+    `Top-left quadrant: ONLY an upward-pointing directional wedge or arrow for “up”. ` +
+    `Top-right quadrant: ONLY a rightward-pointing wedge or arrow. ` +
+    `Bottom-left quadrant: ONLY a leftward-pointing wedge or arrow. ` +
+    `Bottom-right quadrant: ONLY a downward-pointing wedge or arrow. ` +
+    `Use the SAME palette, stroke weight, and pixel style in all four quadrants; flat colors, 16-bit game UI look, orthographic top-down. ` +
+    `No full D-pad cross, no gamepad, no face buttons, no text, no labels. ` +
+    `Negative: full controller, gamepad body, A B X Y, analog sticks, cables, hands, watermark, photorealistic, 3d render, drop shadow.`
   );
 }
 
@@ -326,22 +386,47 @@ function renderMockPng(dir) {
 }
 
 // ---------------------------------------------------------------------------
-// fal: one direction
+// fal: shared subscribe → buffer
 // ---------------------------------------------------------------------------
+
+/**
+ * @param {import('pngjs').PNG} src
+ * @param {number} x0
+ * @param {number} y0
+ * @param {number} w
+ * @param {number} h
+ */
+function extractPngRegion(src, x0, y0, w, h) {
+  if (x0 + w > src.width || y0 + h > src.height) {
+    throw new Error(`crop out of bounds: ${x0},${y0} ${w}x${h} vs ${src.width}x${src.height}`);
+  }
+  const dst = new PNG({ width: w, height: h, colorType: src.colorType });
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const sx = x0 + x;
+      const sy = y0 + y;
+      const si = (src.width * sy + sx) << 2;
+      const di = (w * y + x) << 2;
+      dst.data[di] = src.data[si];
+      dst.data[di + 1] = src.data[si + 1];
+      dst.data[di + 2] = src.data[si + 2];
+      dst.data[di + 3] = src.data[si + 3];
+    }
+  }
+  return PNG.sync.write(dst);
+}
 
 /**
  * @param {object} params
  * @param {string} params.endpoint
  * @param {string} params.prompt
  * @param {string} params.imageSize
- * @param {string} params.outFile
- * @param {number|'omit'} [params.seed]
+ * @param {number|undefined} params.seed
  * @param {boolean} params.quiet
- * @returns {Promise<{ seed?: number; requestId?: string; wallMs: number }>}
+ * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
  */
-async function generateOneWithFal(params) {
-  const { endpoint, prompt, imageSize, outFile, quiet } = params;
-  const seed = params.seed;
+async function falSubscribeToBuffer(params) {
+  const { endpoint, prompt, imageSize, seed, quiet } = params;
 
   const image_size = parseImageSize(imageSize);
   const input = {
@@ -350,7 +435,7 @@ async function generateOneWithFal(params) {
     num_images: 1,
     output_format: "png",
   };
-  if (seed !== undefined && seed !== "omit") {
+  if (seed !== undefined) {
     input.seed = seed;
   }
 
@@ -395,16 +480,28 @@ async function generateOneWithFal(params) {
   }
 
   log("INFO", `fal:${endpoint}`, "download starting", { urlHost: img0.url ? new URL(img0.url).host : "?" });
-  await downloadToFile(img0.url, outFile);
+  const buffer = await downloadToBuffer(img0.url);
 
   const outSeed = data.seed;
   log("INFO", `fal:${endpoint}`, "subscribe() done", {
     wallMs,
     seedReturned: outSeed,
-    bytesWrittenPath: outFile,
+    bytes: buffer.length,
   });
 
-  return { seed: outSeed, wallMs };
+  return { buffer, seed: outSeed, wallMs };
+}
+
+/**
+ * @param {object} params
+ * @param {string} params.outFile
+ */
+async function generateOneWithFal(params) {
+  const { outFile, ...rest } = params;
+  const { buffer, seed, wallMs } = await falSubscribeToBuffer(rest);
+  await writeFile(outFile, buffer);
+  log("INFO", "fal:write", "wrote file", { path: outFile });
+  return { seed, wallMs };
 }
 
 // ---------------------------------------------------------------------------
@@ -461,10 +558,16 @@ async function main() {
   }
 
   const quiet = opts.quiet;
-  const recipeId = opts.mode === "mock" ? "dpad-workflow-mock-v1" : "dpad-workflow-fal-v1";
+  const recipeId =
+    opts.mode === "mock"
+      ? "dpad-workflow-mock-v1"
+      : opts.strategy === "sheet"
+        ? "dpad-workflow-fal-sheet-v1"
+        : "dpad-workflow-fal-per-tile-v1";
 
   log("INFO", "init", "starting", {
     mode: opts.mode,
+    strategy: opts.mode === "generate" ? opts.strategy : null,
     outBase: OUT_BASE,
     recipeId,
     dryRun: opts.dryRun,
@@ -478,13 +581,24 @@ async function main() {
       log("INFO", "dry-run", `would write ${join("public/art/dpad", d, "dpad.png")}`);
     }
     if (opts.mode === "generate") {
-      log("INFO", "dry-run", "would call fal.subscribe once per direction", {
-        endpoint: opts.endpoint,
-        imageSize: opts.imageSize,
-        seed: opts.seed ?? null,
-      });
-      for (const d of DIRECTIONS) {
-        log("DEBUG", "dry-run", `prompt preview [${d}]`, { text: buildGenerationPrompt(d).slice(0, 120) + "…" });
+      if (opts.strategy === "sheet") {
+        log("INFO", "dry-run", "would call fal.subscribe ONCE", {
+          endpoint: opts.endpoint,
+          imageSize: `${SHEET_SIZE}x${SHEET_SIZE}`,
+          seed: opts.seed ?? null,
+          keepSheet: opts.keepSheet,
+        });
+        log("DEBUG", "dry-run", "sheet prompt preview", { text: buildSheetPrompt().slice(0, 200) + "…" });
+        log("INFO", "dry-run", "would crop quadrants per SHEET_CROPS (up,right,left,down)");
+      } else {
+        log("INFO", "dry-run", "would call fal.subscribe once per direction (per-tile)", {
+          endpoint: opts.endpoint,
+          imageSize: opts.imageSize,
+          seed: opts.seed ?? null,
+        });
+        for (const d of DIRECTIONS) {
+          log("DEBUG", "dry-run", `prompt preview [${d}]`, { text: buildGenerationPrompt(d).slice(0, 120) + "…" });
+        }
       }
     }
     log("INFO", "dry-run", "done");
@@ -509,26 +623,42 @@ async function main() {
 
   await mkdir(OUT_BASE, { recursive: true });
 
+  const recipeNote =
+    opts.mode === "mock"
+      ? "Mock: geometry from pngjs triangles, not T2I."
+      : opts.strategy === "sheet"
+        ? `Real: one fal job at ${SHEET_SIZE}x${SHEET_SIZE}, deterministic 2x2 crop to ${TILE_SIZE}px (see SHEET_CROPS in dpad-workflow.mjs).`
+        : "Real: one fal.subscribe per direction (style may drift); see generationResults.";
+
   // --- Manifest (written before tiles so partial runs still leave a trace)
   const manifest = {
     kind: "dpad_tile_set",
     recipeId,
     createdAt,
-    workflow: opts.mode === "mock" ? "mock (triangles)" : `fal generate (${opts.endpoint})`,
+    workflow:
+      opts.mode === "mock"
+        ? "mock (triangles)"
+        : opts.strategy === "sheet"
+          ? `fal sheet (${opts.endpoint}, ${SHEET_SIZE}px → crop)`
+          : `fal per-tile (${opts.endpoint})`,
     specs: {
       tileSize: { width: TILE_SIZE, height: TILE_SIZE },
-      imageSize: opts.imageSize,
+      ...(opts.mode === "generate" && opts.strategy === "sheet"
+        ? { sheetSize: { width: SHEET_SIZE, height: SHEET_SIZE }, sheetCropMap: SHEET_CROPS }
+        : {}),
+      imageSize:
+        opts.mode === "generate" && opts.strategy === "sheet"
+          ? `${SHEET_SIZE}x${SHEET_SIZE}`
+          : opts.imageSize,
       naming: "dpad.png per direction folder",
       directions: [...DIRECTIONS],
+      ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
     },
     generationRecipe: {
       mode: opts.mode,
       endpoint: opts.mode === "generate" ? opts.endpoint : null,
       seedRequested: opts.seed ?? null,
-      note:
-        opts.mode === "mock"
-          ? "Mock: geometry from pngjs triangles, not T2I."
-          : "Real: one fal.subscribe per direction; see per-direction entries in generationResults.",
+      note: recipeNote,
     },
     provenance: {
       tool: "tools/dpad-workflow.mjs",
@@ -542,22 +672,79 @@ async function main() {
   log("INFO", "manifest", `wrote ${manifestPath}`);
 
   // --- Tiles
-  for (const dir of DIRECTIONS) {
-    const folder = join(OUT_BASE, dir);
-    await mkdir(folder, { recursive: true });
-    const outPng = join(folder, "dpad.png");
-
-    log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
-
-    try {
-      if (opts.mode === "mock") {
+  if (opts.mode === "mock") {
+    for (const dir of DIRECTIONS) {
+      const folder = join(OUT_BASE, dir);
+      await mkdir(folder, { recursive: true });
+      const outPng = join(folder, "dpad.png");
+      log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
+      try {
         const t0 = Date.now();
         const buf = renderMockPng(dir);
         timings[dir] = Date.now() - t0;
         await writeFile(outPng, buf);
         generationResults[dir] = { wallMs: timings[dir], seed: undefined };
         log("INFO", `tile:${dir}`, "mock PNG written", { bytes: buf.length, wallMs: timings[dir] });
-      } else {
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        generationResults[dir] = { error: msg };
+        log("ERROR", `tile:${dir}`, "FAILED", { error: msg });
+        manifest.generationResults = generationResults;
+        await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+        process.exit(1);
+      }
+    }
+  } else if (opts.strategy === "sheet") {
+    for (const dir of DIRECTIONS) {
+      await mkdir(join(OUT_BASE, dir), { recursive: true });
+    }
+    try {
+      const prompt = buildSheetPrompt();
+      log("INFO", "sheet", "single fal job + crop (shared style)", { sheetPx: SHEET_SIZE });
+      const { buffer, seed, wallMs } = await falSubscribeToBuffer({
+        endpoint: opts.endpoint,
+        prompt,
+        imageSize: `${SHEET_SIZE}x${SHEET_SIZE}`,
+        seed: opts.seed,
+        quiet,
+      });
+      timings.sheetFal = wallMs;
+      if (opts.keepSheet) {
+        await writeFile(join(OUT_BASE, "sheet.png"), buffer);
+        log("INFO", "sheet", "wrote public/art/dpad/sheet.png (--keep-sheet)");
+      }
+      const png = PNG.sync.read(buffer);
+      if (png.width !== SHEET_SIZE || png.height !== SHEET_SIZE) {
+        throw new Error(`expected fal output ${SHEET_SIZE}x${SHEET_SIZE}, got ${png.width}x${png.height}`);
+      }
+      for (const dir of DIRECTIONS) {
+        const { x, y } = SHEET_CROPS[dir];
+        const tileBuf = extractPngRegion(png, x, y, TILE_SIZE, TILE_SIZE);
+        await writeFile(join(OUT_BASE, dir, "dpad.png"), tileBuf);
+        generationResults[dir] = {
+          seed,
+          wallMs,
+          fromSheet: true,
+          cropOrigin: `${x},${y}`,
+        };
+        log("INFO", `tile:${dir}`, "cropped from sheet", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
+      }
+      generationResults._sheet = { seed, wallMs, strategy: "sheet" };
+    } catch (e) {
+      const msg = formatFalClientError(e);
+      log("ERROR", "sheet", "FAILED", { error: msg });
+      generationResults._sheet = { error: msg };
+      manifest.generationResults = generationResults;
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+      process.exit(1);
+    }
+  } else {
+    for (const dir of DIRECTIONS) {
+      const folder = join(OUT_BASE, dir);
+      await mkdir(folder, { recursive: true });
+      const outPng = join(folder, "dpad.png");
+      log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
+      try {
         const prompt = buildGenerationPrompt(dir);
         const t0 = Date.now();
         const r = await generateOneWithFal({
@@ -571,15 +758,15 @@ async function main() {
         timings[dir] = Date.now() - t0;
         generationResults[dir] = { seed: r.seed, wallMs: r.wallMs };
         log("INFO", `tile:${dir}`, "fal PNG saved", generationResults[dir]);
+      } catch (e) {
+        const msg = formatFalClientError(e);
+        generationResults[dir] = { error: msg };
+        log("ERROR", `tile:${dir}`, "FAILED", { error: msg });
+        manifest.generationResults = generationResults;
+        await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+        log("WARN", "manifest", "updated after failure (partial state)");
+        process.exit(1);
       }
-    } catch (e) {
-      const msg = opts.mode === "generate" ? formatFalClientError(e) : e instanceof Error ? e.message : String(e);
-      generationResults[dir] = { error: msg };
-      log("ERROR", `tile:${dir}`, "FAILED", { error: msg });
-      manifest.generationResults = generationResults;
-      await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-      log("WARN", "manifest", "updated after failure (partial state)");
-      process.exit(1);
     }
   }
 

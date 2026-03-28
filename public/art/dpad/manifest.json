@@ -1,27 +1,50 @@
 {
   "kind": "dpad_tile_set",
-  "recipeId": "dpad-workflow-mock-v1",
-  "createdAt": "2026-03-28T12:38:09.054Z",
-  "workflow": "mock (triangles)",
+  "recipeId": "dpad-workflow-fal-sheet-v1",
+  "createdAt": "2026-03-28T12:50:34.329Z",
+  "workflow": "fal sheet (fal-ai/flux/dev, 512px → crop)",
   "specs": {
     "tileSize": {
       "width": 256,
       "height": 256
     },
-    "imageSize": "256x256",
+    "sheetSize": {
+      "width": 512,
+      "height": 512
+    },
+    "sheetCropMap": {
+      "up": {
+        "x": 0,
+        "y": 0
+      },
+      "right": {
+        "x": 256,
+        "y": 0
+      },
+      "left": {
+        "x": 0,
+        "y": 256
+      },
+      "down": {
+        "x": 256,
+        "y": 256
+      }
+    },
+    "imageSize": "512x512",
     "naming": "dpad.png per direction folder",
     "directions": [
       "up",
       "down",
       "left",
       "right"
-    ]
+    ],
+    "strategy": "sheet"
   },
   "generationRecipe": {
-    "mode": "mock",
-    "endpoint": null,
+    "mode": "generate",
+    "endpoint": "fal-ai/flux/dev",
     "seedRequested": null,
-    "note": "Mock: geometry from pngjs triangles, not T2I."
+    "note": "Real: one fal job at 512x512, deterministic 2x2 crop to 256px (see SHEET_CROPS in dpad-workflow.mjs)."
   },
   "provenance": {
     "tool": "tools/dpad-workflow.mjs",
@@ -29,16 +52,33 @@
   },
   "generationResults": {
     "up": {
-      "wallMs": 24
+      "seed": 54207449,
+      "wallMs": 1653,
+      "fromSheet": true,
+      "cropOrigin": "0,0"
     },
     "down": {
-      "wallMs": 16
+      "seed": 54207449,
+      "wallMs": 1653,
+      "fromSheet": true,
+      "cropOrigin": "256,256"
     },
     "left": {
-      "wallMs": 15
+      "seed": 54207449,
+      "wallMs": 1653,
+      "fromSheet": true,
+      "cropOrigin": "0,256"
     },
     "right": {
-      "wallMs": 14
+      "seed": 54207449,
+      "wallMs": 1653,
+      "fromSheet": true,
+      "cropOrigin": "256,0"
+    },
+    "_sheet": {
+      "seed": 54207449,
+      "wallMs": 1653,
+      "strategy": "sheet"
     }
   }
 }

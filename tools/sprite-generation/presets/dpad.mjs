@@ -65,7 +65,8 @@ export const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
  */
 export const DPAD_FAL_EXTRA_INPUT = {
   num_inference_steps: 40,
-  guidance_scale: 4.5,
+  /** FLUX/dev: small A/B range 3–5; lower can reduce over-stylized color fringing vs SDXL-style CFG. */
+  guidance_scale: 4,
   acceleration: "none",
 };
 

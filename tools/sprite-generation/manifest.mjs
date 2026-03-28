@@ -23,7 +23,7 @@
 export const RECIPE_VERSION_MOCK = "v2-frames";
 
 /** Bump when per-tile fal + chroma postprocess contract changes. */
-export const RECIPE_VERSION_PER_TILE = "v4-frames-chroma";
+export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
 /** Bump when sheet fal + crop + chroma contract changes. */
 export const RECIPE_VERSION_SHEET = "v13-frames-chroma";
@@ -163,7 +163,7 @@ export function buildInitialManifest(input) {
             keyRgb: keyRgbForManifest,
             tolerance: chromaTolerance,
             postProcess:
-              "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median 1px border RGB + higher tolerance",
+              "chromaKeyWithBorderFallback: prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance",
           },
           seedPolicyPerTile: strategy === "per-tile" ? "Same integer --seed passed to every fal.subscribe in this batch when --seed is set." : null,
         }

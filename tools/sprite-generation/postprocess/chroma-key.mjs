@@ -2,8 +2,45 @@ import { PNG } from "pngjs";
 
 import { countFullyTransparentPercent } from "./png-region.mjs";
 
-/** When the prompt hex misses FLUX drift, border-median key uses at least this tolerance. */
+/** When the prompt hex misses FLUX drift, fallback inferred key uses at least this tolerance. */
 export const CHROMA_FALLBACK_TOLERANCE_MIN = 52;
+
+/**
+ * Median RGB from four corner blocks — tends to sample **clean background** vs a full 1px border
+ * when the glyph touches edges (border median can mix glyph/AA into the key).
+ *
+ * @param {import('pngjs').PNG} png
+ * @param {number} [blockSize] Edge length of each corner square (clamped to image).
+ * @returns {{ r: number; g: number; b: number }}
+ */
+export function inferBackgroundKeyFromCorners(png, blockSize = 16) {
+  const w = png.width;
+  const h = png.height;
+  const maxBlock = Math.max(1, Math.floor(Math.min(w, h) / 4));
+  const s = Math.min(Math.max(1, blockSize), maxBlock);
+  const rs = [];
+  const gs = [];
+  const bs = [];
+  const pushBlock = (x0, y0) => {
+    for (let y = y0; y < y0 + s && y < h; y++) {
+      for (let x = x0; x < x0 + s && x < w; x++) {
+        const i = (w * y + x) << 2;
+        rs.push(png.data[i]);
+        gs.push(png.data[i + 1]);
+        bs.push(png.data[i + 2]);
+      }
+    }
+  };
+  pushBlock(0, 0);
+  pushBlock(w - s, 0);
+  pushBlock(0, h - s);
+  pushBlock(w - s, h - s);
+  const median = (arr) => {
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  };
+  return { r: median(rs), g: median(gs), b: median(bs) };
+}
 
 /**
  * @param {import('pngjs').PNG} png
@@ -87,7 +124,7 @@ export function chromaKeyWithBorderFallback(rawFalPng, opts) {
   const pct = countFullyTransparentPercent(buf);
   if (pct < 0.8) {
     const png = PNG.sync.read(rawFalPng);
-    const inferred = inferBackgroundKeyFromBorder(png);
+    const inferred = inferBackgroundKeyFromCorners(png);
     buf = applyChromaKeyToPngBuffer(rawFalPng, { keyRgb: inferred, tolerance: fallbackTolerance });
     usedPrimaryKey = false;
     effectiveKey = inferred;

@@ -33,13 +33,14 @@ function parseHexRgb(hex) {
 }
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
   const opts = {
     mode: "mock",
     strategy: "per-tile",
     endpoint: DEFAULT_FAL_ENDPOINT,
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
     keepSheet: false,
+    savePreChroma: false,
     skipQa: false,
     dryRun: false,
     quiet: false,
@@ -75,6 +76,9 @@ function parseArgs(argv) {
         break;
       case "--keep-sheet":
         opts.keepSheet = true;
+        break;
+      case "--save-pre-chroma":
+        opts.savePreChroma = true;
         break;
       case "--seed":
         opts.seed = Number.parseInt(next(), 10);
@@ -127,6 +131,7 @@ Options:
                          sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE} image + 2×2 crop (shared style;
                          quadrant→direction often wrong in practice).
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
+  --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
                          Ignored for sheet (sheet is always ${SHEET_SIZE}x${SHEET_SIZE}).
@@ -191,6 +196,7 @@ async function main() {
       endpoint: opts.endpoint,
       imageSize: opts.imageSize,
       keepSheet: opts.keepSheet,
+      savePreChroma: opts.savePreChroma,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

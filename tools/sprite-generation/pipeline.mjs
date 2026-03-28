@@ -75,6 +75,7 @@ function maskSecret(s) {
  * @property {string} [endpoint]
  * @property {string} [imageSize]  Per-tile fal size, e.g. `256x256`
  * @property {boolean} [keepSheet]  Write `sheet.png` under `outBase` (sheet strategy).
+ * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
  */
 
 /**
@@ -112,6 +113,7 @@ export async function runPipeline(preset, opts) {
   const endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
   const imageSize = opts.imageSize ?? `${preset.tileSize}x${preset.tileSize}`;
   const keepSheet = Boolean(opts.keepSheet);
+  const savePreChroma = Boolean(opts.savePreChroma);
 
   const frames = preset.frames;
   for (const f of frames) {
@@ -244,6 +246,7 @@ export async function runPipeline(preset, opts) {
       endpoint,
       imageSize,
       quiet,
+      savePreChroma,
       falExtras:
         endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)
           ? preset.fal?.falExtrasPerTile ?? undefined
@@ -469,6 +472,7 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
  * @param {number} [p.seed]
  * @param {string} p.endpoint
  * @param {boolean} p.quiet
+ * @param {boolean} [p.savePreChroma]
  * @param {Record<string, unknown>} [p.falExtras]
  */
 async function runGeneratePerTilePath({
@@ -481,6 +485,7 @@ async function runGeneratePerTilePath({
   endpoint,
   imageSize,
   quiet,
+  savePreChroma = false,
   falExtras,
 }) {
   const pngName = pngBasename(preset);
@@ -512,6 +517,12 @@ async function runGeneratePerTilePath({
       falExtraInput: falExtras,
       log,
     });
+    if (savePreChroma) {
+      const rawName = pngName.replace(/\.png$/i, "") + "-pre-chroma.png";
+      const rawPath = join(folder, rawName);
+      await writeFile(rawPath, buffer);
+      log("INFO", `tile:${frame.id}`, "wrote pre-chroma PNG", { path: rawPath });
+    }
     const { buffer: outBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(buffer, postSteps, {
       keyRgb,
       chromaTolerance,

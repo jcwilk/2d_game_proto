@@ -58,7 +58,7 @@ describe("chroma-key", () => {
     expect(countFullyTransparentPercent(buffer)).toBe(100);
   });
 
-  it("chromaKeyWithBorderFallback takes border-median path when primary removes <0.8%", () => {
+  it("chromaKeyWithBorderFallback takes corner-median fallback when primary removes <0.8%", () => {
     const png = new PNG({ width: 4, height: 4, colorType: 6 });
     for (let i = 0; i < png.data.length; i += 4) {
       png.data[i] = 100;

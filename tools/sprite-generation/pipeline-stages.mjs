@@ -20,7 +20,7 @@ export const DEFAULT_POSTPROCESS_STEPS_GENERATE = Object.freeze(["chromaKey"]);
 
 /**
  * @param {ChromaPostprocessCtx} ctx
- * @returns {{ buffer: import('node:buffer').Buffer; chromaKeySource: 'prompt-hex'|'border-median'; chromaApplied: true }}
+ * @returns {{ buffer: import('node:buffer').Buffer; chromaKeySource: 'prompt-hex'|'corner-median'; chromaApplied: true }}
  */
 export function runChromaKeyStage(ctx) {
   const { buffer, keyRgb, chromaTolerance, log } = ctx;
@@ -30,14 +30,14 @@ export function runChromaKeyStage(ctx) {
     fallbackTolerance: Math.max(chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
   });
   if (!usedPrimaryKey) {
-    log("WARN", "chroma", "primary hex key removed <0.8% pixels; using border-median key", {
+    log("WARN", "chroma", "primary hex key removed <0.8% pixels; using corner-median key", {
       inferred: effectiveChromaKey,
       transparentPercentAfter: countFullyTransparentPercent(outBuf).toFixed(2),
     });
   }
   return {
     buffer: outBuf,
-    chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
+    chromaKeySource: usedPrimaryKey ? "prompt-hex" : "corner-median",
     chromaApplied: true,
   };
 }
@@ -45,7 +45,7 @@ export function runChromaKeyStage(ctx) {
 /**
  * Ordered postprocess steps (generate path). Extend by adding functions here and documenting ids.
  *
- * @type {Record<string, (ctx: ChromaPostprocessCtx) => { buffer: import('node:buffer').Buffer; chromaKeySource?: 'prompt-hex'|'border-median'; chromaApplied?: boolean }>}
+ * @type {Record<string, (ctx: ChromaPostprocessCtx) => { buffer: import('node:buffer').Buffer; chromaKeySource?: 'prompt-hex'|'corner-median'; chromaApplied?: boolean }>}
  */
 export const POSTPROCESS_REGISTRY = Object.freeze({
   chromaKey: runChromaKeyStage,
@@ -96,12 +96,12 @@ export function resolveGeneratorConfig(preset, runtime) {
  * @param {import('node:buffer').Buffer} buffer
  * @param {string[]} stepIds
  * @param {Omit<ChromaPostprocessCtx, 'buffer'> & { buffer: import('node:buffer').Buffer }} ctxBase
- * @returns {{ buffer: import('node:buffer').Buffer; chromaApplied: boolean; chromaKeySource: 'prompt-hex'|'border-median'|null }}
+ * @returns {{ buffer: import('node:buffer').Buffer; chromaApplied: boolean; chromaKeySource: 'prompt-hex'|'corner-median'|null }}
  */
 export function applyPostprocessPipeline(buffer, stepIds, ctxBase) {
   let buf = buffer;
   let chromaApplied = false;
-  /** @type {'prompt-hex'|'border-median'|null} */
+  /** @type {'prompt-hex'|'corner-median'|null} */
   let chromaKeySource = null;
   for (const stepId of stepIds) {
     const fn = POSTPROCESS_REGISTRY[stepId];

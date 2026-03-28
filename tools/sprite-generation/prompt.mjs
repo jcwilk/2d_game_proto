@@ -12,7 +12,8 @@ export const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 export const DPAD_FRAME_PROMPT_SUFFIX =
   ` The glyph is optically centered in the square (roughly equal empty margin on all four sides). ` +
   `Crisp pixel edges, no soft glow, no gradients inside the shape, no shading, no lighting. ` +
-  `No other shapes, no text, no duplicate triangles, no shadows, no hardware chrome, no grid lines, no watermark.`;
+  `No halo, vignette, or color bleed from the background into the triangle; no pink or magenta fringing on the glyph outline. ` +
+  `No other shapes, no text, no duplicate triangles, no extra arrows or chevrons, no shadows, no hardware chrome, no grid lines, no watermark.`;
 
 /** Opening line for dpad per-tile prompts. Placeholders: `{tileSize}`. */
 export const DPAD_FRAME_STYLE = `Flat {tileSize}px square pixel art HUD icon. `;
@@ -22,14 +23,14 @@ export const DPAD_FRAME_STYLE = `Flat {tileSize}px square pixel art HUD icon. `;
  */
 export const DPAD_FRAME_COMPOSITION =
   `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
-  `Exactly one filled triangle with three straight sides; the ink is a single solid flat color that is NOT {chromaKeyHex} (e.g. dark gray or navy). `;
+  `Exactly one filled triangle with three straight sides; the glyph fill is a single solid dark neutral gray (approximately #2A2A2A), not {chromaKeyHex}, not blue-tinted. `;
 
 /** Sheet prompt segments (dpad 2×2 layout). Placeholders: `{sheetSize}`, `{chromaKeyHex}`. */
 export const DPAD_SHEET_STYLE = `2x2 pixel art contact sheet on one {sheetSize}px canvas: four equal panels. `;
 
 export const DPAD_SHEET_COMPOSITION =
   `Entire image background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients. ` +
-  `One solid filled triangle per panel (same triangle ink color everywhere, not {chromaKeyHex}); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel. `;
+  `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not {chromaKeyHex}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. `;
 
 export const DPAD_SHEET_SUBJECT =
   `Walk clockwise from top-left: ` +

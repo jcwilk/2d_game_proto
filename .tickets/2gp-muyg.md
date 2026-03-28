@@ -1,6 +1,6 @@
 ---
 id: 2gp-muyg
-status: open
+status: closed
 deps: [2gp-b4lm]
 links: []
 created: 2026-03-28T16:21:36Z
@@ -21,5 +21,5 @@ Update **`tools/README.md`** after the library lands:
 
 ## Acceptance criteria
 
-- [ ] **`tools/README.md`** sections for **`dpad-workflow`** / mock pipeline reference **`tools/sprite-generation/`** and link to preset **`presets/dpad.mjs`**.
-- [ ] **`package.json`** changes (if any) are **minimal** and described in the PR/commit body; if **no script changes**, the close note says **“no package.json change required.”**
+- [x] **`tools/README.md`** sections for **`dpad-workflow`** / mock pipeline reference **`tools/sprite-generation/`** and link to preset **`presets/dpad.mjs`**.
+- [x] **`package.json`** changes (if any) are **minimal** and described in the PR/commit body; if **no script changes**, the close note says **“no package.json change required.”**

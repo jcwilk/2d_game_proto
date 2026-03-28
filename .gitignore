@@ -1,4 +1,28 @@
+# Secrets (local only; see .env.example for documented vars)
 .env
-.cursor/plans/
+.env.local
+.env.*.local
+
+# Node / package managers
 node_modules/
 dist/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Test / build artifacts
+coverage/
+.nyc_output/
+*.tsbuildinfo
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+
+# Project
+.cursor/plans/

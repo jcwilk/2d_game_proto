@@ -48,6 +48,22 @@ export interface AtlasGridManifestJson {
 }
 
 /**
+ * One cell in a uniform grid: **column** (x) then **row** (y), matching
+ * {@link SpriteSheet.getSprite}.
+ */
+export interface AtlasGridFrameCellJson {
+  column: number;
+  row: number;
+}
+
+/**
+ * Grid atlas manifest plus **logical frame keys** → grid cell (plan §C.4 stable map).
+ */
+export interface AtlasGridWithFrameKeysManifestJson extends AtlasGridManifestJson {
+  frames: Record<string, AtlasGridFrameCellJson>;
+}
+
+/**
  * Packed atlas: ordered rects; index matches `SpriteSheet.fromImageSourceWithSourceViews` order.
  */
 export interface PackedAtlasOrderedJson {
@@ -180,6 +196,49 @@ export function parseAtlasGridManifestJson(json: unknown): AtlasGridManifestJson
   };
   const spacing = parseAtlasSheetSpacingJson(root['spacing'], 'spacing');
   return spacing !== undefined ? { grid, spacing } : { grid };
+}
+
+function parseAtlasGridFrameCellJson(value: unknown, path: string): AtlasGridFrameCellJson {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw err(`${path} must be a non-null object`);
+  }
+  const o = value as Record<string, unknown>;
+  return {
+    column: parseNonNegativeInteger(o['column'], `${path}.column`),
+    row: parseNonNegativeInteger(o['row'], `${path}.row`),
+  };
+}
+
+/**
+ * Validates grid metadata plus logical key → `(column, row)` map for {@link SpriteSheet.getSprite}.
+ */
+export function parseGridFrameKeysManifestJson(json: unknown): AtlasGridWithFrameKeysManifestJson {
+  const base = parseAtlasGridManifestJson(json);
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+    throw err('root must be a non-null object');
+  }
+  const root = json as Record<string, unknown>;
+  if (root['frames'] === null || typeof root['frames'] !== 'object' || Array.isArray(root['frames'])) {
+    throw err('frames must be a non-null object');
+  }
+  const framesIn = root['frames'] as Record<string, unknown>;
+  const frames: Record<string, AtlasGridFrameCellJson> = {};
+  const { columns, rows } = base.grid;
+  for (const key of Object.keys(framesIn)) {
+    const cell = parseAtlasGridFrameCellJson(framesIn[key], `frames[${JSON.stringify(key)}]`);
+    if (cell.column >= columns) {
+      throw err(`frames[${JSON.stringify(key)}].column must be < grid.columns (${columns})`);
+    }
+    if (cell.row >= rows) {
+      throw err(`frames[${JSON.stringify(key)}].row must be < grid.rows (${rows})`);
+    }
+    frames[key] = cell;
+  }
+  if (Object.keys(frames).length < 1) {
+    throw err('frames must contain at least one entry');
+  }
+  const spacing = base.spacing;
+  return spacing !== undefined ? { ...base, frames } : { grid: base.grid, frames };
 }
 
 /**

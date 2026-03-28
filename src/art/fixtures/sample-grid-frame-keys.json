@@ -1,0 +1,14 @@
+{
+  "grid": {
+    "rows": 2,
+    "columns": 2,
+    "spriteWidth": 32,
+    "spriteHeight": 32
+  },
+  "frames": {
+    "tl": { "column": 0, "row": 0 },
+    "tr": { "column": 1, "row": 0 },
+    "bl": { "column": 0, "row": 1 },
+    "br": { "column": 1, "row": 1 }
+  }
+}

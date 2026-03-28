@@ -1,21 +1,34 @@
 {
   "kind": "dpad_tile_set",
-  "recipeId": "dpad-workflow-fal-per-tile-v3-chroma",
-  "createdAt": "2026-03-28T14:11:52.937Z",
+  "preset": "dpad_four_way",
+  "recipeId": "dpad-workflow-fal-per-tile-v4-frames-chroma",
+  "createdAt": "2026-03-28T15:56:31.580Z",
   "workflow": "fal per-tile (fal-ai/flux/dev)",
   "specs": {
     "tileSize": {
       "width": 256,
       "height": 256
     },
-    "imageSize": "256x256",
-    "naming": "dpad.png per direction folder",
-    "directions": [
-      "up",
-      "down",
-      "left",
-      "right"
+    "framePreset": [
+      {
+        "id": "up",
+        "outSubdir": "up"
+      },
+      {
+        "id": "down",
+        "outSubdir": "down"
+      },
+      {
+        "id": "left",
+        "outSubdir": "left"
+      },
+      {
+        "id": "right",
+        "outSubdir": "right"
+      }
     ],
+    "imageSize": "256x256",
+    "naming": "dpad.png per frame folder (outSubdir)",
     "strategy": "per-tile",
     "chroma": {
       "keyHex": "#FF00FF",
@@ -32,47 +45,101 @@
   "generationRecipe": {
     "mode": "generate",
     "endpoint": "fal-ai/flux/dev",
-    "seedRequested": 30303030,
+    "seedRequested": null,
     "falExtrasPerTile": {
       "num_inference_steps": 40,
       "guidance_scale": 4.5,
       "acceleration": "none"
     },
     "falExtrasSheet": null,
-    "note": "Real: one fal.subscribe per direction with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (#FF00FF) → RGBA after each download."
+    "note": "Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (#FF00FF) → RGBA after each download."
   },
+  "frames": [
+    {
+      "id": "up",
+      "outSubdir": "up",
+      "seed": 1084367636,
+      "seedRequested": null,
+      "wallMs": 2226,
+      "chromaApplied": true,
+      "chromaKeySource": "border-median",
+      "notes": []
+    },
+    {
+      "id": "down",
+      "outSubdir": "down",
+      "seed": 1186422369,
+      "seedRequested": null,
+      "wallMs": 1792,
+      "chromaApplied": true,
+      "chromaKeySource": "border-median",
+      "notes": [
+        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (down); see down/vision-qa.json. No mirror/flip hack applied."
+      ]
+    },
+    {
+      "id": "left",
+      "outSubdir": "left",
+      "seed": 1874664465,
+      "seedRequested": null,
+      "wallMs": 1616,
+      "chromaApplied": true,
+      "chromaKeySource": "border-median",
+      "notes": [
+        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (left); see left/vision-qa.json. No mirror/flip hack applied."
+      ]
+    },
+    {
+      "id": "right",
+      "outSubdir": "right",
+      "seed": 624420392,
+      "seedRequested": null,
+      "wallMs": 1562,
+      "chromaApplied": true,
+      "chromaKeySource": "border-median",
+      "notes": []
+    }
+  ],
   "provenance": {
     "tool": "tools/dpad-workflow.mjs",
-    "version": 2
+    "version": 3
   },
   "generationResults": {
     "up": {
-      "seed": 30303030,
-      "wallMs": 1652,
+      "seed": 1084367636,
+      "seedRequested": null,
+      "wallMs": 2226,
       "chromaApplied": true,
-      "seedRequested": 30303030,
-      "chromaKeySource": "border-median"
+      "chromaKeySource": "border-median",
+      "notes": []
     },
     "down": {
-      "seed": 30303030,
-      "wallMs": 1407,
+      "seed": 1186422369,
+      "seedRequested": null,
+      "wallMs": 1792,
       "chromaApplied": true,
-      "seedRequested": 30303030,
-      "chromaKeySource": "border-median"
+      "chromaKeySource": "border-median",
+      "notes": [
+        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (down); see down/vision-qa.json. No mirror/flip hack applied."
+      ]
     },
     "left": {
-      "seed": 30303030,
-      "wallMs": 1366,
+      "seed": 1874664465,
+      "seedRequested": null,
+      "wallMs": 1616,
       "chromaApplied": true,
-      "seedRequested": 30303030,
-      "chromaKeySource": "border-median"
+      "chromaKeySource": "border-median",
+      "notes": [
+        "openai-vision-qa (gpt-4o): reports semantic mismatch vs folder name (left); see left/vision-qa.json. No mirror/flip hack applied."
+      ]
     },
     "right": {
-      "seed": 30303030,
-      "wallMs": 1410,
+      "seed": 624420392,
+      "seedRequested": null,
+      "wallMs": 1562,
       "chromaApplied": true,
-      "seedRequested": 30303030,
-      "chromaKeySource": "border-median"
+      "chromaKeySource": "border-median",
+      "notes": []
     }
   }
 }

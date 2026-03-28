@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * D-pad tile pipeline (hardcoded directions: up, down, left, right).
+ * Tile pipeline: **presets** are ordered frame lists; D-pad (up/down/left/right) is the first preset.
  *
  * Purpose
  * -------
- * Single entry point for the “predictable small raster” workflow we discussed:
- *   specs + manifest → one PNG per direction → deterministic QA (png-analyze).
+ * Single entry point for the “predictable small raster” workflow:
+ *   specs + manifest → one PNG per frame → deterministic QA (png-analyze).
  *   Optional: real generation via fal (FLUX.1 dev by default), with loud STDOUT so
  *   an agent (or human) can see what succeeded, what failed, and where time went.
  *
@@ -13,10 +13,10 @@
  * -----
  *   --mode mock      No network. Draws simple RGBA triangles (proves geometry + alpha
  *                    pipeline without T2I composition issues).
- *   --mode generate  fal + FAL_KEY. Default --strategy per-tile: four calls (same --seed,
- *                    PER_TILE_FAL_EXTRA_INPUT) + chromaKeyWithBorderFallback (#FF00FF then
- *                    border-median if FLUX misses exact hex). Use --strategy sheet for one
- *                    512² image + crop (shared style; quadrant→direction often wrong).
+ *   --mode generate  fal + FAL_KEY. Default --strategy per-tile: one fal call per frame
+ *                    (same --seed, shared PER_TILE_FAL_EXTRA_INPUT) + chromaKeyWithBorderFallback
+ *                    (#FF00FF then border-median if FLUX misses exact hex). Use --strategy sheet
+ *                    for one 512² image + crop (shared style; quadrant→direction often wrong).
  *
  * Security
  * --------
@@ -36,7 +36,7 @@ import { fileURLToPath } from "node:url";
 import { PNG } from "pngjs";
 
 // ---------------------------------------------------------------------------
-// Constants (D-pad–specific; generalize later)
+// Constants
 // ---------------------------------------------------------------------------
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -55,7 +55,8 @@ const TILE_SIZE = 256;
 const SHEET_SIZE = 512;
 
 /**
- * Where each direction lives in the 512×512 sheet (top-left origin).
+ * Where each frame lives in the 512×512 sheet (top-left origin). Keys must match `frame.id`
+ * from the active preset (`DPAD_FRAMES`).
  * Layout:
  *   [ up    ] [ right ]
  *   [ left  ] [ down  ]
@@ -85,7 +86,7 @@ const PER_TILE_FAL_EXTRA_INPUT = SHEET_FAL_EXTRA_INPUT;
 
 /**
  * Chroma-key screen color (flat background in prompt). Pixels within per-channel tolerance
- * become transparent; glyph should not use this RGB (see buildGenerationPrompt).
+ * become transparent; glyph should not use this RGB (see buildFramePrompt).
  */
 const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 const DEFAULT_CHROMA_TOLERANCE = 42;
@@ -104,7 +105,57 @@ function parseHexRgb(hex) {
 const QA_SPRITE_W = 32;
 const QA_SPRITE_H = 32;
 
-const DIRECTIONS = /** @type {const} */ (["up", "down", "left", "right"]);
+/**
+ * D-pad preset: ordered frames. Add future presets (e.g. larger spritesheets) as parallel arrays
+ * or separate modules — avoid `switch (direction)` scattered through the runner.
+ *
+ * @typedef {{ id: string; outSubdir: string; promptVariant: string }} WorkflowFrame
+ */
+const DPAD_FRAMES = /** @type {const} */ ([
+  {
+    id: "up",
+    outSubdir: "up",
+    promptVariant:
+      `Orientation NORTH (up): one isosceles triangle only, pointing straight up. ` +
+      `Apex sits on the top edge at horizontal center; the base is a horizontal segment below the apex, parallel to the bottom edge. ` +
+      `Flat 2D orthographic symbol only — no perspective, no 3D block, no extrusion, no chevron pair.`,
+  },
+  {
+    id: "down",
+    outSubdir: "down",
+    promptVariant:
+      `Orientation SOUTH (down): one isosceles triangle only, pointing straight down. ` +
+      `Apex sits on the bottom edge at horizontal center; the base is a horizontal segment above the apex. ` +
+      `Flat 2D orthographic symbol only — no perspective, no 3D block, no extrusion, no chevron pair.`,
+  },
+  {
+    id: "left",
+    outSubdir: "left",
+    promptVariant:
+      `Orientation WEST (left): one isosceles triangle only, pointing straight left toward the left edge. ` +
+      `The tip touches the left edge at vertical midline; the base is a vertical segment on the right half of the tile. ` +
+      `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
+      `Do not draw an upward or downward arrow; this is a horizontal-left control glyph. ` +
+      `Flat 2D orthographic symbol only — no perspective, no 3D block.`,
+  },
+  {
+    id: "right",
+    outSubdir: "right",
+    promptVariant:
+      `Orientation EAST (right): one isosceles triangle only, pointing straight right toward the right edge. ` +
+      `The tip touches the right edge at vertical midline; the base is a vertical segment on the left half of the tile. ` +
+      `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
+      `Do not draw an upward, downward, or leftward arrow. ` +
+      `Flat 2D orthographic symbol only — no perspective, no 3D block.`,
+  },
+]);
+
+/** @param {WorkflowFrame} frame */
+function assertSheetCropForFrame(frame) {
+  if (!(frame.id in SHEET_CROPS)) {
+    throw new Error(`SHEET_CROPS missing entry for frame id "${frame.id}"`);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -195,12 +246,12 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage: node tools/dpad-workflow.mjs [options]
 
-Hardcoded D-pad pipeline: manifest + four directional tiles + png-analyze QA.
+D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
 
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
-  --strategy sheet|per-tile   For generate only. Default: per-tile = four fal calls with the
+  --strategy sheet|per-tile   For generate only. Default: per-tile = one fal call per frame with the
                          SAME integer --seed and shared fal extras (reliable direction semantics).
                          sheet = ONE ${SHEET_SIZE}x${SHEET_SIZE} image + 2×2 crop (shared style;
                          quadrant→direction often wrong in practice).
@@ -318,62 +369,26 @@ async function downloadToFile(url, destPath) {
 }
 
 // ---------------------------------------------------------------------------
-// Prompts — T2I priors strongly favor “whole D-pad”; negatives help only a bit.
+// Prompts — one template; per-frame text lives only in the frame preset (data).
 // ---------------------------------------------------------------------------
 
 /**
- * Direction-specific layout hint so FLUX does not default every triangle to “up”.
- * Same sentence slot for all directions (template parity).
+ * Build the full T2I prompt for one frame. Shared structure for every frame; `frame.promptVariant`
+ * carries the only semantic delta (no per-frame CLI, no mirror hacks).
  *
- * @param {'up'|'down'|'left'|'right'} direction
- */
-function directionLayoutHint(direction) {
-  switch (direction) {
-    case "up":
-      return (
-        `Flat 2D only: a single filled upward-pointing arrowhead (isosceles triangle), orthographic, no perspective. ` +
-        `Apex at top-center flush with the top edge; horizontal base below. No cube, pyramid, prism, or 3D extrusion.`
-      );
-    case "down":
-      return (
-        `Flat 2D only: a single filled downward-pointing arrowhead (isosceles triangle), orthographic, no perspective. ` +
-        `Apex at bottom-center flush with the bottom edge; horizontal base above. No cube, pyramid, prism, or 3D extrusion.`
-      );
-    case "left":
-      return (
-        `Flat 2D only: WEST-facing horizontal arrow: the triangle is wide left-to-right (its “height” is small, “width” is large); ` +
-        `the tip is on the LEFT edge at vertical center; the base is a vertical segment on the RIGHT — reads as LEFT, not up and not down. ` +
-        `Do not draw a vertical arrow or a downward-pointing chevron. ` +
-        `Orthographic, no perspective. No cube, pyramid, prism, or 3D extrusion.`
-      );
-    case "right":
-      return (
-        `Flat 2D only: EAST-facing arrow: a single filled arrowhead pointing RIGHT (toward the right side of the canvas). ` +
-        `The tip touches the RIGHT edge at right-center; the wide base is on the LEFT half. Must NOT point left or up. ` +
-        `Orthographic, no perspective. No cube, pyramid, prism, or 3D extrusion.`
-      );
-    default:
-      throw new Error(String(direction));
-  }
-}
-
-/**
- * Build a direction-specific prompt. Template is identical across directions except
- * the direction block — pairs with shared seed + PER_TILE_FAL_EXTRA_INPUT for style lock.
- *
- * @param {'up'|'down'|'left'|'right'} direction
+ * @param {WorkflowFrame} frame
  * @param {string} chromaKeyHex e.g. "#FF00FF" — must match post chroma-key removal
  */
-function buildGenerationPrompt(direction, chromaKeyHex) {
+function buildFramePrompt(frame, chromaKeyHex) {
   const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
-  const layout = directionLayoutHint(direction);
   return (
-    `Flat ${TILE_SIZE}px square pixel art. ` +
-    `The entire background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients, no vignette. ` +
-    `Exactly one filled triangle with three straight sides, a single solid flat color that is NOT ${bg} (e.g. dark gray or navy). ` +
-    layout +
-    ` The shape is optically centered as a whole (equal margin to the canvas edges). ` +
-    `Crisp edges, no soft glow, no gradients inside the shape, no shading, no lighting. No other shapes, no text, no frames, no shadows, no hardware, no grid lines.`
+    `Flat ${TILE_SIZE}px square pixel art HUD icon. ` +
+    `The entire background is one flat solid screen color ${bg} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
+    `Exactly one filled triangle with three straight sides; the ink is a single solid flat color that is NOT ${bg} (e.g. dark gray or navy). ` +
+    frame.promptVariant +
+    ` The glyph is optically centered in the square (roughly equal empty margin on all four sides). ` +
+    `Crisp pixel edges, no soft glow, no gradients inside the shape, no shading, no lighting. ` +
+    `No other shapes, no text, no duplicate triangles, no shadows, no hardware chrome, no grid lines, no watermark.`
   );
 }
 
@@ -381,7 +396,7 @@ function buildGenerationPrompt(direction, chromaKeyHex) {
  * One fal job covering all four directions in a fixed 2×2 layout — shared latent/style.
  * Cropping is deterministic in code (see SHEET_CROPS).
  * Empirically: strong style lock; FLUX may repeat the same triangle rotation in every cell.
- * For reliable per-direction glyphs, prefer `--strategy per-tile` + `buildGenerationPrompt`.
+ * For reliable per-direction glyphs, prefer `--strategy per-tile` + `buildFramePrompt`.
  * @param {string} chromaKeyHex
  */
 function buildSheetPrompt(chromaKeyHex) {
@@ -753,18 +768,22 @@ async function main() {
   }
 
   const quiet = opts.quiet;
+  const frames = DPAD_FRAMES;
+  for (const f of frames) assertSheetCropForFrame(f);
+
   const recipeId =
     opts.mode === "mock"
-      ? "dpad-workflow-mock-v1"
+      ? "dpad-workflow-mock-v2-frames"
       : opts.strategy === "sheet"
-        ? "dpad-workflow-fal-sheet-v12-chroma"
-        : "dpad-workflow-fal-per-tile-v3-chroma";
+        ? "dpad-workflow-fal-sheet-v13-frames-chroma"
+        : "dpad-workflow-fal-per-tile-v4-frames-chroma";
 
   log("INFO", "init", "starting", {
     mode: opts.mode,
     strategy: opts.mode === "generate" ? opts.strategy : null,
     outBase: OUT_BASE,
     recipeId,
+    frameCount: frames.length,
     dryRun: opts.dryRun,
     endpoint: opts.mode === "generate" ? opts.endpoint : null,
   });
@@ -772,8 +791,8 @@ async function main() {
   // dry-run before credentials: lets agents inspect a generate plan without FAL_KEY in env.
   if (opts.dryRun) {
     log("WARN", "dry-run", "no files, no API calls; listing planned actions only");
-    for (const d of DIRECTIONS) {
-      log("INFO", "dry-run", `would write ${join("public/art/dpad", d, "dpad.png")}`);
+    for (const frame of frames) {
+      log("INFO", "dry-run", `would write ${join("public/art/dpad", frame.outSubdir, "dpad.png")}`);
     }
     if (opts.mode === "generate") {
       if (opts.strategy === "sheet") {
@@ -784,16 +803,16 @@ async function main() {
           keepSheet: opts.keepSheet,
         });
         log("DEBUG", "dry-run", "sheet prompt preview", { text: buildSheetPrompt(opts.chromaKeyHex).slice(0, 200) + "…" });
-        log("INFO", "dry-run", "would crop quadrants per SHEET_CROPS (up,right,left,down)");
+        log("INFO", "dry-run", "would crop quadrants per SHEET_CROPS (frame ids)");
       } else {
-        log("INFO", "dry-run", "would call fal.subscribe once per direction (per-tile)", {
+        log("INFO", "dry-run", "would call fal.subscribe once per frame (per-tile)", {
           endpoint: opts.endpoint,
           imageSize: opts.imageSize,
           seed: opts.seed ?? null,
         });
-        for (const d of DIRECTIONS) {
-          log("DEBUG", "dry-run", `prompt preview [${d}]`, {
-            text: buildGenerationPrompt(d, opts.chromaKeyHex).slice(0, 120) + "…",
+        for (const frame of frames) {
+          log("DEBUG", "dry-run", `prompt preview [${frame.id}]`, {
+            text: buildFramePrompt(frame, opts.chromaKeyHex).slice(0, 120) + "…",
           });
         }
       }
@@ -816,7 +835,8 @@ async function main() {
 
   const createdAt = new Date().toISOString();
   const timings = /** @type {Record<string, number>} */ ({});
-  const generationResults = /** @type {Record<string, { seed?: number; wallMs?: number; error?: string }>} */ ({});
+  /** @type {Record<string, Record<string, unknown>>} */
+  const generationResultsById = {};
 
   await mkdir(OUT_BASE, { recursive: true });
 
@@ -827,11 +847,12 @@ async function main() {
       ? "Mock: geometry from pngjs triangles, not T2I."
       : opts.strategy === "sheet"
         ? `Real: one fal job at ${SHEET_SIZE}x${SHEET_SIZE}, crop to ${TILE_SIZE}px, then chroma-key (${opts.chromaKeyHex}) → RGBA.`
-        : `Real: one fal.subscribe per direction with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (${opts.chromaKeyHex}) → RGBA after each download.`;
+        : `Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; same integer --seed for every call in the batch when set; chroma-key (${opts.chromaKeyHex}) → RGBA after each download.`;
 
   // --- Manifest (written before tiles so partial runs still leave a trace)
   const manifest = {
     kind: "dpad_tile_set",
+    preset: "dpad_four_way",
     recipeId,
     createdAt,
     workflow:
@@ -842,6 +863,7 @@ async function main() {
           : `fal per-tile (${opts.endpoint})`,
     specs: {
       tileSize: { width: TILE_SIZE, height: TILE_SIZE },
+      framePreset: frames.map((f) => ({ id: f.id, outSubdir: f.outSubdir })),
       ...(opts.mode === "generate" && opts.strategy === "sheet"
         ? { sheetSize: { width: SHEET_SIZE, height: SHEET_SIZE }, sheetCropMap: SHEET_CROPS }
         : {}),
@@ -849,8 +871,7 @@ async function main() {
         opts.mode === "generate" && opts.strategy === "sheet"
           ? `${SHEET_SIZE}x${SHEET_SIZE}`
           : opts.imageSize,
-      naming: "dpad.png per direction folder",
-      directions: [...DIRECTIONS],
+      naming: "dpad.png per frame folder (outSubdir)",
       ...(opts.mode === "generate" ? { strategy: opts.strategy } : {}),
       ...(opts.mode === "generate" && keyRgbForManifest
         ? {
@@ -876,43 +897,64 @@ async function main() {
       falExtrasSheet: opts.mode === "generate" && opts.strategy === "sheet" ? SHEET_FAL_EXTRA_INPUT : null,
       note: recipeNote,
     },
+    /** Batch report: one object per frame, same keys (notes for honest shortfalls / follow-up QA). */
+    frames: /** @type {Array<Record<string, unknown>>} */ ([]),
     provenance: {
       tool: "tools/dpad-workflow.mjs",
-      version: 2,
+      version: 3,
     },
-    generationResults,
+    /** @deprecated Prefer `frames` array; kept for quick lookup during run */
+    generationResults: generationResultsById,
   };
 
   const manifestPath = join(OUT_BASE, "manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   log("INFO", "manifest", `wrote ${manifestPath}`);
 
+  function pushFrameReport(id, row) {
+    generationResultsById[id] = row;
+    manifest.frames = frames.map((f) => {
+      const r = generationResultsById[f.id];
+      return r
+        ? { id: f.id, outSubdir: f.outSubdir, ...r }
+        : { id: f.id, outSubdir: f.outSubdir, pending: true };
+    });
+  }
+
   // --- Tiles
   if (opts.mode === "mock") {
-    for (const dir of DIRECTIONS) {
-      const folder = join(OUT_BASE, dir);
+    for (const frame of frames) {
+      const folder = join(OUT_BASE, frame.outSubdir);
       await mkdir(folder, { recursive: true });
       const outPng = join(folder, "dpad.png");
-      log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
+      const dir = /** @type {'up'|'down'|'left'|'right'} */ (frame.id);
+      log("INFO", `tile:${frame.id}`, "begin", { outPng: join("public/art/dpad", frame.outSubdir, "dpad.png") });
       try {
         const t0 = Date.now();
         const buf = renderMockPng(dir);
-        timings[dir] = Date.now() - t0;
+        timings[frame.id] = Date.now() - t0;
         await writeFile(outPng, buf);
-        generationResults[dir] = { wallMs: timings[dir], seed: undefined };
-        log("INFO", `tile:${dir}`, "mock PNG written", { bytes: buf.length, wallMs: timings[dir] });
+        pushFrameReport(frame.id, {
+          wallMs: timings[frame.id],
+          seed: undefined,
+          seedRequested: null,
+          chromaApplied: false,
+          chromaKeySource: null,
+          notes: [],
+        });
+        log("INFO", `tile:${frame.id}`, "mock PNG written", { bytes: buf.length, wallMs: timings[frame.id] });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        generationResults[dir] = { error: msg };
-        log("ERROR", `tile:${dir}`, "FAILED", { error: msg });
-        manifest.generationResults = generationResults;
+        pushFrameReport(frame.id, { error: msg, notes: [`mock render failed: ${msg}`] });
+        log("ERROR", `tile:${frame.id}`, "FAILED", { error: msg });
+        manifest.generationResults = generationResultsById;
         await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
         process.exit(1);
       }
     }
   } else if (opts.strategy === "sheet") {
-    for (const dir of DIRECTIONS) {
-      await mkdir(join(OUT_BASE, dir), { recursive: true });
+    for (const frame of frames) {
+      await mkdir(join(OUT_BASE, frame.outSubdir), { recursive: true });
     }
     try {
       const prompt = buildSheetPrompt(opts.chromaKeyHex);
@@ -935,42 +977,44 @@ async function main() {
       if (png.width !== SHEET_SIZE || png.height !== SHEET_SIZE) {
         throw new Error(`expected fal output ${SHEET_SIZE}x${SHEET_SIZE}, got ${png.width}x${png.height}`);
       }
-      for (const dir of DIRECTIONS) {
-        const { x, y } = SHEET_CROPS[dir];
+      for (const frame of frames) {
+        const { x, y } = SHEET_CROPS[/** @type {keyof typeof SHEET_CROPS} */ (frame.id)];
         const tileBufRaw = extractPngRegion(png, x, y, TILE_SIZE, TILE_SIZE);
         const { buffer: tileBuf, usedPrimaryKey } = chromaKeyWithBorderFallback(tileBufRaw, {
           keyRgb,
           tolerance: opts.chromaTolerance,
           fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
         });
-        await writeFile(join(OUT_BASE, dir, "dpad.png"), tileBuf);
-        generationResults[dir] = {
+        await writeFile(join(OUT_BASE, frame.outSubdir, "dpad.png"), tileBuf);
+        pushFrameReport(frame.id, {
           seed,
+          seedRequested: opts.seed ?? null,
           wallMs,
           fromSheet: true,
           cropOrigin: `${x},${y}`,
           chromaApplied: true,
           chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
-        };
-        log("INFO", `tile:${dir}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
+          notes: [],
+        });
+        log("INFO", `tile:${frame.id}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
       }
-      generationResults._sheet = { seed, wallMs, strategy: "sheet" };
+      generationResultsById._sheet = { seed, wallMs, strategy: "sheet" };
     } catch (e) {
       const msg = formatFalClientError(e);
       log("ERROR", "sheet", "FAILED", { error: msg });
-      generationResults._sheet = { error: msg };
-      manifest.generationResults = generationResults;
+      generationResultsById._sheet = { error: msg };
+      manifest.generationResults = generationResultsById;
       await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
       process.exit(1);
     }
   } else {
-    for (const dir of DIRECTIONS) {
-      const folder = join(OUT_BASE, dir);
+    for (const frame of frames) {
+      const folder = join(OUT_BASE, frame.outSubdir);
       await mkdir(folder, { recursive: true });
       const outPng = join(folder, "dpad.png");
-      log("INFO", `tile:${dir}`, "begin", { outPng: join("public/art/dpad", dir, "dpad.png") });
+      log("INFO", `tile:${frame.id}`, "begin", { outPng: join("public/art/dpad", frame.outSubdir, "dpad.png") });
       try {
-        const prompt = buildGenerationPrompt(dir, opts.chromaKeyHex);
+        const prompt = buildFramePrompt(frame, opts.chromaKeyHex);
         const keyRgb = parseHexRgb(opts.chromaKeyHex);
         const t0 = Date.now();
         const { buffer, seed, wallMs } = await falSubscribeToBuffer({
@@ -987,20 +1031,21 @@ async function main() {
           fallbackTolerance: Math.max(opts.chromaTolerance, CHROMA_FALLBACK_TOLERANCE_MIN),
         });
         await writeFile(outPng, outBuf);
-        timings[dir] = Date.now() - t0;
-        generationResults[dir] = {
+        timings[frame.id] = Date.now() - t0;
+        pushFrameReport(frame.id, {
           seed,
-          wallMs,
-          chromaApplied: true,
           seedRequested: opts.seed ?? null,
+          wallMs: timings[frame.id],
+          chromaApplied: true,
           chromaKeySource: usedPrimaryKey ? "prompt-hex" : "border-median",
-        };
-        log("INFO", `tile:${dir}`, "fal PNG + chroma saved", generationResults[dir]);
+          notes: [],
+        });
+        log("INFO", `tile:${frame.id}`, "fal PNG + chroma saved", generationResultsById[frame.id]);
       } catch (e) {
         const msg = formatFalClientError(e);
-        generationResults[dir] = { error: msg };
-        log("ERROR", `tile:${dir}`, "FAILED", { error: msg });
-        manifest.generationResults = generationResults;
+        pushFrameReport(frame.id, { error: msg, notes: [`fal failed: ${msg}`] });
+        log("ERROR", `tile:${frame.id}`, "FAILED", { error: msg });
+        manifest.generationResults = generationResultsById;
         await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
         log("WARN", "manifest", "updated after failure (partial state)");
         process.exit(1);
@@ -1009,21 +1054,25 @@ async function main() {
   }
 
   // Refresh manifest with timings
-  manifest.generationResults = generationResults;
+  manifest.generationResults = generationResultsById;
+  manifest.frames = frames.map((f) => {
+    const r = generationResultsById[f.id];
+    return r ? { id: f.id, outSubdir: f.outSubdir, ...r } : { id: f.id, outSubdir: f.outSubdir, pending: true };
+  });
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
-  log("INFO", "manifest", "finalized with generationResults");
+  log("INFO", "manifest", "finalized with frames[] + generationResults");
 
   // --- QA
   if (!opts.skipQa) {
-    for (const dir of DIRECTIONS) {
-      if (generationResults[dir]?.error) continue;
-      const rel = join("public/art/dpad", dir, "dpad.png");
+    for (const frame of frames) {
+      if (generationResultsById[frame.id]?.error) continue;
+      const rel = join("public/art/dpad", frame.outSubdir, "dpad.png");
       const abs = join(REPO_ROOT, rel);
-      const jsonPath = join(OUT_BASE, dir, "png-analyze.json");
+      const jsonPath = join(OUT_BASE, frame.outSubdir, "png-analyze.json");
       try {
         runPngAnalyze(abs, jsonPath, quiet);
       } catch (e) {
-        log("ERROR", `qa:${dir}`, "png-analyze failed", { error: e instanceof Error ? e.message : String(e) });
+        log("ERROR", `qa:${frame.id}`, "png-analyze failed", { error: e instanceof Error ? e.message : String(e) });
         process.exit(1);
       }
     }
@@ -1033,13 +1082,13 @@ async function main() {
 
   log("INFO", "summary", "workflow complete", {
     mode: opts.mode,
-    directions: DIRECTIONS.length,
+    frames: frames.length,
     timingsMs: timings,
     totalWallMsApprox: Object.values(timings).reduce((a, b) => a + b, 0),
   });
   log("INFO", "summary", "next steps for humans/agents", {
     check: "Open public/art/dpad/*/dpad.png and manifest.json",
-    qa: opts.skipQa ? "QA skipped" : "See png-analyze.json per direction",
+    qa: opts.skipQa ? "QA skipped" : "See png-analyze.json per frame",
     engine: "Wire paths in Excalibur/HTML when ready",
   });
 }

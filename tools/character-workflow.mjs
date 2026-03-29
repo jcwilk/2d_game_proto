@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Character walk-cycle workflow CLI — **`createPreset`** (`presets/character/character.mjs`) +
+ * Character walk-cycle workflow CLI — **`createPreset`** (`presets/avatar-character/avatar-character.mjs`) +
  * **`runPipeline`** (`sprite-generation/pipeline.mjs`).
  *
- * @see tools/sprite-generation/presets/character/character.mjs
+ * @see tools/sprite-generation/presets/avatar-character/avatar-character.mjs
  * @see tools/sprite-generation/pipeline.mjs
  */
 
@@ -22,10 +22,10 @@ import {
   SHEET_HEIGHT,
   SHEET_WIDTH,
   TILE_SIZE,
-} from "./sprite-generation/presets/character/character.mjs";
+} from "./sprite-generation/presets/avatar-character/avatar-character.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_BASE = join(__dirname, "..", "public", "art", "character");
+const OUT_BASE = join(__dirname, "..", "public", "art", "avatar-character");
 
 const DEFAULT_CHROMA_TOLERANCE = CHARACTER_CHROMA_TOLERANCE_DEFAULT;
 
@@ -52,9 +52,9 @@ function parseArgs(argv) {
     help: false,
     chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
     chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
-    /** `undefined` → use preset (`character` defaults to rewrite on for generate sheet). */
+    /** `undefined` → use preset (`avatar-character` defaults to rewrite on for generate sheet). */
     sheetRewrite: undefined,
-    /** `undefined` → use preset (`character` defaults chroma-after-BRIA on). */
+    /** `undefined` → use preset (`avatar-character` defaults chroma-after-BRIA on). */
     chromaAfterBria: undefined,
     /** `undefined` → use preset silhouette peel distance; **`0`** disables peel. */
     chromaFringeEdgeDist: undefined,
@@ -168,7 +168,7 @@ Character walk-cycle preset: manifest + **sheet.png** + **sprite-ref.json** (gri
 Options:
   --mode mock|generate   mock = deterministic walk figures (default, no API).
   --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 2×2 grid.
-  --keep-sheet           With --strategy sheet: write public/art/character/sheet.png (default **on**).
+  --keep-sheet           With --strategy sheet: write public/art/avatar-character/sheet.png (default **on**).
   --no-keep-sheet        Skip writing sheet.png (unusual; sheet-only preset expects sheet.png for the game).
   --save-pre-chroma      With --mode generate --strategy per-tile: write pre-chroma PNG per frame.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT}).
@@ -181,7 +181,7 @@ Options:
   --rewrite              Sheet: force OpenRouter prompt rewrite before T2I (needs FAL_KEY).
   --no-rewrite           Sheet: skip rewrite (preset defaults to rewrite ON for generate).
   --chroma-after-bria    Sheet: run per-tile chroma after BRIA (fringe cleanup).
-  --no-chroma-after-bria Sheet: skip per-tile chroma after BRIA (default for character: BRIA-only).
+  --no-chroma-after-bria Sheet: skip per-tile chroma after BRIA (default for avatar-character: BRIA-only).
   --chroma-fringe-edge-dist <0-400>  After chroma: peel near-key pixels on the silhouette (default from preset; 0 = off).
   --quiet, -q
   --help, -h

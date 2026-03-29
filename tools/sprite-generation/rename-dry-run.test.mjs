@@ -19,25 +19,25 @@ describe("rename-dry-run", () => {
   });
 
   it("validateRenameSlugs rejects blocklisted --to", () => {
-    const r = validateRenameSlugs("dpad", "art", ["dpad", "character"]);
+    const r = validateRenameSlugs("dpad", "art", ["dpad", "avatar-character"]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toMatch(/blocklist/i);
   });
 
   it("validateRenameSlugs rejects --to colliding with existing asset", () => {
-    const r = validateRenameSlugs("dpad", "widget", ["dpad", "character", "widget"]);
+    const r = validateRenameSlugs("dpad", "widget", ["dpad", "avatar-character", "widget"]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toMatch(/collide/i);
   });
 
   it("validateRenameSlugs rejects unknown --from", () => {
-    const r = validateRenameSlugs("nope", "foo_bar", ["dpad", "character"]);
+    const r = validateRenameSlugs("nope", "foo_bar", ["dpad", "avatar-character"]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toMatch(/unknown/i);
   });
 
   it("buildRenameDryRunPlan succeeds for dpad -> hud_dpad with expected shape", () => {
-    const plan = buildRenameDryRunPlan(repoRoot, "dpad", "hud_dpad", ["dpad", "character"]);
+    const plan = buildRenameDryRunPlan(repoRoot, "dpad", "hud_dpad", ["dpad", "avatar-character"]);
     expect(plan.ok).toBe(true);
     if (!plan.ok) throw new Error("expected ok");
     expect(plan.from).toBe("dpad");

@@ -17,7 +17,7 @@
  * Contract implemented by each **`presets/<assetId>/<assetId>.mjs`** module (named exports only; no default export).
  *
  * @typedef {object} SpritePresetModule
- * @property {string} ASSET_ID Short id matching the directory name under `presets/` (e.g. **`character`**, **`dpad`**).
+ * @property {string} ASSET_ID Short id matching the directory name under `presets/` (e.g. **`avatar-character`**, **`dpad`**).
  * @property {string} MANIFEST_PRESET_ID Manifest **`preset`** field and `buildRecipeId` segment.
  * @property {string} KIND Manifest **`kind`** string.
  * @property {(opts: CreatePresetOptsBase & Record<string, unknown>) => import('./pipeline.mjs').PipelinePreset} createPreset

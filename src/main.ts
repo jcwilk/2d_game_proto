@@ -40,7 +40,7 @@ void engine
       throw new Error('Expected character sheet ImageSource loaded after preload');
     }
     const spriteSheet = spriteSheetFromGridImageSource(sheetImageSource, gridManifest);
-    /** Sheet order: `walk_0` = idle (top-left), then walk phases — see `CHARACTER_FALSPRITE_SHEET_SUBJECT` in `presets/character/character.mjs`. */
+    /** Sheet order: `walk_0` = idle (top-left), then walk phases — see `CHARACTER_FALSPRITE_SHEET_SUBJECT` in `presets/avatar-character/avatar-character.mjs`. */
     const sprites = CHARACTER_WALK_FRAME_IDS.map((id) => {
       const cell = gridManifest.frames[id];
       if (!cell) {

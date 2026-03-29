@@ -1,6 +1,6 @@
 /**
  * Character walk-cycle preset — **single source of truth** for frame list, sheet layout,
- * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/character/`.
+ * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/avatar-character/`.
  *
  * Contract matches **`presets/dpad/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../../pipeline.mjs`**).
  * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/character-workflow.mjs --no-rewrite`**.
@@ -36,7 +36,7 @@ import {
 import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
-export const ASSET_ID = "character";
+export const ASSET_ID = "avatar-character";
 
 /** Manifest `preset` field and `buildRecipeId` segment. */
 export const MANIFEST_PRESET_ID = "character_walk";
@@ -199,11 +199,11 @@ export const recipeIdForCharacter = recipeId;
 
 /**
  * @typedef {object} CreateCharacterPresetOpts
- * @property {string} outBase Absolute output root (e.g. `.../public/art/character`).
- * @property {string} [artUrlPrefix='art/character'] Site-root-relative prefix for sprite-ref `images`.
+ * @property {string} outBase Absolute output root (e.g. `.../public/art/avatar-character`).
+ * @property {string} [artUrlPrefix='art/avatar-character'] Site-root-relative prefix for sprite-ref `images`.
  * @property {string} [pngFilename='character.png'] Basename in each frame folder.
  * @property {string} [spriteRefJsonRelativePath='sprite-ref.json'] Written under `outBase`.
- * @property {string} [provenanceTool='tools/sprite-generation/presets/character/character.mjs']
+ * @property {string} [provenanceTool='tools/sprite-generation/presets/avatar-character/avatar-character.mjs']
  * @property {number} [provenanceVersion=1]
  */
 
@@ -215,18 +215,18 @@ export const recipeIdForCharacter = recipeId;
 export function createPreset(opts) {
   const outBase = opts?.outBase;
   if (typeof outBase !== "string" || !outBase.trim()) {
-    throw new Error("createPreset(character): outBase (non-empty string, absolute output directory) is required");
+    throw new Error("createPreset(avatar-character): outBase (non-empty string, absolute output directory) is required");
   }
 
-  const artUrlPrefix = opts.artUrlPrefix ?? "art/character";
+  const artUrlPrefix = opts.artUrlPrefix ?? "art/avatar-character";
   const pngFilename = opts.pngFilename ?? "character.png";
   const spriteRefJsonRelativePath = opts.spriteRefJsonRelativePath ?? "sprite-ref.json";
-  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/character/character.mjs";
+  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/avatar-character/avatar-character.mjs";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
   for (const f of CHARACTER_WALK_FRAMES) {
     if (!(f.id in SHEET_CROPS)) {
-      throw new Error(`createPreset(character): SHEET_CROPS missing entry for frame id "${f.id}"`);
+      throw new Error(`createPreset(avatar-character): SHEET_CROPS missing entry for frame id "${f.id}"`);
     }
   }
 

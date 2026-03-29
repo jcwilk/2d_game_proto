@@ -29,7 +29,7 @@ export function resolveRepoRoot(fromUrl = import.meta.url) {
 }
 
 /**
- * @typedef {'dpad' | 'character'} AssetId
+ * @typedef {'dpad' | 'avatar-character'} AssetId
  */
 
 /**
@@ -49,7 +49,7 @@ const _PRESETS = buildPresets(resolveRepoRoot());
 export const PRESETS = /** @type {Readonly<Record<AssetId, RegistryEntry>>} */ (
   Object.freeze({
     dpad: Object.freeze(_PRESETS.dpad),
-    character: Object.freeze(_PRESETS.character),
+    "avatar-character": Object.freeze(_PRESETS["avatar-character"]),
   })
 );
 
@@ -81,7 +81,7 @@ function buildPresets(repoRoot) {
   }
   return {
     dpad: entry("dpad", "dpad_four_way", "sheet"),
-    character: entry("character", "character_walk", "sheet"),
+    "avatar-character": entry("avatar-character", "character_walk", "sheet"),
   };
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`rename`**, **`help`**.
+ * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`info`**, **`rename`**, **`help`**.
  *
  * @see tools/sprite-generation/presets/registry.mjs
  * @see tools/sprite-generation/pipeline.mjs
@@ -16,6 +16,7 @@ import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
 import { log } from "./sprite-generation/logging.mjs";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
+import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.mjs";
 import {
   buildRenameDryRunPlan,
   formatRenameDryRunPlan,
@@ -128,7 +129,7 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
   });
 
   const chromaTolerance =
-    assetId === "character" && "CHARACTER_CHROMA_TOLERANCE_DEFAULT" in mod
+    "CHARACTER_CHROMA_TOLERANCE_DEFAULT" in mod
       ? /** @type {number} */ (mod.CHARACTER_CHROMA_TOLERANCE_DEFAULT)
       : DPAD_CHROMA_TOLERANCE;
 
@@ -142,7 +143,7 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
     chromaTolerance,
   };
 
-  if (assetId === "character") {
+  if (assetId === "avatar-character") {
     await runPipeline(preset, {
       ...baseOpts,
       endpoint: mod.DEFAULT_FAL_ENDPOINT,
@@ -170,12 +171,14 @@ Commands:
   run      Generate sprites (requires --asset and --mode mock|live)
   list     List registered assets and default output directories
   status   Manifest/sheet presence, generation mode, staleness hint
+  info     Summarize one asset (git-tracked art files, manifest/sprite-ref, preset prompts)
   rename   Plan renaming an asset slug (MVP: --dry-run only)
   help     Show help (try: help run)
 
 Examples:
   node tools/generate-spritesheet.mjs run --asset dpad --mode mock
-  node tools/generate-spritesheet.mjs run --asset character --mode live
+  node tools/generate-spritesheet.mjs run --asset avatar-character --mode live
+  node tools/generate-spritesheet.mjs info --asset dpad
 
 If .env exists at the repo root, it is loaded automatically (FAL_KEY, etc.). Existing
 environment variables are not overwritten. You can still use node --env-file=... if needed.
@@ -186,7 +189,7 @@ function printHelpRun() {
   console.log(`Usage: node tools/generate-spritesheet.mjs run --asset <id> --mode mock|live [options]
 
 Required:
-  --asset <id>           Asset id from the registry (e.g. dpad, character)
+  --asset <id>           Asset id from the registry (e.g. dpad, avatar-character)
   --mode mock|live       mock = local deterministic; live = fal pipeline (maps to internal generate)
 
 Optional:
@@ -211,6 +214,23 @@ function printHelpStatus() {
 
 Per asset: manifest and sheet presence, generationRecipe.mode when present,
 and staleness (git timestamps preset vs art, else mtime, else unknown).
+`);
+}
+
+function printHelpInfo() {
+  console.log(`Usage: node tools/generate-spritesheet.mjs info --asset <id> [options]
+
+Shows one asset: git-tracked paths under public/art/<id>/, on-disk manifest /
+sprite-ref / sheet sizes, and a loaded-preset summary (frame list, sheet grid,
+truncated prompt excerpts). Prompt text comes from createPreset() in memory, not
+by parsing the .mjs file as text.
+
+Required:
+  --asset <id>           Registry asset id (see: list)
+
+Optional:
+  --out-base <path>      Same as run: inspect that directory instead of the default
+  --no-prompts           Omit long sheet/frame/rewrite prompt excerpts
 `);
 }
 
@@ -246,11 +266,14 @@ function printHelp(topic) {
     case "status":
       printHelpStatus();
       break;
+    case "info":
+      printHelpInfo();
+      break;
     case "rename":
       printHelpRename();
       break;
     default:
-      console.error(`No help for "${topic}". Try: help run | list | status | rename`);
+      console.error(`No help for "${topic}". Try: help run | list | status | info | rename`);
       process.exit(1);
   }
 }
@@ -355,6 +378,43 @@ async function cmdStatus() {
 /**
  * @param {string[]} argv
  */
+async function cmdInfo(argv) {
+  const slice = argv.slice(3);
+  let parsed;
+  try {
+    parsed = parseInfoArgs(slice);
+  } catch (e) {
+    console.error(`error: ${e instanceof Error ? e.message : e}`);
+    printHelpInfo();
+    process.exit(1);
+  }
+  if (!parsed.asset) {
+    console.error("error: info requires --asset <id>");
+    printHelpInfo();
+    process.exit(1);
+  }
+
+  const entry = PRESETS[/** @type {keyof typeof PRESETS} */ (parsed.asset)];
+  if (!entry) {
+    console.error(`error: unknown asset: ${JSON.stringify(parsed.asset)}`);
+    process.exit(1);
+  }
+
+  const outBaseAbs = parsed.outBase ? resolveOutBase(parsed.outBase) : entry.defaultOutBase;
+  const mod = await import(entry.presetModuleHref);
+  const preset = mod.createPreset({
+    outBase: outBaseAbs,
+    provenanceTool: PROVENANCE_TOOL,
+    provenanceVersion: PROVENANCE_VERSION,
+  });
+
+  const lines = await buildInfoLines(REPO_ROOT, outBaseAbs, entry, preset, {
+    prompts: parsed.prompts,
+  });
+  console.log(`asset: ${parsed.asset}\n`);
+  console.log(lines.join("\n"));
+}
+
 async function cmdRename(argv) {
   const slice = argv.slice(3);
   let parsed;
@@ -456,11 +516,14 @@ async function main() {
     case "status":
       await cmdStatus();
       break;
+    case "info":
+      await cmdInfo(argv);
+      break;
     case "rename":
       await cmdRename(argv);
       break;
     case undefined:
-      console.error("error: missing command (run | list | status | rename | help)");
+      console.error("error: missing command (run | list | status | info | rename | help)");
       printHelpGeneral();
       process.exit(1);
       break;

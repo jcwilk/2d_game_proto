@@ -79,6 +79,15 @@ describe("generate-spritesheet CLI", () => {
     expect(runCliStatus(["status"]).code).toBe(0);
   });
 
+  it("info --asset dpad exits 0 with expected sections", () => {
+    const r = runCliStatus(["info", "--asset", "dpad"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/^asset: dpad/m);
+    expect(r.stdout).toContain("## Git-tracked files");
+    expect(r.stdout).toContain("## manifest.json (summary)");
+    expect(r.stdout).toContain("## Preset (loaded via createPreset)");
+  });
+
   it("rename --dry-run --from dpad --to hud_dpad exits 0 with plan shape", () => {
     const r = runCliStatus(["rename", "--dry-run", "--from", "dpad", "--to", "hud_dpad"]);
     expect(r.code).toBe(0);

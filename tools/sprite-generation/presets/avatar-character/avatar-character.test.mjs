@@ -16,11 +16,11 @@ import {
   SHEET_HEIGHT,
   SHEET_WIDTH,
   TILE_SIZE,
-} from "./character.mjs";
+} from "./avatar-character.mjs";
 
-describe("presets/character", () => {
-  it("createPreset builds a runPipeline-ready object with gridFrameKeys sprite-ref for art/character", () => {
-    const p = createPreset({ outBase: "/tmp/character-out" });
+describe("presets/avatar-character", () => {
+  it("createPreset builds a runPipeline-ready object with gridFrameKeys sprite-ref for art/avatar-character", () => {
+    const p = createPreset({ outBase: "/tmp/avatar-character-out" });
     expect(p.presetId).toBe(MANIFEST_PRESET_ID);
     expect(p.presetId).toBe(CHARACTER_PRESET_ID);
     expect(p.kind).toBe(CHARACTER_KIND);
@@ -34,7 +34,7 @@ describe("presets/character", () => {
     expect(p.sheet?.crops?.walk_3).toEqual({ x: TILE_SIZE, y: TILE_SIZE });
     expect(p.frameSheetCells).toEqual({ ...CHARACTER_FRAME_SHEET_CELLS });
     expect(p.spriteRef.kind).toBe("gridFrameKeys");
-    expect(p.spriteRef.sheetImageRelativePath).toBe("art/character/sheet.png");
+    expect(p.spriteRef.sheetImageRelativePath).toBe("art/avatar-character/sheet.png");
     expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
     expect(p.fal?.falExtrasSheet).toMatchObject({
@@ -83,7 +83,7 @@ describe("presets/character", () => {
   });
 
   it("optional chroma-after-BRIA can be enabled on the preset object", () => {
-    const p = createPreset({ outBase: "/tmp/character-out" });
+    const p = createPreset({ outBase: "/tmp/avatar-character-out" });
     const withChroma = { ...p, fal: { ...p.fal, chromaAfterBria: true } };
     expect(withChroma.fal?.chromaAfterBria).toBe(true);
   });

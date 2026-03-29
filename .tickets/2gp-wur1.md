@@ -1,6 +1,6 @@
 ---
 id: 2gp-wur1
-status: open
+status: closed
 deps: [2gp-ggcc]
 links: []
 created: 2026-03-29T17:54:41Z

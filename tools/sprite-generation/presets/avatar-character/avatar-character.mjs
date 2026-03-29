@@ -7,11 +7,11 @@
  *
  * **Transparency:** **BRIA** is the alpha path; **`fal.chromaAfterBria`** defaults to **off** (FalSprite-style BRIA-only; no per-tile chroma).
  *
- * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`CHARACTER_FAL_EXTRAS_SHEET`** (**1:1**, **`0.5K`**, **`expand_prompt`**, **`safety_tolerance`**) — cheaper tier. **`sheetNativeRaster`** is **on**: fal/BRIA output is **not** nearest-neighbor downscaled to **`SHEET_WIDTH`×`SHEET_HEIGHT`** before **`sheet.png`**; **`sprite-ref.json`** uses the derived cell size so the game draws at native texture resolution. Art direction: **illustrated / painterly 2D**, not pixel art (see **`CHARACTER_WALK_FRAME_STYLE`**). Prompt text follows **`buildFalspriteStyleSpritePrompt`** + **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** (see **`../../prompt.mjs`**).
+ * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`CHARACTER_FAL_EXTRAS_SHEET`** (**`3:2`** fal enum — closest to game **8:5** strip; each cell **2:5** (**W** wide × **2.5W** tall), **`0.5K`**, **`expand_prompt`**, **`safety_tolerance`**) — cheaper tier. **`sheet.png`** is stored at **native** fal/BRIA dimensions (no pipeline resize); **`sprite-ref.json`** uses the derived cell size. Art direction: **illustrated / painterly 2D**; the engine scales with smooth filtering. Sheet T2I uses **`buildCharacterWalkStripSpritePrompt`** (`../../prompt.mjs`) and extended **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** (isometric staging).
  *
  * **Output:** **`sheetOnlyOutput`** — one **`sheet.png`** + **`sprite-ref.json`** (`gridFrameKeys`); no **`walk_*`** tile PNGs.
  *
- * **Frames (row-major 2×2):** **`walk_0`** is **idle standing** (top-left); **`walk_1`–`walk_3`** are walk phases. **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** drives the falsprite T2I block.
+ * **Frames (1×4 row, left to right):** **`walk_0`** is **idle standing**; **`walk_1`–`walk_3`** are walk phases. **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** drives the falsprite T2I block.
  *
  * @see `../../README.md`
  * @see `../../pipeline.mjs`
@@ -19,25 +19,27 @@
  */
 
 import {
+  NANO_BANANA2_CHARACTER_WALK_STRIP_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_LOW_RESOLUTION,
-  NANO_BANANA2_SQUARE_ASPECT_RATIO,
 } from "../../generators/fal.mjs";
 import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.mjs";
 import { buildRecipeId } from "../../manifest.mjs";
 import {
-  buildFalspriteStyleSpritePrompt,
-  CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
+  buildCharacterWalkStripSpritePrompt,
+  CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT as CHARACTER_WALK_REWRITE_SYSTEM_BASE,
   CHARACTER_WALK_FRAME_COMPOSITION,
   CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
   CHARACTER_WALK_SHEET_COMPOSITION,
   CHARACTER_WALK_SHEET_STYLE,
 } from "../../prompt.mjs";
 import {
+  CHARACTER_WALK_FRAME_HEIGHT_PX,
   CHARACTER_WALK_FRAME_PX,
-  CHARACTER_WALK_SHEET_PX,
+  CHARACTER_WALK_SHEET_HEIGHT_PX,
+  CHARACTER_WALK_SHEET_WIDTH_PX,
 } from "../../gameDimensions.mjs";
-import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
+import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
 export const ASSET_ID = "avatar-character";
@@ -58,10 +60,13 @@ export const DEFAULT_STRATEGY = "sheet";
 export const CHARACTER_KIND = KIND;
 
 /**
- * Square walk-frame edge (px). One frame is **¼** of the full-height iso cell sheet — see **`src/dimensions.ts`**
- * / **`CHARACTER_WALK_FRAME_PX`** in **`gameDimensions.mjs`**.
+ * Walk-frame **width** (px) — matches floor tile / footprint width; with {@link TILE_HEIGHT} the cell is **width:height = 2:5**.
+ * See **`CHARACTER_WALK_FRAME_WIDTH_PX`** / **`CHARACTER_WALK_FRAME_HEIGHT_PX`** in **`gameDimensions.mjs`** / **`src/dimensions.ts`**.
  */
 export const TILE_SIZE = CHARACTER_WALK_FRAME_PX;
+
+/** Walk-frame height (px) — **2.5×** {@link TILE_SIZE} (**2:5** with width). */
+export const TILE_HEIGHT = CHARACTER_WALK_FRAME_HEIGHT_PX;
 
 /**
  * Default Euclidean RGB distance for the main chroma pass (per-tile strategy only). Higher keys more near-magenta pixels but can eat
@@ -81,18 +86,18 @@ export const CHARACTER_CHROMA_FRINGE_EDGE_DIST = 165;
  */
 export const CHARACTER_CHROMA_SPILL_MAX_DIST = 205;
 
-/** Single sheet: **2×2** grid filling a full-height iso cell. Must match **`SHEET_CROPS`**. */
-export const SHEET_WIDTH = CHARACTER_WALK_SHEET_PX;
-export const SHEET_HEIGHT = CHARACTER_WALK_SHEET_PX;
+/** Single sheet: **1×4** horizontal strip (four walk frames). Must match **`SHEET_CROPS`**. */
+export const SHEET_WIDTH = CHARACTER_WALK_SHEET_WIDTH_PX;
+export const SHEET_HEIGHT = CHARACTER_WALK_SHEET_HEIGHT_PX;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
 /**
- * Nano-banana sheet inputs: **1:1** + **0.5K** (fal per-image **0.75×** vs 1K base) + extras.
+ * Nano-banana sheet inputs: **`3:2`** aspect (fal enum; nominal game strip **256×160** = **8:5**, cells **2:5**) + **0.5K** (fal per-image **0.75×** vs 1K base) + extras.
  */
 export const CHARACTER_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
+  aspect_ratio: NANO_BANANA2_CHARACTER_WALK_STRIP_ASPECT_RATIO,
   resolution: NANO_BANANA2_LOW_RESOLUTION,
   expand_prompt: true,
   safety_tolerance: 2,
@@ -103,7 +108,7 @@ export const CHARACTER_FAL_EXTRAS_SHEET = {
  * Defined here so art direction stays in this preset (not shared **`prompt.mjs`** defaults).
  */
 export const CHARACTER_WALK_FRAME_STYLE =
-  `Illustrated {tileSize}px square 2D side-view game character — painterly or soft cel-shaded full-color art, readable at small scale, not pixel art or blocky pixels, not photoreal, single frame. `;
+  `Illustrated ${TILE_SIZE}×${TILE_HEIGHT}px rectangular 2D game character in **isometric three-quarter view** — painterly or soft cel-shaded full-color art, readable at small scale, not pixel art or blocky pixels, not photoreal, not flat side-profile only, single frame. `;
 
 export const CHARACTER_FAL_EXTRAS_PER_TILE = {
   aspect_ratio: "1:1",
@@ -115,17 +120,23 @@ export const CHARACTER_FAL_EXTRAS_PER_TILE = {
  * Kept in this preset so sheet semantics stay character-specific (not shared with `prompt.mjs` defaults).
  */
 export const CHARACTER_FALSPRITE_SHEET_SUBJECT =
-  `Illustrated full-color 2D game art (not pixel art). ` +
-  `Panel order left to right, top row then bottom (2×2 grid): (1) idle standing — feet under hips, relaxed neutral pose, not mid-stride; ` +
+  `Illustrated full-color 2D game art (not pixel art), **isometric three-quarter view** with the same per-cell framing everywhere: figure centered on the vertical midline; **top of head 10%** down from top; **soles / ground contact 20%** above bottom (**W/4** clearance, same as mock); head/torso/leg proportions **~10/64**, **12/64**, **5/64** vs cell. ` +
+  `Panel order **left to right** in a **single row** (1×4 strip): (1) idle standing — feet under hips, relaxed neutral pose, not mid-stride; ` +
   `(2) walk contact left; (3) walk passing / mid-stride; (4) walk contact right — one pose per cell, same character identity and outfit.`;
 
 /** Short seed for OpenRouter (falsprite-style user message); not the full T2I block. */
 export const CHARACTER_WALK_SHEET_REWRITE_USER_SEED =
-  "Illustrated 2D side-view game character (painterly or cel-shaded, not pixel art): first beat is idle standing; then a three-step walk loop (contact left, passing, contact right) — single consistent identity and outfit.";
+  "Illustrated 2D game character in isometric three-quarter view (painterly or cel-shaded, not pixel art): centered in frame; head top **10%** from top edge, feet ground line **20%** from bottom (mock pipeline / W/4 clearance); compact proportions like the reference mock; first beat is idle standing; then a three-step walk loop (contact left, passing, contact right) — single consistent identity and outfit.";
 
-/** png-analyze cell size (~4×4 grid on each walk frame). */
+/** OpenRouter system prompt: base falsprite four-beat rules plus isometric 3/4 staging (output must still avoid digits per base rules). */
+export const CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
+  CHARACTER_WALK_REWRITE_SYSTEM_BASE +
+  " Staging: describe the character and motion as seen from a fixed isometric three-quarter camera (oblique, front plus one side readable — not a flat side profile). The performer should occupy the frame as if centered on the vertical midline: **top of head** near **10%** down from the top, **ground contact** near **20%** up from the bottom (same vertical bands as the pipeline mock, not equal 10% top and bottom)." +
+  " Backdrop (match isometric floor strip rewrites): do **not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia as the background — one calm uniform flat backdrop only; **no** gutters, divider lines, or vertical bands between columns; **no** pink/purple glow or colored halos at the figure outline or along interior vertical boundaries.";
+
+/** png-analyze cell size (~¼ of frame width × height on each walk frame). */
 export const QA_SPRITE_W = Math.max(16, Math.round(TILE_SIZE / 4));
-export const QA_SPRITE_H = QA_SPRITE_W;
+export const QA_SPRITE_H = Math.max(8, Math.round(TILE_HEIGHT / 4));
 
 /**
  * Ordered frames: **idle** (sheet cell 1) then three walk phases. **Per-tile** prompts only matter for `--strategy per-tile`.
@@ -137,7 +148,7 @@ export const CHARACTER_WALK_FRAMES = Object.freeze([
     id: "walk_0",
     outSubdir: "walk_0",
     promptVariant:
-      `Frame 1 of 4: idle standing — relaxed neutral pose, feet under body or slight comfortable stance, not walking, side-view or three-quarter — same character as other frames.`,
+      `Frame 1 of 4: idle standing — relaxed neutral pose, feet under body or slight comfortable stance, not walking, isometric three-quarter view — same character as other frames.`,
   },
   {
     id: "walk_1",
@@ -160,15 +171,15 @@ export const CHARACTER_WALK_FRAMES = Object.freeze([
 ]);
 
 /**
- * Top-left origins in the 128×128 sheet (row-major: walk_0 walk_1 / walk_2 walk_3).
+ * Top-left origins in the 1×4 sheet (left to right: walk_0 … walk_3).
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
 export const SHEET_CROPS = Object.freeze({
   walk_0: { x: 0, y: 0 },
   walk_1: { x: TILE_SIZE, y: 0 },
-  walk_2: { x: 0, y: TILE_SIZE },
-  walk_3: { x: TILE_SIZE, y: TILE_SIZE },
+  walk_2: { x: TILE_SIZE * 2, y: 0 },
+  walk_3: { x: TILE_SIZE * 3, y: 0 },
 });
 
 /**
@@ -179,8 +190,8 @@ export const SHEET_CROPS = Object.freeze({
 export const CHARACTER_FRAME_SHEET_CELLS = Object.freeze({
   walk_0: { column: 0, row: 0 },
   walk_1: { column: 1, row: 0 },
-  walk_2: { column: 0, row: 1 },
-  walk_3: { column: 1, row: 1 },
+  walk_2: { column: 2, row: 0 },
+  walk_3: { column: 3, row: 0 },
 });
 
 /**
@@ -188,7 +199,9 @@ export const CHARACTER_FRAME_SHEET_CELLS = Object.freeze({
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
-export const CHARACTER_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE));
+export const CHARACTER_SHEET_LAYOUT = Object.freeze(
+  sheetLayoutFromCropsRect(SHEET_CROPS, TILE_SIZE, TILE_HEIGHT),
+);
 
 /**
  * Same **`recipeId`** string **`runPipeline`** writes to **`manifest.json`** for this preset.
@@ -246,8 +259,9 @@ export function createPreset(opts) {
     frames: CHARACTER_WALK_FRAMES,
     outBase,
     tileSize: TILE_SIZE,
-    /** N×N falsprite grid for **`buildFalspriteStyleSpritePrompt`** / rewrite beat count. */
-    sheetGridSize: 2,
+    tileHeight: TILE_HEIGHT,
+    /** Beat count for OpenRouter rewrite user prompt (`four-beat` walk loop). */
+    sheetGridSize: 4,
     sheetOnlyOutput: true,
     /** Keep T2I/BRIA pixel dimensions; manifest + sprite-ref grid match the saved **`sheet.png`**. */
     sheetNativeRaster: true,
@@ -257,10 +271,10 @@ export function createPreset(opts) {
       width: SHEET_WIDTH,
       height: SHEET_HEIGHT,
       crops: { ...SHEET_CROPS },
-      rows: 2,
-      columns: 2,
+      rows: 1,
+      columns: 4,
       spriteWidth: TILE_SIZE,
-      spriteHeight: TILE_SIZE,
+      spriteHeight: TILE_HEIGHT,
     },
     prompt: {
       frameStyle: CHARACTER_WALK_FRAME_STYLE,
@@ -270,7 +284,11 @@ export function createPreset(opts) {
       sheetSubject: CHARACTER_FALSPRITE_SHEET_SUBJECT,
       sheetRewriteUserPrompt: CHARACTER_WALK_SHEET_REWRITE_USER_SEED,
       sheetPromptBuilder: (ctx) =>
-        buildFalspriteStyleSpritePrompt(ctx.rewrittenBase ?? CHARACTER_FALSPRITE_SHEET_SUBJECT, 2),
+        buildCharacterWalkStripSpritePrompt(
+          ctx.rewrittenBase ?? CHARACTER_FALSPRITE_SHEET_SUBJECT,
+          ctx.sheetWidth,
+          ctx.sheetHeight,
+        ),
       framePromptSuffix: CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
     },
     fal: {
@@ -288,7 +306,8 @@ export function createPreset(opts) {
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },
     generatorConfig: {
-      tileBufferForFrame: (frame, ctx) => renderCharacterWalkMockTileBuffer(frame, ctx.tileSize),
+      tileBufferForFrame: (frame, ctx) =>
+        renderCharacterWalkMockTileBuffer(frame, ctx.tileWidth, ctx.tileHeight),
       sheetLayout: CHARACTER_SHEET_LAYOUT,
     },
     postprocessSteps: [],

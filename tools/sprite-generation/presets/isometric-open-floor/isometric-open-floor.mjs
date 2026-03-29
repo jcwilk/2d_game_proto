@@ -1,9 +1,11 @@
 /**
- * Isometric open-floor tile preset — 2×2 sheet of rhombus floor variants (`gridFrameKeys` under `public/art/isometric-open-floor/`).
+ * Isometric open-floor tile preset — **1×4** horizontal strip of rhombus floor variants (`gridFrameKeys` under `public/art/isometric-open-floor/`).
  *
- * Geometry: texture cell = **`ISO_FLOOR_TEXTURE_CELL_PX`** from **`gameDimensions.mjs`** (1m footprint in
- * **`src/dimensions.ts`**). The walkable tile is a **foreshortened rhombus** in pixels — see **`isoFloorRhombusVertices`**
- * in **`generators/mock.mjs`**. Live T2I prompts match this footprint.
+ * Each cell is **W×(W/2)** px (width = footprint **1m**, height = foreshortened band) — see **`ISO_FLOOR_TEXTURE_WIDTH_PX`** /
+ * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`gameDimensions.mjs`** / **`src/dimensions.ts`**. The rhombus is **flush to all four
+ * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.mjs`**.
+ *
+ * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.
  *
  * @see `../../README.md`
  * @see `../../pipeline.mjs`
@@ -11,13 +13,14 @@
 
 import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
+  NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO,
   NANO_BANANA2_LOW_RESOLUTION,
-  NANO_BANANA2_SQUARE_ASPECT_RATIO,
 } from "../../generators/fal.mjs";
 import { renderIsometricFloorMockTileBuffer } from "../../generators/mock.mjs";
 import { buildRecipeId } from "../../manifest.mjs";
 import {
-  buildIsometricFloorGridSpritePrompt,
+  buildIsometricFloorStripSpritePrompt,
+  interpolatePromptTemplate,
   ISO_FLOOR_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
   ISO_FLOOR_FALSPRITE_SHEET_SUBJECT,
   ISO_FLOOR_FRAME_COMPOSITION,
@@ -25,8 +28,8 @@ import {
   ISO_FLOOR_FRAME_STYLE,
   ISO_FLOOR_SHEET_REWRITE_USER_SEED,
 } from "../../prompt.mjs";
-import { ISO_FLOOR_TEXTURE_CELL_PX } from "../../gameDimensions.mjs";
-import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
+import { ISO_FLOOR_TEXTURE_HEIGHT_PX, ISO_FLOOR_TEXTURE_WIDTH_PX } from "../../gameDimensions.mjs";
+import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
 
 export const ASSET_ID = "isometric-open-floor";
 
@@ -36,16 +39,22 @@ export const KIND = "isometric_floor_tile_set";
 
 export const DEFAULT_STRATEGY = "sheet";
 
-/** Square texture cell for one floor tile (1m footprint); matches **`TILE_FOOTPRINT_WIDTH_PX`**. */
-export const TILE_SIZE = ISO_FLOOR_TEXTURE_CELL_PX;
+/** Cell width (px) — 1m footprint. */
+export const TILE_WIDTH = ISO_FLOOR_TEXTURE_WIDTH_PX;
 
-export const SHEET_WIDTH = TILE_SIZE * 2;
-export const SHEET_HEIGHT = TILE_SIZE * 2;
+/** Cell height (px) — half of width; matches foreshortened floor band. */
+export const TILE_HEIGHT = ISO_FLOOR_TEXTURE_HEIGHT_PX;
+
+/** Pipeline **`tileSize`** = cell width (Excalibur scales from native width to {@link TILE_WIDTH} at runtime). */
+export const TILE_SIZE = TILE_WIDTH;
+
+export const SHEET_WIDTH = TILE_WIDTH * 4;
+export const SHEET_HEIGHT = TILE_HEIGHT;
 
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
 export const ISO_FLOOR_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
+  aspect_ratio: NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO,
   resolution: NANO_BANANA2_LOW_RESOLUTION,
   expand_prompt: true,
   safety_tolerance: 2,
@@ -57,7 +66,7 @@ export const ISO_FLOOR_FAL_EXTRAS_PER_TILE = {
 };
 
 export const QA_SPRITE_W = 16;
-export const QA_SPRITE_H = 16;
+export const QA_SPRITE_H = Math.max(8, Math.round(TILE_HEIGHT / 4));
 
 /**
  * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
@@ -67,19 +76,19 @@ export const ISO_FLOOR_FRAMES = Object.freeze([
     id: "floor_0",
     outSubdir: "floor_0",
     promptVariant:
-      `Variation A of 4: clean open floor with only fine grain — same foreshortened rhombus as other cells (~2:1 wide:tall, side midpoints + inset top/bottom).`,
+      `Variation A of 4: clean open floor with only fine grain — same flush-edge rhombus as other cells (${TILE_WIDTH}×${TILE_HEIGHT}px cell).`,
   },
   {
     id: "floor_1",
     outSubdir: "floor_1",
     promptVariant:
-      `Variation B of 4: a few short hairline cracks — same wide-low rhombus footprint and palette family as other cells.`,
+      `Variation B of 4: a few short hairline cracks — same rhombus footprint and palette family as other cells.`,
   },
   {
     id: "floor_2",
     outSubdir: "floor_2",
     promptVariant:
-      `Variation C of 4: light scattered grit or tiny pebbles — same foreshortened diamond geometry, no raised objects.`,
+      `Variation C of 4: light scattered grit or tiny pebbles — same geometry, no raised objects.`,
   },
   {
     id: "floor_3",
@@ -91,19 +100,19 @@ export const ISO_FLOOR_FRAMES = Object.freeze([
 
 export const SHEET_CROPS = Object.freeze({
   floor_0: { x: 0, y: 0 },
-  floor_1: { x: TILE_SIZE, y: 0 },
-  floor_2: { x: 0, y: TILE_SIZE },
-  floor_3: { x: TILE_SIZE, y: TILE_SIZE },
+  floor_1: { x: TILE_WIDTH, y: 0 },
+  floor_2: { x: TILE_WIDTH * 2, y: 0 },
+  floor_3: { x: TILE_WIDTH * 3, y: 0 },
 });
 
 export const ISO_FLOOR_FRAME_SHEET_CELLS = Object.freeze({
   floor_0: { column: 0, row: 0 },
   floor_1: { column: 1, row: 0 },
-  floor_2: { column: 0, row: 1 },
-  floor_3: { column: 1, row: 1 },
+  floor_2: { column: 2, row: 0 },
+  floor_3: { column: 3, row: 0 },
 });
 
-export const ISO_FLOOR_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE));
+export const ISO_FLOOR_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCropsRect(SHEET_CROPS, TILE_WIDTH, TILE_HEIGHT));
 
 /**
  * @param {'mock'|'generate'} mode
@@ -153,7 +162,8 @@ export function createPreset(opts) {
     frames: ISO_FLOOR_FRAMES,
     outBase,
     tileSize: TILE_SIZE,
-    sheetGridSize: 2,
+    tileHeight: TILE_HEIGHT,
+    sheetGridSize: 4,
     sheetOnlyOutput: true,
     sheetNativeRaster: true,
     frameSheetCells: { ...ISO_FLOOR_FRAME_SHEET_CELLS },
@@ -162,18 +172,30 @@ export function createPreset(opts) {
       width: SHEET_WIDTH,
       height: SHEET_HEIGHT,
       crops: { ...SHEET_CROPS },
-      rows: 2,
-      columns: 2,
-      spriteWidth: TILE_SIZE,
-      spriteHeight: TILE_SIZE,
+      rows: 1,
+      columns: 4,
+      spriteWidth: TILE_WIDTH,
+      spriteHeight: TILE_HEIGHT,
     },
     prompt: {
       frameStyle: ISO_FLOOR_FRAME_STYLE,
       frameComposition: ISO_FLOOR_FRAME_COMPOSITION,
       sheetSubject: ISO_FLOOR_FALSPRITE_SHEET_SUBJECT,
       sheetRewriteUserPrompt: ISO_FLOOR_SHEET_REWRITE_USER_SEED,
-      sheetPromptBuilder: (ctx) =>
-        buildIsometricFloorGridSpritePrompt(ctx.rewrittenBase ?? ISO_FLOOR_FALSPRITE_SHEET_SUBJECT, 2),
+      sheetPromptBuilder: (ctx) => {
+        const cellW = Math.round(ctx.sheetWidth / 4);
+        const cellH = Math.round(ctx.sheetHeight);
+        const subject = interpolatePromptTemplate(ISO_FLOOR_FALSPRITE_SHEET_SUBJECT, {
+          tileSize: cellW,
+          chromaKeyHex: ctx.chromaKeyHex,
+          cellWidth: cellW,
+          cellHeight: cellH,
+          sheetWidth: ctx.sheetWidth,
+          sheetHeight: ctx.sheetHeight,
+        });
+        const base = ctx.rewrittenBase && String(ctx.rewrittenBase).trim() ? String(ctx.rewrittenBase).trim() : subject;
+        return buildIsometricFloorStripSpritePrompt(base, ctx.sheetWidth, ctx.sheetHeight);
+      },
       framePromptSuffix: ISO_FLOOR_FRAME_PROMPT_SUFFIX,
     },
     fal: {
@@ -189,7 +211,8 @@ export function createPreset(opts) {
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },
     generatorConfig: {
-      tileBufferForFrame: (frame, ctx) => renderIsometricFloorMockTileBuffer(frame, ctx.tileSize),
+      tileBufferForFrame: (frame, c) =>
+        renderIsometricFloorMockTileBuffer(frame, c.tileWidth ?? TILE_WIDTH, c.tileHeight ?? TILE_HEIGHT),
       sheetLayout: ISO_FLOOR_SHEET_LAYOUT,
     },
     postprocessSteps: [],

@@ -8,7 +8,7 @@ import { spriteSheetFromGridImageSource } from './art/gridSpriteSheet';
 import { CHROME_MOVE_SPEED, VIEWPORT_SIZE, createEngine } from './engine';
 import {
   CHARACTER_WALK_FRAME_PX,
-  FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX,
+  FLOOR_FORESHORTENED_HEIGHT_PX,
   scaleToTargetWidthPx,
   TILE_FOOTPRINT_WIDTH_PX,
 } from './dimensions';
@@ -63,8 +63,6 @@ void engine
     walkAnim.goToFrame(0);
 
     const floorFrameIds = ['floor_0', 'floor_1', 'floor_2', 'floor_3'] as const;
-    const floorPick = Math.floor(Math.random() * floorFrameIds.length);
-    const floorVariantId = floorFrameIds[floorPick] ?? 'floor_0';
 
     const floorRaw = floorAssets.spriteRefResource.data;
     if (floorRaw == null) {
@@ -75,45 +73,62 @@ void engine
       throw new Error('Expected floor sheet ImageSource loaded after preload');
     }
     const floorSpriteSheet = spriteSheetFromGridImageSource(floorAssets.sheetImageSource, floorManifest);
-    const floorCell = floorManifest.frames[floorVariantId];
-    if (!floorCell) {
-      throw new Error(`Missing floor sprite-ref frame ${JSON.stringify(floorVariantId)}`);
+    const floorGraphics = floorFrameIds.map((id) => {
+      const cell = floorManifest.frames[id];
+      if (!cell) {
+        throw new Error(`Missing floor sprite-ref frame ${JSON.stringify(id)}`);
+      }
+      return floorSpriteSheet.getSprite(cell.column, cell.row);
+    });
+    const floorGraphic0 = floorGraphics[0];
+    if (!floorGraphic0) {
+      throw new Error('Expected at least one floor graphic');
     }
-    const floorGraphic = floorSpriteSheet.getSprite(floorCell.column, floorCell.row);
 
     const leadWalkSprite = sprites[0];
     if (!leadWalkSprite) {
       throw new Error('Expected at least one walk animation frame');
     }
 
-    const floorScale = scaleToTargetWidthPx(floorGraphic.width, TILE_FOOTPRINT_WIDTH_PX);
+    const floorScale = scaleToTargetWidthPx(floorGraphic0.width, TILE_FOOTPRINT_WIDTH_PX);
     const characterScale = scaleToTargetWidthPx(leadWalkSprite.width, CHARACTER_WALK_FRAME_PX);
 
     /**
-     * Fixed world anchor: **bottom center** of the iso cell (front corner of the floor tile). Same for any entity
-     * “in” this cell — see `FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX` in `dimensions.ts`.
+     * Shared world anchor: **bottom midpoint of the art cell** (cell edge), +Y down — same for floor and character
+     * so horizontal footprint aligns; feet vs. rhombus are handled by art insets (`dimensions.ts`).
      */
     const cellBottomCenter = vec(VIEWPORT_SIZE / 2, VIEWPORT_SIZE * 0.52);
 
-    /** Floor stand / rhombus centroid: `FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX` above cell bottom (Excalibur +Y down). */
-    const floorStandWorld = vec(
-      cellBottomCenter.x,
-      cellBottomCenter.y - FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX,
-    );
+    /** Diamond isometric: half footprint width and half foreshortened height per grid step (`dimensions.ts`). */
+    const isoHalfW = TILE_FOOTPRINT_WIDTH_PX / 2;
+    const isoHalfH = FLOOR_FORESHORTENED_HEIGHT_PX / 2;
+    const gridSize = 9;
+    const centerG = (gridSize - 1) / 2;
+    const floorZMax = (gridSize - 1) * 2;
 
-    const floorActor = new Actor({
-      pos: cellBottomCenter,
-      scale: vec(floorScale, floorScale),
-      z: 0,
-    });
-    floorActor.graphics.anchor = vec(0.5, 1);
-    floorActor.graphics.use(floorGraphic);
-    mainScene.add(floorActor);
+    for (let gx = 0; gx < gridSize; gx++) {
+      for (let gy = 0; gy < gridSize; gy++) {
+        const variantIndex = Math.floor(Math.random() * floorGraphics.length);
+        const floorGraphic = floorGraphics[variantIndex] ?? floorGraphic0;
+        const offset = vec(
+          (gx - gy) * isoHalfW,
+          (gx + gy - 2 * centerG) * isoHalfH,
+        );
+        const floorActor = new Actor({
+          pos: cellBottomCenter.add(offset),
+          scale: vec(floorScale, floorScale),
+          z: gx + gy,
+        });
+        floorActor.graphics.anchor = vec(0.5, 1);
+        floorActor.graphics.use(floorGraphic);
+        mainScene.add(floorActor);
+      }
+    }
 
     const actor = new Actor({
-      pos: floorStandWorld,
+      pos: cellBottomCenter,
       scale: vec(characterScale, characterScale),
-      z: 1,
+      z: floorZMax + 1,
     });
     actor.graphics.anchor = vec(0.5, 1);
     actor.graphics.use(walkAnim);

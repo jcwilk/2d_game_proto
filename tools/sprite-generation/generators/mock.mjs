@@ -7,50 +7,55 @@ import { PNG } from "pngjs";
 
 import {
   CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX,
-  CHARACTER_WALK_FRAME_PX,
+  CHARACTER_WALK_FRAME_HEIGHT_PX,
 } from "../gameDimensions.mjs";
 
 /**
- * Foreshortened isometric floor rhombus in a square cell (drawn in **texture space**, not via engine scale):
- * left/right at the midpoints of the vertical edges; top/bottom on the vertical centerline **inset** so the
- * rhombus is about **twice as wide as tall** (~45° ground-plane read, Diablo-style).
+ * Isometric floor rhombus in a **W×H** texture cell (**drawn in pixel space**): vertices flush with **edge midpoints**
+ * — top on top-edge center, bottom on bottom-edge center, left/right on side-edge midpoints. With **H = W/2** this is
+ * the natural foreshortened ground diamond (matches `src/dimensions.ts` open-floor cell).
  *
- * @param {number} tileSize
+ * @param {number} tileWidth
+ * @param {number} tileHeight
  * @returns {{ top: { x: number; y: number }; right: { x: number; y: number }; bottom: { x: number; y: number }; left: { x: number; y: number } }}
  */
-export function isoFloorRhombusVertices(tileSize) {
-  if (tileSize < 4) {
-    throw new Error(`isoFloorRhombusVertices: tileSize must be >= 4, got ${tileSize}`);
+export function isoFloorRhombusVerticesRect(tileWidth, tileHeight) {
+  if (tileWidth < 4 || tileHeight < 2) {
+    throw new Error(`isoFloorRhombusVerticesRect: need tileWidth>=4, tileHeight>=2, got ${tileWidth}×${tileHeight}`);
   }
-  const cx = (tileSize / 2) | 0;
-  const cy = (tileSize / 2) | 0;
-  const max = tileSize - 1;
-  const halfSpanY = Math.max(1, (tileSize / 4) | 0);
+  const cx = (tileWidth / 2) | 0;
+  const maxX = tileWidth - 1;
+  const bottomY = tileHeight - 1;
+  const topY = 0;
+  const sideMidY = (tileHeight / 2) | 0;
   return {
-    top: { x: cx, y: Math.max(0, cy - halfSpanY) },
-    right: { x: max, y: cy },
-    bottom: { x: cx, y: Math.min(max, cy + halfSpanY) },
-    left: { x: 0, y: cy },
+    top: { x: cx, y: topY },
+    right: { x: maxX, y: sideMidY },
+    bottom: { x: cx, y: bottomY },
+    left: { x: 0, y: sideMidY },
   };
 }
 
 /**
  * @param {{ x: number; y: number }} p
- * @param {number} tileSize
+ * @param {number} tileWidth
+ * @param {number} tileHeight
  */
-export function pointInIsoFloorRhombus(p, tileSize) {
-  const { top: t, right: r, bottom: b, left: l } = isoFloorRhombusVertices(tileSize);
+export function pointInIsoFloorRhombusRect(p, tileWidth, tileHeight) {
+  const { top: t, right: r, bottom: b, left: l } = isoFloorRhombusVerticesRect(tileWidth, tileHeight);
   return pointInTriangle(p, t, r, b) || pointInTriangle(p, t, l, b);
 }
 
 /**
- * Mock isometric open-floor tile: transparent outside rhombus, stone fill inside (foreshortened rhombus in pixels), variant from frame id `floor_0`…`floor_3`.
+ * Mock isometric open-floor tile: transparent outside rhombus, stone fill inside, variant `floor_0`…`floor_3`.
+ * Cell is **`tileWidth`×`tileHeight`** (typically **2:1** wide:tall); rhombus flush to all four edges.
  *
  * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {number} tileSize
+ * @param {number} tileWidth
+ * @param {number} tileHeight
  * @returns {import('node:buffer').Buffer}
  */
-export function renderIsometricFloorMockTileBuffer(frame, tileSize) {
+export function renderIsometricFloorMockTileBuffer(frame, tileWidth, tileHeight) {
   const m = /^floor_(\d)$/.exec(frame.id);
   if (!m) {
     throw new Error(`mock isometric floor: frame id must be floor_0..floor_3, got ${JSON.stringify(frame.id)}`);
@@ -69,14 +74,14 @@ export function renderIsometricFloorMockTileBuffer(frame, tileSize) {
   ];
   const base = bases[variant];
 
-  const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
+  const png = new PNG({ width: tileWidth, height: tileHeight, colorType: 6 });
   png.data.fill(0);
 
-  for (let y = 0; y < tileSize; y++) {
-    for (let x = 0; x < tileSize; x++) {
-      const i = (tileSize * y + x) << 2;
+  for (let y = 0; y < tileHeight; y++) {
+    for (let x = 0; x < tileWidth; x++) {
+      const i = (tileWidth * y + x) << 2;
       const p = { x, y };
-      if (!pointInIsoFloorRhombus(p, tileSize)) {
+      if (!pointInIsoFloorRhombusRect(p, tileWidth, tileHeight)) {
         continue;
       }
       const n = ((x * 17 + y * 31 + variant * 97) & 0xff) - 128;
@@ -95,7 +100,7 @@ export function renderIsometricFloorMockTileBuffer(frame, tileSize) {
         png.data[i + 1] = Math.min(255, png.data[i + 1] + 10);
         png.data[i + 2] = Math.min(255, png.data[i + 2] + 8);
       }
-      if (variant === 3 && y > (tileSize * 2) / 3 && ((x + variant) & 7) < 3) {
+      if (variant === 3 && y > (tileHeight * 2) / 3 && ((x + variant) & 7) < 3) {
         png.data[i] = Math.max(0, png.data[i] - 14);
         png.data[i + 1] = Math.max(0, png.data[i + 1] - 12);
         png.data[i + 2] = Math.max(0, png.data[i + 2] - 10);
@@ -246,12 +251,14 @@ export function walkPhaseFromFrameId(id) {
 
 /**
  * Deterministic RGBA tile: simple “pixel” figure with four leg phases (mock walk cycle).
+ * Cell **width:height = 2:5** (see **`CHARACTER_WALK_FRAME_*_PX`** in **`gameDimensions.mjs`**): width = floor footprint, height = 2.5× width.
  *
  * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {number} tileSize
+ * @param {number} tileWidth
+ * @param {number} [tileHeight]  Defaults to **`tileWidth`** (square) for tests that pass one size only.
  * @returns {import('node:buffer').Buffer}
  */
-export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
+export function renderCharacterWalkMockTileBuffer(frame, tileWidth, tileHeight = tileWidth) {
   const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
   const leftDx = [-4, 0, 4, 0];
   const rightDx = [4, 0, -4, 0];
@@ -268,30 +275,32 @@ export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
     rd = rightDx[phase];
   }
 
-  const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
+  const tw = tileWidth;
+  const th = tileHeight;
+  const png = new PNG({ width: tw, height: th, colorType: 6 });
   png.data.fill(0);
 
-  const cx = (tileSize / 2) | 0;
-  /** Same **W/4** stand offset as `dimensions.ts`, scaled if `tileSize` ≠ preset walk frame (tests). */
+  const cx = (tw / 2) | 0;
+  /** Same **W/4** stand offset as `dimensions.ts`, scaled if height ≠ preset walk frame (tests). */
   const feetInset = Math.max(
     4,
-    Math.round((CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX * tileSize) / CHARACTER_WALK_FRAME_PX),
+    Math.round((CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX * th) / CHARACTER_WALK_FRAME_HEIGHT_PX),
   );
 
-  const head = Math.max(4, Math.round((tileSize * 10) / 64));
+  const head = Math.max(4, Math.round((tw * 10) / 64));
   const hx0 = cx - (head / 2) | 0;
-  const hy0 = Math.max(2, Math.round(tileSize * 0.1));
-  const bw = Math.max(6, Math.round((tileSize * 12) / 64));
-  const bh = Math.round(tileSize * 0.28);
+  const hy0 = Math.max(2, Math.round(th * 0.1));
+  const bw = Math.max(6, Math.round((tw * 12) / 64));
+  const bh = Math.round(th * 0.28);
   const bx0 = cx - (bw / 2) | 0;
   const by0 = hy0 + head + 2;
-  const legW = Math.max(4, Math.round((tileSize * 5) / 64));
-  const maxLegTop = tileSize - feetInset;
+  const legW = Math.max(4, Math.round((tw * 5) / 64));
+  const maxLegTop = th - feetInset;
   const legH = Math.min(
-    Math.round(tileSize * 0.32),
+    Math.round(th * 0.32),
     Math.max(4, maxLegTop - by0 - bh - 2),
   );
-  const footY = tileSize - legH - feetInset;
+  const footY = th - legH - feetInset;
   const leftLegX = bx0 - 2 + ld;
   const rightLegX = bx0 + bw - legW + 2 + rd;
 
@@ -304,8 +313,8 @@ export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
   const fillRect = (x0, y0, w, h) => {
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
-        if (x < 0 || y < 0 || x >= tileSize || y >= tileSize) continue;
-        const i = (tileSize * y + x) << 2;
+        if (x < 0 || y < 0 || x >= tw || y >= th) continue;
+        const i = (tw * y + x) << 2;
         png.data[i] = fill.r;
         png.data[i + 1] = fill.g;
         png.data[i + 2] = fill.b;
@@ -426,13 +435,15 @@ export function softenTriangleMaskBuffer(buffer, passes = 1) {
  */
 export async function generate(frame, config = {}) {
   const tileSize = config.tileSize ?? 256;
+  const tileW = config.tileWidth ?? tileSize;
+  const tileH = config.tileHeight ?? tileSize;
   if (typeof config.tileBufferForFrame === "function") {
-    const buffer = config.tileBufferForFrame(frame, { tileSize });
+    const buffer = config.tileBufferForFrame(frame, { tileSize, tileWidth: tileW, tileHeight: tileH });
     return {
       buffer,
       metadata: {
-        width: tileSize,
-        height: tileSize,
+        width: tileW,
+        height: tileH,
         mode: "mock",
         seed: config.seed,
       },
@@ -454,7 +465,7 @@ export async function generate(frame, config = {}) {
 }
 
 /**
- * Composite up to four frames into one 2×2 sheet (2×tileSize square).
+ * Composite frames into one sheet using **`sheetLayout`** (e.g. 2×2 or 1×4).
  * **`sheetLayout`** is required — derive from `preset.sheet.crops` and `tileSize` via
  * **`sheetLayoutFromCrops`** in **`../sheet-layout.mjs`** (pixel crop origins → cell coordinates).
  *
@@ -464,6 +475,8 @@ export async function generate(frame, config = {}) {
  */
 export async function generateSheet(frames, config = {}) {
   const tileSize = config.tileSize ?? 256;
+  const tileW = config.tileWidth ?? tileSize;
+  const tileH = config.tileHeight ?? tileSize;
   const layout = config.sheetLayout;
   if (!layout) {
     throw new Error(
@@ -478,10 +491,10 @@ export async function generateSheet(frames, config = {}) {
     if (!cell) {
       throw new Error(`mock generateSheet: missing sheet layout cell for frame id "${frame.id}"`);
     }
-    const x0 = cell.x * tileSize;
-    const y0 = cell.y * tileSize;
-    sheetWidth = Math.max(sheetWidth, x0 + tileSize);
-    sheetHeight = Math.max(sheetHeight, y0 + tileSize);
+    const x0 = cell.x * tileW;
+    const y0 = cell.y * tileH;
+    sheetWidth = Math.max(sheetWidth, x0 + tileW);
+    sheetHeight = Math.max(sheetHeight, y0 + tileH);
   }
 
   const png = new PNG({ width: sheetWidth, height: sheetHeight, colorType: 6 });
@@ -491,13 +504,13 @@ export async function generateSheet(frames, config = {}) {
     const cell = layout[frame.id];
     const { buffer } = await generate(frame, config);
     const tile = PNG.sync.read(buffer);
-    if (tile.width !== tileSize || tile.height !== tileSize) {
-      throw new Error(`mock generateSheet: expected ${tileSize}×${tileSize} tile, got ${tile.width}×${tile.height}`);
+    if (tile.width !== tileW || tile.height !== tileH) {
+      throw new Error(`mock generateSheet: expected ${tileW}×${tileH} tile, got ${tile.width}×${tile.height}`);
     }
-    const x0 = cell.x * tileSize;
-    const y0 = cell.y * tileSize;
-    for (let y = 0; y < tileSize; y++) {
-      for (let x = 0; x < tileSize; x++) {
+    const x0 = cell.x * tileW;
+    const y0 = cell.y * tileH;
+    for (let y = 0; y < tileH; y++) {
+      for (let x = 0; x < tileW; x++) {
         const si = (tile.width * y + x) << 2;
         const di = (sheetWidth * (y0 + y) + (x0 + x)) << 2;
         png.data[di] = tile.data[si];

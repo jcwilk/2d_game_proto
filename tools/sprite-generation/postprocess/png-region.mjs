@@ -8,10 +8,11 @@ import { PNG } from "pngjs";
  * **do not** anisotropically nearest-neighbor squash that square onto the strip (different X vs Y scale
  * distorts glyphs). Instead we **center-crop** the decoded raster to the preset’s aspect ratio
  * (**`SHEET_WIDTH`∶`SHEET_HEIGHT`**, e.g. 4∶1), then apply **one** uniform **nearest-neighbor** resize to the
- * exact preset pixel size (**`resizePngBufferNearest`**). Bilinear blending was tried for softer fringes but
- * thins small limbs/sprites at strong downscales; NN keeps discrete samples per output pixel (pixel-art policy).
- * Rejected for this path: relying on fal always honoring non-square `image_size`; changing strip dimensions
- * without updating the preset; using anisotropic NN as the sole fix from square output.
+ * exact preset pixel size. **`scaleFilter: 'bilinear'`** (default) uses premultiplied-alpha bilinear resize
+ * (**`resizePngBufferBilinearPremultiplied`**) for illustrated / painterly art; **`'nearest'`** uses
+ * **`resizePngBufferNearest`** for crisp UI glyphs (e.g. d-pad). Rejected for this path: relying on fal always
+ * honoring non-square `image_size`; changing strip dimensions without updating the preset; using anisotropic
+ * scale as the sole fix from square output.
  */
 
 /**
@@ -160,15 +161,20 @@ export function resizePngBufferBilinearPremultiplied(pngBuffer, targetW, targetH
 }
 
 /**
- * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform **nearest-neighbor** resize to exactly
- * **`targetW`×`targetH`** (see **`resizePngBufferNearest`**). See module comment (epic **2gp-p4js**).
+ * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform resize to exactly **`targetW`×`targetH`**
+ * (bilinear or nearest per **`scaleFilter`**). See module comment (epic **2gp-p4js**).
  *
  * @param {Buffer} pngBuffer
  * @param {number} targetW  Preset sheet width (e.g. **`SHEET_WIDTH`**).
  * @param {number} targetH  Preset sheet height (e.g. **`SHEET_HEIGHT`**).
+ * @param {{ scaleFilter?: 'nearest' | 'bilinear' }} [opts]
  * @returns {Buffer}
  */
-export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH) {
+export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH, opts) {
+  const scaleFilter = opts?.scaleFilter ?? "bilinear";
+  const resize =
+    scaleFilter === "nearest" ? resizePngBufferNearest : resizePngBufferBilinearPremultiplied;
+
   const src = PNG.sync.read(pngBuffer);
   const sw = src.width;
   const sh = src.height;
@@ -198,5 +204,5 @@ export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH) {
   }
 
   const cropped = cw === sw && ch === sh ? pngBuffer : extractPngRegion(src, x0, y0, cw, ch);
-  return resizePngBufferNearest(cropped, targetW, targetH);
+  return resize(cropped, targetW, targetH);
 }

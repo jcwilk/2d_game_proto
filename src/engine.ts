@@ -8,11 +8,11 @@
  *
  * **Logical playfield:** **1∶1** (square). **`VIEWPORT_SIZE`** is **960** — aligns with the **width** of the old 960×540 layout and gives a larger native playfield than the earlier 540×540 square (better for non–pixel-art scale before CSS upscaling).
  *
- * **`suppressHiDPIScaling`:** `true` — use device pixel ratio 1 so one game pixel aligns to the canvas grid for
- * crisp pixels (retro / pixel-aligned art). Use `false` for smoother scaling on HiDPI at the cost of blur or
- * fractional pixel alignment.
+ * **`suppressHiDPIScaling`:** `false` — allow device pixel ratio so the canvas can scale smoothly on HiDPI
+ * (better for illustrated / painterly art). Use `true` for crisp 1∶1 logical pixels (retro pixel art).
  *
- * **`antialiasing`:** `false` — nearest-neighbor sampling for textures and pixelated canvas upscaling (pixel art).
+ * **`antialiasing`:** `true` — linear texture filtering and smoother canvas scaling (paired with
+ * {@link ImageFiltering.Blended} on {@link ImageSource} for grid sheets).
  */
 import { DisplayMode, Engine, type EngineOptions } from 'excalibur';
 
@@ -35,7 +35,7 @@ export const VIEWPORT_HEIGHT = VIEWPORT_SIZE;
 export const CHROME_MOVE_SPEED = 200;
 
 /** Matches `Engine` option; kept as a named constant for grep-friendly policy documentation. */
-export const SUPPRESS_HI_DPI_SCALING = true;
+export const SUPPRESS_HI_DPI_SCALING = false;
 
 /**
  * Fit the **canvas parent** (`#game-canvas-wrap`), not the whole window — otherwise `FitScreen`
@@ -50,8 +50,8 @@ export function createEngineOptions(overrides?: Partial<EngineOptions>): EngineO
     height: VIEWPORT_HEIGHT,
     displayMode: DEFAULT_DISPLAY_MODE,
     suppressHiDPIScaling: SUPPRESS_HI_DPI_SCALING,
-    /** Nearest-neighbor textures + `image-rendering: pixelated` when scaling the canvas (pixel art). */
-    antialiasing: false,
+    /** Linear filtering + multisample-friendly canvas path (illustrated art). */
+    antialiasing: true,
     ...overrides,
   };
 }

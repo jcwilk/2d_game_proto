@@ -47,7 +47,8 @@ export const DEFAULT_TILE_PNG_BASENAME = 'tile.png';
 /**
  * @typedef {object} SpriteGenPresetBase
  * @property {string} id
- * @property {number} tileSize  Square tile pixel size (width = height).
+ * @property {number} tileSize  Frame width in pixels (per-frame **`frameKeyRect`** rects).
+ * @property {number} [tileHeight]  Frame height; defaults to **`tileSize`** (square).
  * @property {GeneratorFrame[]} frames  Ordered list; `id` and `outSubdir` used for tile layout.
  * @property {SpriteRefFrameKeyRect|SpriteRefGridFrameKeys} spriteRef
  */
@@ -90,6 +91,7 @@ function buildFrameKeyRectPayload(preset) {
   }
   const png = sr.pngFilename ?? DEFAULT_TILE_PNG_BASENAME;
   const prefix = sr.artUrlPrefix.replace(/\/$/, '');
+  const fh = preset.tileHeight ?? preset.tileSize;
   /** @type {Record<string, { x: number; y: number; width: number; height: number }>} */
   const frames = {};
   /** @type {Record<string, string>} */
@@ -100,7 +102,7 @@ function buildFrameKeyRectPayload(preset) {
       x: 0,
       y: 0,
       width: preset.tileSize,
-      height: preset.tileSize,
+      height: fh,
     };
     images[f.id] = `${prefix}/${sub}/${png}`;
   }

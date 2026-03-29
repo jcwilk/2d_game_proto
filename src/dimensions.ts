@@ -5,11 +5,13 @@
  * **Square art cells** — `TILE_FOOTPRINT_WIDTH_PX` (**W**) is the **1m footprint** width in px. Tier **square side lengths** are **W**, **1.5W**, **2.5W** (half/full cells are larger than W on purpose).
  * - Foreshortened floor diamond height = **W/2** (`FLOOR_FORESHORTENED_HEIGHT_PX`).
  * - **halfHeight** / **fullHeight** scales below = `(floor band + N·px/m) / W` with N = {@link HALF_VERTICAL_WORLD_M} or {@link FULL_VERTICAL_WORLD_M}.
- * - **floorOnly** **W×W**: bottom **W/2** is the floor; upper band ≈ **0.5m** world for decals (`FLOOR_ONLY_DECORATION_BAND_WORLD_M` — world-space label for prompts, not a px input here).
+ * - **floorOnly** footprint is still **1m wide** (**W** px); the **open-floor texture cell** is **W×(W/2)** — see {@link ISO_FLOOR_TEXTURE_WIDTH_PX} / {@link ISO_FLOOR_TEXTURE_HEIGHT_PX} (rhombus flush to all four cell edges; no unused square band). World-space **FLOOR_ONLY_DECORATION_BAND_WORLD_M** labels prompts for decals above the diamond when using a taller cell elsewhere.
  *
  * **Anchors** (cell **bottom center**, +Y down): floor stand and column-top reference are **W/4** from bottom / top — the **midpoint of the foreshortened floor band** `(W/2)/2`, not a separate fudge factor.
  *
- * **Runtime placement (Excalibur, +Y down):** use a fixed world **`cellBottomCenter`** for the tile’s bottom-middle corner. Draw the floor texture with graphic anchor **bottom-center** `(0.5, 1)` at `cellBottomCenter`. Place characters (anchor bottom-center) at **`cellBottomCenter.y − {@link FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX}`** so feet sit on the floor stand point — do not align sprite image centers to each other.
+ * **Floor texture:** one **W×(W/2)** cell per tile; the isometric rhombus **touches the midpoint of each cell edge** (bottom vertex on bottom-edge center, top on top-edge center, left/right on side-edge midpoints). **Runtime:** anchor **bottom-center** `(0.5, 1)` at **`cellBottomCenter`** so the cell bottom matches the character stack; {@link CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX} is in-cell art for avatars.
+ *
+ * **Character walk frame** (one cell of the horizontal strip): same width **W** as the floor texture; height **2.5W** — i.e. **width:height = 2:5**. The **1×4** sheet is **4W×2.5W** — **width:height = 8:5**.
  */
 
 /** Ground tile width in world space (meters). */
@@ -98,11 +100,24 @@ export const FLOOR_SURFACE_CENTER_OFFSET_FROM_CELL_BOTTOM_PX = ISO_FLOOR_ANCHOR_
 /** Distance from cell top center down to full-column top reference. Same as {@link ISO_FLOOR_ANCHOR_INSET_PX}. */
 export const COLUMN_TOP_CENTER_OFFSET_FROM_CELL_TOP_PX = ISO_FLOOR_ANCHOR_INSET_PX;
 
-/** One walk frame edge: **2×2** sheet inscribed in {@link fullHeightCell}. */
-export const CHARACTER_WALK_FRAME_PX = fullHeightCell.sizePx / 2;
+/** Walk frame width (px) — matches floor texture / footprint width ({@link ISO_FLOOR_TEXTURE_WIDTH_PX}). */
+export const CHARACTER_WALK_FRAME_WIDTH_PX = TILE_FOOTPRINT_WIDTH_PX;
 
-/** Nominal walk sheet (2×2 frames). */
-export const CHARACTER_WALK_SHEET_PX = CHARACTER_WALK_FRAME_PX * 2;
+/**
+ * Walk frame height (px) — **width:height = 2:5** (height = **2.5×** {@link CHARACTER_WALK_FRAME_WIDTH_PX}).
+ */
+export const CHARACTER_WALK_FRAME_HEIGHT_PX = Math.round(CHARACTER_WALK_FRAME_WIDTH_PX * 2.5);
+
+/**
+ * Alias: walk frame **width** in px (matches floor footprint width). Prefer {@link CHARACTER_WALK_FRAME_WIDTH_PX}.
+ */
+export const CHARACTER_WALK_FRAME_PX = CHARACTER_WALK_FRAME_WIDTH_PX;
+
+/** Walk sprite sheet width (px): four {@link CHARACTER_WALK_FRAME_WIDTH_PX} cells in one row — full sheet **width:height = 8:5** (four **2:5** frames side by side). */
+export const CHARACTER_WALK_SHEET_WIDTH_PX = CHARACTER_WALK_FRAME_WIDTH_PX * 4;
+
+/** Walk sprite sheet height (px): equals one frame ({@link CHARACTER_WALK_FRAME_HEIGHT_PX}). */
+export const CHARACTER_WALK_SHEET_HEIGHT_PX = CHARACTER_WALK_FRAME_HEIGHT_PX;
 
 /**
  * Leave this many px **empty below the feet** in each walk frame bitmap so the figure sits in the cell volume,
@@ -111,8 +126,11 @@ export const CHARACTER_WALK_SHEET_PX = CHARACTER_WALK_FRAME_PX * 2;
  */
 export const CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX = ISO_FLOOR_ANCHOR_INSET_PX;
 
-/** Square floor texture cell (rhombus drawn inside); same as footprint width. */
-export const ISO_FLOOR_TEXTURE_CELL_PX = TILE_FOOTPRINT_WIDTH_PX;
+/** Open-floor sprite cell width (px) — 1m footprint; matches {@link TILE_FOOTPRINT_WIDTH_PX}. */
+export const ISO_FLOOR_TEXTURE_WIDTH_PX = TILE_FOOTPRINT_WIDTH_PX;
+
+/** Open-floor sprite cell height (px) — half of width; matches {@link FLOOR_FORESHORTENED_HEIGHT_PX}. */
+export const ISO_FLOOR_TEXTURE_HEIGHT_PX = FLOOR_FORESHORTENED_HEIGHT_PX;
 
 /**
  * Side-view / walk sprite: feet offset from graphic center (fraction of sprite height); tune per art.

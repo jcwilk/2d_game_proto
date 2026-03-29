@@ -1,9 +1,9 @@
 {
   "grid": {
-    "rows": 2,
-    "columns": 2,
-    "spriteWidth": 80,
-    "spriteHeight": 80
+    "rows": 1,
+    "columns": 4,
+    "spriteWidth": 156,
+    "spriteHeight": 416
   },
   "frames": {
     "walk_0": {
@@ -15,12 +15,12 @@
       "row": 0
     },
     "walk_2": {
-      "column": 0,
-      "row": 1
+      "column": 2,
+      "row": 0
     },
     "walk_3": {
-      "column": 1,
-      "row": 1
+      "column": 3,
+      "row": 0
     }
   },
   "image": "art/avatar-character/sheet.png"

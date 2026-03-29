@@ -7,6 +7,12 @@
  * **`background-position`**. Path: **`art/dpad/sheet.png`** under Vite `public/` (same rule as
  * **`publicArtUrl`** in **`atlasLoader.ts`**, inlined here to avoid pulling Excalibur in tests).
  */
+import { FLOOR_FORESHORTENED_HEIGHT_PX, TILE_FOOTPRINT_WIDTH_PX } from '../dimensions';
+
+/** Screen-space step per grid axis — matches `main.ts` floor tile offsets (`isoHalfW` / `isoHalfH`). */
+const ISO_EDGE_HALF_W = TILE_FOOTPRINT_WIDTH_PX / 2;
+const ISO_EDGE_HALF_H = FLOOR_FORESHORTENED_HEIGHT_PX / 2;
+
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
 function dpadSheetPublicUrl(): string {
@@ -29,17 +35,33 @@ export interface ActiveDirectionFlags {
   right: boolean;
 }
 
-/** Pure: raw axis {-1,0,1} with opposite cancellation, unit vector × speed (px/s in world space). */
+/**
+ * Same half-step as the isometric floor grid in `main.ts`: one tile step in grid space is
+ * `(±TILE_FOOTPRINT_WIDTH_PX/2, ±FLOOR_FORESHORTENED_HEIGHT_PX/2)` in screen space (not 45° — rhombus
+ * uses **W × (W/2)** cells). D-pad directions follow those edges: **up** = −∂gy (NE), **left** = −∂gx (NW),
+ * **down** = +∂gy (SW), **right** = +∂gx (SE). Opposites cancel; combined keys sum then normalize so
+ * single-key speed equals `speedPxPerSec`.
+ */
 export function chromeMoveVelocityFromActiveDirections(
   active: ActiveDirectionFlags,
   speedPxPerSec: number
 ): { x: number; y: number } {
   let dx = 0;
   let dy = 0;
-  if (active.left && !active.right) dx = -1;
-  else if (active.right && !active.left) dx = 1;
-  if (active.up && !active.down) dy = -1;
-  else if (active.down && !active.up) dy = 1;
+  if (active.up && !active.down) {
+    dx += ISO_EDGE_HALF_W;
+    dy -= ISO_EDGE_HALF_H;
+  } else if (active.down && !active.up) {
+    dx -= ISO_EDGE_HALF_W;
+    dy += ISO_EDGE_HALF_H;
+  }
+  if (active.left && !active.right) {
+    dx -= ISO_EDGE_HALF_W;
+    dy -= ISO_EDGE_HALF_H;
+  } else if (active.right && !active.left) {
+    dx += ISO_EDGE_HALF_W;
+    dy += ISO_EDGE_HALF_H;
+  }
 
   const len = Math.hypot(dx, dy);
   if (len === 0) return { x: 0, y: 0 };

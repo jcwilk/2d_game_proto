@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
+import { FLOOR_FORESHORTENED_HEIGHT_PX, TILE_FOOTPRINT_WIDTH_PX } from '../dimensions';
 import { chromeMoveVelocityFromActiveDirections } from './directionalChrome';
 
 const S = 200;
+
+const ISO_HW = TILE_FOOTPRINT_WIDTH_PX / 2;
+const ISO_HH = FLOOR_FORESHORTENED_HEIGHT_PX / 2;
+
+function velocityAlong(dx: number, dy: number, speed: number): { x: number; y: number } {
+  const len = Math.hypot(dx, dy);
+  return { x: (dx / len) * speed, y: (dy / len) * speed };
+}
 
 describe('chromeMoveVelocityFromActiveDirections', () => {
   it('cancels opposite directions on each axis', () => {
@@ -20,34 +29,30 @@ describe('chromeMoveVelocityFromActiveDirections', () => {
     ).toEqual({ x: 0, y: 0 });
   });
 
-  it('single-axis directions use full speed (y-up is negative)', () => {
-    expect(chromeMoveVelocityFromActiveDirections({ up: true, down: false, left: false, right: false }, S)).toEqual({
-      x: 0,
-      y: -S,
-    });
-    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: true, left: false, right: false }, S)).toEqual({
-      x: 0,
-      y: S,
-    });
-    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: false, left: true, right: false }, S)).toEqual({
-      x: -S,
-      y: 0,
-    });
-    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: false, left: false, right: true }, S)).toEqual({
-      x: S,
-      y: 0,
-    });
+  it('single directions match tile-edge angles (W/2 × H/2 step, not 45°)', () => {
+    expect(chromeMoveVelocityFromActiveDirections({ up: true, down: false, left: false, right: false }, S)).toEqual(
+      velocityAlong(ISO_HW, -ISO_HH, S)
+    );
+    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: true, left: false, right: false }, S)).toEqual(
+      velocityAlong(-ISO_HW, ISO_HH, S)
+    );
+    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: false, left: true, right: false }, S)).toEqual(
+      velocityAlong(-ISO_HW, -ISO_HH, S)
+    );
+    expect(chromeMoveVelocityFromActiveDirections({ up: false, down: false, left: false, right: true }, S)).toEqual(
+      velocityAlong(ISO_HW, ISO_HH, S)
+    );
   });
 
-  it('normalizes diagonals so speed matches single-axis (not √2×)', () => {
+  it('normalizes combined keys so speed matches single-key (not √2×)', () => {
     const v = chromeMoveVelocityFromActiveDirections(
       { up: true, down: false, left: true, right: false },
       S
     );
     const mag = Math.hypot(v.x, v.y);
     expect(mag).toBeCloseTo(S, 5);
-    expect(v.x).toBeCloseTo(-S / Math.SQRT2, 5);
-    expect(v.y).toBeCloseTo(-S / Math.SQRT2, 5);
+    expect(v.x).toBe(0);
+    expect(v.y).toBe(-S);
   });
 
   it('returns zero when no direction is active', () => {

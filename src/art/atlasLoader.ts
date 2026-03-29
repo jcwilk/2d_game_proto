@@ -29,7 +29,7 @@ export function createSampleAtlasLoader(): {
 } {
   const atlasJsonResource = new Resource<unknown>(publicArtUrl(SAMPLE_PACKED_ATLAS_JSON), 'json');
   const atlasImageSource = new ImageSource(publicArtUrl(SAMPLE_PACKED_ATLAS_IMAGE), {
-    filtering: ImageFiltering.Pixel,
+    filtering: ImageFiltering.Blended,
   });
   const loader = new DefaultLoader({
     loadables: [atlasJsonResource, atlasImageSource],
@@ -47,7 +47,7 @@ export function createGridSheetLoader(artDir: string): {
 } {
   const spriteRefResource = new Resource<unknown>(publicArtUrl(`${artDir}/sprite-ref.json`), 'json');
   const sheetImageSource = new ImageSource(publicArtUrl(`${artDir}/sheet.png`), {
-    filtering: ImageFiltering.Pixel,
+    filtering: ImageFiltering.Blended,
   });
   const loader = new DefaultLoader({
     loadables: [spriteRefResource, sheetImageSource],

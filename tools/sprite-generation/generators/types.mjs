@@ -41,7 +41,7 @@
 /**
  * @callback TileBufferForFrameFn
  * @param {GeneratorFrame} frame
- * @param {{ tileSize: number }} ctx
+ * @param {{ tileSize: number; tileWidth?: number; tileHeight?: number }} ctx
  * @returns {import('node:buffer').Buffer}  PNG bytes for one tile (RGBA).
  */
 
@@ -55,7 +55,9 @@
  * Mock generator options: deterministic RGBA raster with injectable geometry.
  *
  * @typedef {object} MockGeneratorConfig
- * @property {number} [tileSize=256]  Width and height of one frame.
+ * @property {number} [tileSize=256]  Default width/height when **`tileWidth`** / **`tileHeight`** omitted.
+ * @property {number} [tileWidth]  Raster width of one sheet cell (defaults to **`tileSize`**).
+ * @property {number} [tileHeight]  Raster height of one sheet cell (defaults to **`tileSize`**).
  * @property {number} [seed]  Carried in metadata for parity with fal; mock geometry ignores it unless a preset uses it.
  * @property {ShapeForFrameFn} [shapeForFrame]  Override triangle (or other) shape per frame; defaults to D-pad triangles from `frame.id`.
  * @property {TileBufferForFrameFn} [tileBufferForFrame]  When set, used instead of **`shapeForFrame`** + triangle raster (e.g. character walk mocks).

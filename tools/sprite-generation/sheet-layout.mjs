@@ -20,3 +20,23 @@ export function sheetLayoutFromCrops(crops, tileSize) {
   }
   return out;
 }
+
+/**
+ * Same as {@link sheetLayoutFromCrops} for **rectangular** sheet cells (`cellWidth`×`cellHeight`).
+ *
+ * @param {Readonly<Record<string, { x: number; y: number }>>} crops
+ * @param {number} cellWidth
+ * @param {number} cellHeight
+ */
+export function sheetLayoutFromCropsRect(crops, cellWidth, cellHeight) {
+  const out = {};
+  for (const [id, { x, y }] of Object.entries(crops)) {
+    if (x % cellWidth !== 0 || y % cellHeight !== 0) {
+      throw new Error(
+        `sheetLayoutFromCropsRect: crop "${id}" origin (${x},${y}) not aligned to ${cellWidth}×${cellHeight}px cell grid`,
+      );
+    }
+    out[id] = { x: x / cellWidth, y: y / cellHeight };
+  }
+  return out;
+}

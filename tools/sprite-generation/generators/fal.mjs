@@ -105,7 +105,7 @@ export function readPngBufferDimensions(buf) {
 
 /**
  * **Pipeline checkpoint:** assert decoded PNG dimensions match the preset raster **`expectedW`×`expectedH`**
- * after **`normalizeDecodedSheetToPreset`** (sheet and per-tile) per **2gp-r67u** / **2gp-6iay**. Use a stable **`stageLabel`** for logs and tests (e.g. `pipeline:raster-after-sheet-normalize`).
+ * after sheet/tile writes. Use a stable **`stageLabel`** for logs and tests (e.g. `pipeline:raster-after-sheet`).
  *
  * @param {Buffer} buf
  * @param {number} expectedW
@@ -195,10 +195,18 @@ export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
 export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
 /** Square sheet (e.g. 2×2 walk grid); matches [falsprite](https://github.com/lovisdotio/falsprite) `api/generate.mjs` text-only path. */
 export const NANO_BANANA2_SQUARE_ASPECT_RATIO = "1:1";
+
+/** Wide strip for 1×4 floor sheets (cell W×H with W = 4×H total → sheet aspect 8:1). */
+export const NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO = "8:1";
+/**
+ * 1×4 character walk sheet: each cell **width:height = 2:5**; full strip **width:height = 8:5** (e.g. 256×160).
+ * fal **`fal-ai/nano-banana-2`** has no **8:5** enum — **`3:2`** is the closest supported landscape ratio; native output still drives **`sprite-ref`** when **`sheetNativeRaster`** is on.
+ */
+export const NANO_BANANA2_CHARACTER_WALK_STRIP_ASPECT_RATIO = "3:2";
 export const NANO_BANANA2_HIGH_RESOLUTION = "2K";
 /**
  * Smallest **documented** fal enum for nano-banana-2 (`ResolutionEnum`: **`0.5K`**, **`1K`**, **`2K`**, **`4K`** only).
- * There is no **`0.125K`** (or similar) — use this + **`normalizeDecodedSheetToPreset`** to reach game pixel size.
+ * There is no **`0.125K`** (or similar) — the game scales native rasters at draw time (**`ImageFiltering.Blended`**).
  */
 export const NANO_BANANA2_LOW_RESOLUTION = "0.5K";
 

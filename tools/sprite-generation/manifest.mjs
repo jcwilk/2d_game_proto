@@ -20,13 +20,13 @@
  */
 
 /** Bump a slug when mock path semantics (frames list, mock generator contract) change. */
-export const RECIPE_VERSION_MOCK = "v3-dpad-2x2-grid";
+export const RECIPE_VERSION_MOCK = "v4-iso-floor-1x4-half-cell";
 
 /** Bump when per-tile fal + chroma postprocess contract changes (plain txt2img). */
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
 /** Bump when sheet fal + crop + alpha contract changes (flux/chroma vs nano-banana + BRIA matting). */
-export const RECIPE_VERSION_SHEET = "v20-dpad-2x2-sheet-only";
+export const RECIPE_VERSION_SHEET = "v21-iso-floor-1x4-strip";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx
@@ -68,6 +68,7 @@ function buildWorkflowLabel(p) {
  *   strategy?: 'per-tile' | 'sheet';
  *   chromaKeyHex: string;
  *   tileSize: number;
+ *   tileHeight?: number;
  *   sheetWidth: number;
  *   sheetHeight: number;
  * }} p
@@ -77,8 +78,10 @@ function buildRecipeNote(p) {
     return "Mock: geometry from pngjs triangles, not T2I.";
   }
   if (p.mode === "generate" && p.strategy === "sheet") {
+    const tw = p.tileSize;
+    const th = p.tileHeight ?? p.tileSize;
     return (
-      `Real: one fal sheet job at ${p.sheetWidth}x${p.sheetHeight}, crop to ${p.tileSize}px; ` +
+      `Real: one fal sheet job at ${p.sheetWidth}x${p.sheetHeight}, crop to ${tw}×${th}px cells; ` +
       `alpha via BRIA matting (nano-banana path) or chroma-key (${p.chromaKeyHex}) with flux/dev — see preset fal.sheetMatting.`
     );
   }
@@ -102,6 +105,7 @@ function buildRecipeNote(p) {
  *   endpoint: string | null;
  *   imageSize: string;
  *   tileSize: number;
+ *   tileHeight?: number;
  *   sheetSize?: number;
  *   sheetWidth?: number;
  *   sheetHeight?: number;
@@ -130,6 +134,7 @@ export function buildInitialManifest(input) {
     endpoint,
     imageSize,
     tileSize,
+    tileHeight: tileHeightIn = tileSize,
     sheetSize = tileSize * 2,
     sheetWidth,
     sheetHeight,
@@ -156,11 +161,19 @@ export function buildInitialManifest(input) {
     sheetHeight: sheetH,
   });
 
-  const recipeNote = buildRecipeNote({ mode, strategy, chromaKeyHex, tileSize, sheetWidth: sheetW, sheetHeight: sheetH });
+  const recipeNote = buildRecipeNote({
+    mode,
+    strategy,
+    chromaKeyHex,
+    tileSize,
+    tileHeight: tileHeightIn,
+    sheetWidth: sheetW,
+    sheetHeight: sheetH,
+  });
 
   /** @type {Record<string, unknown>} */
   const specs = {
-    tileSize: { width: tileSize, height: tileSize },
+    tileSize: { width: tileSize, height: tileHeightIn },
     framePreset: frames.map((f) => ({ id: f.id, outSubdir: f.outSubdir })),
     ...(mode === "generate" && strategy === "sheet" && sheetCropMap
       ? { sheetSize: { width: sheetW, height: sheetH }, sheetCropMap }

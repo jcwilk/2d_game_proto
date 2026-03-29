@@ -27,6 +27,14 @@ const REPO_ROOT = resolveRepoRoot(import.meta.url);
 const PROVENANCE_TOOL = "tools/generate-spritesheet.mjs";
 const PROVENANCE_VERSION = 1;
 
+/** Repo-root `.env` for fal keys; skipped if missing. Does not override vars already in `process.env`. */
+function loadRepoDotenv() {
+  const p = join(REPO_ROOT, ".env");
+  if (existsSync(p)) {
+    process.loadEnvFile(p);
+  }
+}
+
 /** Default chroma tolerance when not preset-specific (dpad inline matches dpad-workflow). */
 const DPAD_CHROMA_TOLERANCE = 72;
 
@@ -167,7 +175,10 @@ Commands:
 
 Examples:
   node tools/generate-spritesheet.mjs run --asset dpad --mode mock
-  node --env-file=.env tools/generate-spritesheet.mjs run --asset character --mode live
+  node tools/generate-spritesheet.mjs run --asset character --mode live
+
+If .env exists at the repo root, it is loaded automatically (FAL_KEY, etc.). Existing
+environment variables are not overwritten. You can still use node --env-file=... if needed.
 `);
 }
 
@@ -184,6 +195,7 @@ Optional:
 
 Environment (live):
   FAL_KEY or FAL_KEY_ID + FAL_KEY_SECRET
+  Set in the shell or in repo-root .env (loaded automatically when the file exists).
 `);
 }
 
@@ -425,6 +437,7 @@ async function cmdRun(argv) {
 }
 
 async function main() {
+  loadRepoDotenv();
   const argv = process.argv;
   const cmd = argv[2];
 

@@ -26,13 +26,13 @@ The repo exposes a **single CLI** for registry-backed sprite generation: **`tool
 
   Equivalent: **`node tools/generate-spritesheet.mjs run --asset dpad --mode mock`**.
 
-- **Live (fal pipeline — load `.env` for keys):**
+- **Live (fal pipeline):**
 
   ```bash
-  node --env-file=.env tools/generate-spritesheet.mjs run --asset character --mode live
+  npm run generate:spritesheet -- run --asset character --mode live
   ```
 
-  Prefer **`node --env-file=.env`** for live runs so **`FAL_KEY`** (or **`FAL_KEY_ID`** + **`FAL_KEY_SECRET`**) comes from **`.env`** without exporting secrets in the shell history.
+  Put **`FAL_KEY`** (or **`FAL_KEY_ID`** + **`FAL_KEY_SECRET`**) in repo-root **`.env`** — the script loads that file automatically when it exists (without overwriting variables already set in the shell). You can still use **`node --env-file=…`** if you need a different file.
 
 ## Canonical flags and subcommands
 

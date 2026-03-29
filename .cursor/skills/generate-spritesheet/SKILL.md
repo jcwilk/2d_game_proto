@@ -14,6 +14,8 @@ description: >-
 
 The repo exposes a **single CLI** for registry-backed sprite generation: **`tools/generate-spritesheet.mjs`**, also available as **`npm run generate:spritesheet`**. It runs **`run`** against **`PRESETS`** in **`tools/sprite-generation/presets/registry.mjs`** (e.g. **`dpad`**, **`character`**). Orchestration, presets, and ADR-style detail live in **`tools/sprite-generation/README.md`**.
 
+**`generate:spritesheet status`:** Prints manifest/sheet presence, mode, and **`stale=`** — git timestamps when available, else **`mtime`**, else **`unknown`** (missing files). See the README opening section for the full staleness rules (untracked / no-git sandboxes).
+
 ## Invoke examples
 
 - **Mock (no API keys, deterministic):**

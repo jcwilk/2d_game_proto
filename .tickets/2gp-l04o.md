@@ -1,6 +1,6 @@
 ---
 id: 2gp-l04o
-status: open
+status: closed
 deps: [2gp-b82a]
 links: []
 created: 2026-03-29T17:54:41Z

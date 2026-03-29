@@ -2,7 +2,7 @@
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
   "recipeId": "sprite-gen-dpad_four_way-sheet-v14-frames-chroma",
-  "createdAt": "2026-03-29T01:35:46.994Z",
+  "createdAt": "2026-03-29T03:00:15.211Z",
   "workflow": "fal sheet (fal-ai/flux/dev, 400×100px, txt2img → crop)",
   "specs": {
     "tileSize": {
@@ -67,7 +67,7 @@
   "generationRecipe": {
     "mode": "generate",
     "endpoint": "fal-ai/flux/dev",
-    "seedRequested": null,
+    "seedRequested": 42,
     "falExtrasPerTile": null,
     "falExtrasSheet": {
       "num_inference_steps": 40,
@@ -80,9 +80,9 @@
     {
       "id": "up",
       "outSubdir": "up",
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "0,0",
       "chromaApplied": true,
@@ -92,9 +92,9 @@
     {
       "id": "down",
       "outSubdir": "down",
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "100,0",
       "chromaApplied": true,
@@ -104,9 +104,9 @@
     {
       "id": "left",
       "outSubdir": "left",
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "200,0",
       "chromaApplied": true,
@@ -116,9 +116,9 @@
     {
       "id": "right",
       "outSubdir": "right",
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "300,0",
       "chromaApplied": true,
@@ -132,9 +132,9 @@
   },
   "generationResults": {
     "up": {
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "0,0",
       "chromaApplied": true,
@@ -142,9 +142,9 @@
       "notes": []
     },
     "down": {
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "100,0",
       "chromaApplied": true,
@@ -152,9 +152,9 @@
       "notes": []
     },
     "left": {
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "200,0",
       "chromaApplied": true,
@@ -162,9 +162,9 @@
       "notes": []
     },
     "right": {
-      "seed": 5278659260815900000,
-      "seedRequested": null,
-      "wallMs": 835303,
+      "seed": 42,
+      "seedRequested": 42,
+      "wallMs": 1666,
       "fromSheet": true,
       "cropOrigin": "300,0",
       "chromaApplied": true,
@@ -172,10 +172,9 @@
       "notes": []
     },
     "_sheet": {
-      "seed": 5278659260815900000,
-      "wallMs": 835303,
-      "strategy": "sheet",
-      "controlCanny": false
+      "seed": 42,
+      "wallMs": 1666,
+      "strategy": "sheet"
     }
   }
 }

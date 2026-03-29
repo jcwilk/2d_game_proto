@@ -644,7 +644,7 @@ async function runGenerateSheetPath({
     falExtraInput: falExtras,
     log,
   });
-  const buffer = gen.buffer;
+  let buffer = gen.buffer;
   const outSeed = gen.seed;
   const wallMs = gen.wallMs;
 

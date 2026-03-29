@@ -1,6 +1,6 @@
 ---
 id: 2gp-qv9k
-status: open
+status: closed
 deps: [2gp-j9ls]
 links: []
 created: 2026-03-29T18:48:10Z

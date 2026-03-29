@@ -18,8 +18,6 @@
     "qa:vision": "node tools/openai-vision-qa.mjs",
     "mock:dpad-workflow": "node tools/dpad-workflow.mjs --mode mock",
     "dpad-workflow": "node tools/dpad-workflow.mjs",
-    "mock:character-workflow": "node tools/character-workflow.mjs --mode mock",
-    "character-workflow": "node tools/character-workflow.mjs",
     "generate:spritesheet": "node tools/generate-spritesheet.mjs"
   },
   "devDependencies": {

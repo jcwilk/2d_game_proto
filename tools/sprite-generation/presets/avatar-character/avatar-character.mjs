@@ -3,7 +3,7 @@
  * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/avatar-character/`.
  *
  * Contract matches **`presets/dpad/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../../pipeline.mjs`**).
- * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/character-workflow.mjs --no-rewrite`**.
+ * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); **`npm run generate:spritesheet -- run --asset avatar-character --mode live`** uses preset defaults. Override rewrite via **`fal.sheetRewrite`** on the object passed to **`runPipeline`** (see **`../../pipeline.mjs`**).
  *
  * **Transparency:** **BRIA** is the alpha path; **`fal.chromaAfterBria`** defaults to **off** (FalSprite-style BRIA-only; no per-tile chroma).
  *
@@ -58,7 +58,7 @@ export const TILE_SIZE = 64;
 
 /**
  * Default Euclidean RGB distance for the main chroma pass (per-tile strategy only). Higher keys more near-magenta pixels but can eat
- * costume pinks/purples; override with **`tools/character-workflow.mjs --chroma-tolerance`**.
+ * costume pinks/purples; override **`chromaTolerance`** in **`runPipeline`** options or change **`CHROMA_TOLERANCE_DEFAULT`** here.
  */
 export const CHROMA_TOLERANCE_DEFAULT = 120;
 

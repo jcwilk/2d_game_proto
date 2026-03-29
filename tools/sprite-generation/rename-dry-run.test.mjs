@@ -13,10 +13,17 @@ import {
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 
 describe("rename-dry-run", () => {
-  it("blocklist includes ticket examples", () => {
-    for (const w of ["character", "dpad", "sprite", "asset", "art"]) {
+  it("blocklist includes generic reserved tokens (registry slugs like dpad are collision-only)", () => {
+    for (const w of ["character", "sprite", "asset", "art"]) {
       expect(RENAME_TO_BLOCKLIST.has(w)).toBe(true);
     }
+    expect(RENAME_TO_BLOCKLIST.has("dpad")).toBe(false);
+  });
+
+  it("validateRenameSlugs rejects --to colliding with existing asset slug (dpad)", () => {
+    const r = validateRenameSlugs("avatar-character", "dpad", ["avatar-character", "dpad"]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toMatch(/collide/i);
   });
 
   it("validateRenameSlugs rejects blocklisted --to", () => {

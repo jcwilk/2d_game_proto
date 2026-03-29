@@ -12,7 +12,6 @@ export const RENAME_TO_BLOCKLIST = new Set([
   "asset",
   "assets",
   "character",
-  "dpad",
   "sprite",
   "sprites",
   "public",

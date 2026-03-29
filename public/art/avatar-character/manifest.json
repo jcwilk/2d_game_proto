@@ -132,7 +132,7 @@
     }
   ],
   "provenance": {
-    "tool": "tools/character-workflow.mjs",
+    "tool": "tools/generate-spritesheet.mjs",
     "version": 1
   },
   "generationResults": {

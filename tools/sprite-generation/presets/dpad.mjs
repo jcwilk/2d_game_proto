@@ -12,7 +12,7 @@
  * - **`tileSize`** — Square tile edge (px).
  * - **`sheet`** — `{ width, height, crops }` — required when `strategy === 'sheet'` (rectangular sheet pixel size + crop map).
  * - **`prompt`** — `{ frameStyle, frameComposition, sheetStyle, sheetComposition, sheetSubject }` for **`buildPrompt`** / **`buildSheetPrompt`**.
- * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for flux/dev jobs.
+ * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for fal T2I (default **`fal-ai/nano-banana-2`** + nano-shaped extras).
  * - **`qa`** — `{ spriteWidth, spriteHeight }` for png-analyze (8×8 cells on 256² when 32×32).
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
@@ -25,13 +25,17 @@
  *
  * ## `recipeId`
  *
- * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Generate mode uses **`fal-ai/flux/dev`** for both sheet and per-tile strategies (see **`DEFAULT_FAL_ENDPOINT`**). Use **`recipeIdForDpad(mode, strategy)`** for ids without pipeline flags. Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation or postprocess semantics change.
+ * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Generate mode defaults to **`fal-ai/nano-banana-2`** (override with **`runPipeline`** opts / CLI **`--endpoint`**). Use **`recipeIdForDpad(mode, strategy)`** for ids without pipeline flags. Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation or postprocess semantics change.
  *
  * @see `../README.md` — deterministic geometry vs stochastic T2I/chroma
  * @see `../pipeline.mjs` — orchestration, postprocess, QA analyze
  * @see `../manifest.mjs` — `buildRecipeId`, recipe version slugs
  */
 
+import {
+  NANO_BANANA2_DEFAULT_ASPECT_RATIO,
+  NANO_BANANA2_DEFAULT_RESOLUTION,
+} from "../generators/fal.mjs";
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import { buildRecipeId } from "../manifest.mjs";
 import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
@@ -60,16 +64,23 @@ export const SHEET_WIDTH = TILE_SIZE * 4;
 export const SHEET_HEIGHT = TILE_SIZE;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
-export const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
+export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
 /**
- * Extra fal input for sheet and per-tile jobs (`FluxDevInput` — no `negative_prompt` on flux/dev).
+ * Extra fal input for **sheet** jobs (`fal-ai/nano-banana-2`: `aspect_ratio`, `resolution`, …).
+ * Flux-only keys are omitted so they are not silently merged into nano-banana inputs.
  */
-export const DPAD_FAL_EXTRA_INPUT = {
-  num_inference_steps: 40,
-  /** FLUX/dev: small A/B range 3–5; lower can reduce over-stylized color fringing vs SDXL-style CFG. */
-  guidance_scale: 4,
-  acceleration: "none",
+export const DPAD_FAL_EXTRAS_SHEET = {
+  aspect_ratio: NANO_BANANA2_DEFAULT_ASPECT_RATIO,
+  resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
+};
+
+/**
+ * Extra fal input for **per-tile** nano-banana jobs (square tiles).
+ */
+export const DPAD_FAL_EXTRAS_PER_TILE = {
+  aspect_ratio: "1:1",
+  resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
 };
 
 /** Grid cell size for png-analyze (5×5 cells on 100²). */
@@ -207,8 +218,8 @@ export function createPreset(opts) {
     },
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
-      falExtrasPerTile: { ...DPAD_FAL_EXTRA_INPUT },
-      falExtrasSheet: { ...DPAD_FAL_EXTRA_INPUT },
+      falExtrasPerTile: { ...DPAD_FAL_EXTRAS_PER_TILE },
+      falExtrasSheet: { ...DPAD_FAL_EXTRAS_SHEET },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },

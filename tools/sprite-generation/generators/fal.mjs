@@ -212,6 +212,27 @@ export function isNanoBanana2Endpoint(endpoint) {
 }
 
 /**
+ * Coarse endpoint family for **`falExtras`** merge in **`pipeline.mjs`**: nano-banana-2 vs Flux-shaped
+ * (`image_size`) models. Non-nano endpoints share the Flux strategy family.
+ *
+ * @param {string} endpoint
+ * @returns {'nano-banana-2' | 'flux'}
+ */
+export function getFalImageEndpointFamily(endpoint) {
+  return isNanoBanana2Endpoint(endpoint) ? "nano-banana-2" : "flux";
+}
+
+/**
+ * True when **`a`** and **`b`** use the same fal input shape / extras blob (Phase D Option B).
+ *
+ * @param {string} a
+ * @param {string} b
+ */
+export function sameImageEndpointFamily(a, b) {
+  return getFalImageEndpointFamily(a) === getFalImageEndpointFamily(b);
+}
+
+/**
  * Sheet path: run BRIA matting after nano-banana (or any T2I that returns an HTTPS image URL) when
  * **`preset.fal.sheetMatting`** is **`'bria'`**, or **`'auto'`** / omitted and **`endpoint`** is nano-banana-2.
  * Set **`preset.fal.sheetMatting`** to **`'none'`** to force chroma-only on the raw T2I PNG (e.g. Flux).

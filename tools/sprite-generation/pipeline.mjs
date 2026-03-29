@@ -35,6 +35,7 @@ import {
   falSubscribeToBuffer,
   getFalImageEndpointStrategy,
   resolveFalCredentials,
+  sameImageEndpointFamily,
   shouldUseBriaSheetMatting,
 } from "./generators/fal.mjs";
 import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
@@ -259,8 +260,10 @@ export async function runPipeline(preset, opts) {
       quiet,
     });
   } else if (strategy === "sheet" && preset.sheet) {
-    const falExtrasSheetRun =
-      endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT) ? preset.fal?.falExtrasSheet ?? undefined : undefined;
+    const presetDefaultEp = preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
+    const falExtrasSheetRun = sameImageEndpointFamily(endpoint, presetDefaultEp)
+      ? preset.fal?.falExtrasSheet ?? undefined
+      : undefined;
     await runGenerateSheetPath({
       preset,
       generationResultsById,
@@ -276,8 +279,10 @@ export async function runPipeline(preset, opts) {
       fetch: opts.fetch,
     });
   } else {
-    const falExtrasPerTileRun =
-      endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT) ? preset.fal?.falExtrasPerTile ?? undefined : undefined;
+    const presetDefaultEp = preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
+    const falExtrasPerTileRun = sameImageEndpointFamily(endpoint, presetDefaultEp)
+      ? preset.fal?.falExtrasPerTile ?? undefined
+      : undefined;
     await runGeneratePerTilePath({
       preset,
       generationResultsById,

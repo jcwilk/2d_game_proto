@@ -151,19 +151,7 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 
 ## Runbook (current repo; extend when flags land)
 
-**Env:** `FAL_KEY` (or `FAL_KEY_ID` + `FAL_KEY_SECRET`) — see `generators/fal.mjs` `resolveFalCredentials`.
-
-**Entry:** `tools/dpad-workflow.mjs` calls `createPreset` + `runPipeline` (documented in `tools/sprite-generation/README.md`).
-
-```bash
-# Mock / CI (no network)
-npm run mock:dpad-workflow
-
-# Generate — sheet strategy (default for generate); after integration, add --endpoint / preset default nano-banana
-FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet
-```
-
-**After M1 code:** Document any new flags (e.g. `--matte bria`, `--rewrite`) beside the commands above in **`README.md`**; keep this plan’s runbook **one paragraph** pointing at README as the live source.
+**Live commands, flags (`--endpoint`, `--strategy`, `--keep-sheet`, …), env vars, and verified fal endpoint ids** are maintained in **`tools/sprite-generation/README.md`** (ADR + runbook). **`tools/dpad-workflow.mjs`** is the CLI entry; **`npm run mock:dpad-workflow`** is the no-network CI path; **`FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet`** exercises sheet generation with the preset default (`fal-ai/nano-banana-2`) and manifest `generationResults._sheet` fields (`alphaSource`, etc.). Update **README** when adding flags (e.g. `--matte bria`, `--rewrite`); keep this section as a pointer only.
 
 ---
 

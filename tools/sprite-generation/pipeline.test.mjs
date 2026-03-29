@@ -146,4 +146,55 @@ describe("pipeline (integration)", () => {
     expect(upPng.width).toBe(100);
     expect(upPng.height).toBe(100);
   });
+
+  it("generate sheet: preset falExtrasSheet merges when --endpoint is same nano-banana family (not exact string)", async () => {
+    vi.stubEnv("FAL_KEY", "test-key");
+    dir = join(tmpdir(), `pipe-gen-family-${process.pid}-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    const preset = dpadLikePreset(dir);
+
+    const sheetW = 400;
+    const sheetH = 100;
+    const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
+    png.data.fill(0);
+    for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(png));
+
+    /** @type {Record<string, unknown> | undefined} */
+    let t2iInput;
+    const falSubscribe = vi.fn(async (ep, opts) => {
+      if (ep === "fal-ai/nano-banana-2/rc") {
+        t2iInput = opts?.input && typeof opts.input === "object" ? /** @type {Record<string, unknown>} */ (opts.input) : undefined;
+        return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
+      }
+      if (ep === "fal-ai/bria/background/remove") {
+        return { data: { images: [{ url: "https://cdn.example.com/bria.png" }] } };
+      }
+      throw new Error(`unexpected endpoint ${ep}`);
+    });
+    const fetchMock = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("bria.png")) {
+        return {
+          ok: true,
+          arrayBuffer: async () =>
+            pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await runPipeline(preset, {
+      mode: "generate",
+      strategy: "sheet",
+      endpoint: "fal-ai/nano-banana-2/rc",
+      skipQa: true,
+      quiet: true,
+      falSubscribe,
+      fetch: fetchMock,
+    });
+
+    expect(t2iInput?.aspect_ratio).toBe("4:1");
+    expect(t2iInput?.resolution).toBe("1K");
+  });
 });

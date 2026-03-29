@@ -3,7 +3,7 @@
   "preset": "dpad_four_way",
   "recipeId": "sprite-gen-dpad_four_way-sheet-v15-bria-sheet-rgba",
   "createdAt": "2026-03-28T12:00:00.000Z",
-  "workflow": "fal sheet (fal-ai/flux/dev, 400×100px, txt2img → crop)",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 400×100px, txt2img → crop)",
   "specs": {
     "tileSize": {
       "width": 100,
@@ -66,15 +66,14 @@
   },
   "generationRecipe": {
     "mode": "generate",
-    "endpoint": "fal-ai/flux/dev",
+    "endpoint": "fal-ai/nano-banana-2",
     "seedRequested": null,
     "falExtrasPerTile": null,
     "falExtrasSheet": {
-      "num_inference_steps": 40,
-      "guidance_scale": 4,
-      "acceleration": "none"
+      "aspect_ratio": "4:1",
+      "resolution": "1K"
     },
-    "note": "Real: one fal job at 400x100, crop to 100px, then chroma-key (#FF00FF) → RGBA."
+    "note": "Real: one fal sheet job at 400x100, crop to 100px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
   },
   "frames": [],
   "provenance": {

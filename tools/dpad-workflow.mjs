@@ -134,11 +134,11 @@ Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
   --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
-                         (fal-ai/flux/dev txt2img).
-                         **per-tile** = one fal-ai/flux/dev call per frame (same --seed when set).
+                         (default T2I: fal-ai/nano-banana-2 + optional BRIA matting).
+                         **per-tile** = one T2I call per frame (same --seed when set); default endpoint matches preset.
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
-  --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
+  --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT}). Preset fal extras merge when the endpoint matches the same family (e.g. nano-banana ids).
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
                          Ignored for sheet (sheet is always ${SHEET_WIDTH}x${SHEET_HEIGHT}).
   --seed <int>           Optional fal seed: one job (sheet) or the SAME seed every per-tile call.
@@ -155,8 +155,8 @@ Environment (generate mode):
 
 Examples:
   node tools/dpad-workflow.mjs --mode mock
-  node --env-file=.env tools/dpad-workflow.mjs --mode generate
-  node --env-file=.env tools/dpad-workflow.mjs --mode generate --strategy sheet --keep-sheet
+  FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet
+  node --env-file=.env tools/dpad-workflow.mjs --mode generate --endpoint fal-ai/flux/dev
 `);
 }
 

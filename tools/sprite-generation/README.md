@@ -14,17 +14,25 @@ The **primary** local command for the four-direction D-pad layout is **`npm run 
 | **Pipeline** (`runPipeline`, generators, postprocess, manifest / sprite-ref, QA loop) | **`pipeline.mjs`** |
 | **QA bridge** (spawn **`tools/png-analyze.mjs`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.mjs`** |
 
-**CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, etc.).
+**CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, etc.).
 
 ### Optional live generation (`--mode generate`)
 
 Run **`npm run dpad-workflow -- --mode generate`** (or `node tools/dpad-workflow.mjs --mode generate`). Set **`FAL_KEY`** in the environment ([fal.ai model APIs](https://docs.fal.ai/model-apis)).
 
+**Default T2I** for the dpad preset is **`fal-ai/nano-banana-2`** (see **`presets/dpad.mjs`** `DEFAULT_FAL_ENDPOINT`). Sheet jobs use **`fal.falExtrasSheet`** (`aspect_ratio`, `resolution`, …). **`--endpoint`** overrides the model id; preset extras still merge when the override is in the **same endpoint family** as the preset default (nano-banana variants share one family; Flux `fal-ai/flux/*` share another) — implemented in **`pipeline.mjs`** via **`sameImageEndpointFamily`** in **`generators/fal.mjs`**.
+
+**Example (real API, bills account):**
+
+```bash
+FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet
+```
+
 **Limitations of live runs:** They **bill** the fal account and add **latency**; **T2I** pixels are **stochastic** (even with `--seed`, chroma and model variance remain). They require **network** and a **valid key** — unsuitable as the default CI path. Use **`mock`** for repeatable, free local runs; use **`generate`** when you need real model output against the same **geometry and manifest contract** as mock.
 
 ### Legacy: `flux-control-lora-canny`
 
-Default dpad generation uses **`fal-ai/flux/dev`** (`DEFAULT_FAL_ENDPOINT` in **`presets/dpad.mjs`**). Earlier **`fal-ai/flux-control-lora-canny`**-based dpad flows are **not** recommended or default; treat them as **historical** context only.
+Default dpad generation uses **`fal-ai/nano-banana-2`** (`DEFAULT_FAL_ENDPOINT` in **`presets/dpad.mjs`**). Use **`--endpoint fal-ai/flux/dev`** for Flux-shaped txt2img + chroma (no BRIA by default). Earlier **`fal-ai/flux-control-lora-canny`**-based dpad flows are **not** recommended or default; treat them as **historical** context only.
 
 ## Strategy, scope, and fal endpoints (ADR)
 
@@ -38,12 +46,13 @@ This section is the **canonical** description of generation strategy, on-disk/ga
 | --- | --- |
 | **FalSprite-style** (e.g. nano-banana + OpenRouter via fal, BRIA, grid tooling) | **Out of scope** — we do not replicate that full stack; see **Out of scope** below. |
 | **Flux 2 Klein + 2×2 spritesheet LoRA** | **Not the production dpad contract.** A 2×2 Klein raster would need an explicit **crop/stitch** map or manifest/game changes to feed four directional tiles; not adopted until documented and implemented. |
-| **FLUX.1 [dev] on fal + dpad preset** | **In scope — primary path:** defaults in **`presets/dpad.mjs`** (`DEFAULT_FAL_ENDPOINT`, sheet geometry, crops). |
+| **nano-banana-2 + BRIA + dpad preset** | **In scope — primary path:** defaults in **`presets/dpad.mjs`** (`DEFAULT_FAL_ENDPOINT`, sheet geometry, crops, nano **`falExtrasSheet`**). |
+| **FLUX.1 [dev] on fal + dpad preset** | **In scope — alternate:** pass **`--endpoint fal-ai/flux/dev`**; Flux-shaped **`falExtras`** apply only within the Flux family. |
 
 ### Chosen strategies (this repo)
 
 1. **Sheet strategy** (`--strategy sheet` in **`dpad-workflow.mjs`**, default for generate): **one** fal job at **`preset.sheet`** size (**1×4** horizontal strip: width = `TILE_SIZE * 4`, height = `TILE_SIZE`), deterministic **`preset.sheet.crops`** → per-frame PNGs → **`postprocessSteps`** (see Alpha path). Optional **`--keep-sheet`** writes `sheet.png` beside the tiles for debugging.
-2. **Per-tile strategy** (`--strategy per-tile`): **four** **`fal-ai/flux/dev`** jobs (same **`--seed`** when set), each at **`--image-size`** (default per-tile square from preset).
+2. **Per-tile strategy** (`--strategy per-tile`): **four** T2I jobs (same **`--seed`** when set), each at **`--image-size`** (default per-tile square from preset); default endpoint **`fal-ai/nano-banana-2`** with per-tile **`falExtras`** (`aspect_ratio: "1:1"`, etc.).
 
 Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls but independent framing and easier per-direction iteration.
 
@@ -83,6 +92,7 @@ If a future pipeline emitted **2×2** (e.g. Klein), the repo would need a define
 
 | Endpoint id | fal model API (docs) |
 | --- | --- |
+| `fal-ai/nano-banana-2` | https://fal.ai/models/fal-ai/nano-banana-2/api |
 | `fal-ai/flux/dev` | https://fal.ai/models/fal-ai/flux/dev/api |
 
 General client/queue/authentication: https://docs.fal.ai/model-apis

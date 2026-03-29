@@ -15,6 +15,7 @@ import {
   getFalImageEndpointStrategy,
   hashPromptForLog,
   isNanoBanana2Endpoint,
+  sameImageEndpointFamily,
   parseFalImageSubscribeResult,
   parseImageSize,
   readPngBufferDimensions,
@@ -38,7 +39,14 @@ describe("sprite-generation fal helpers (no network)", () => {
 
   it("isNanoBanana2Endpoint matches fal-ai/nano-banana-2 family", () => {
     expect(isNanoBanana2Endpoint("fal-ai/nano-banana-2")).toBe(true);
+    expect(isNanoBanana2Endpoint("fal-ai/nano-banana-2/rc")).toBe(true);
     expect(isNanoBanana2Endpoint("fal-ai/flux/dev")).toBe(false);
+  });
+
+  it("sameImageEndpointFamily groups nano-banana ids and Flux-shaped endpoints", () => {
+    expect(sameImageEndpointFamily("fal-ai/nano-banana-2", "fal-ai/nano-banana-2/experimental")).toBe(true);
+    expect(sameImageEndpointFamily("fal-ai/flux/dev", "fal-ai/flux/schnell")).toBe(true);
+    expect(sameImageEndpointFamily("fal-ai/nano-banana-2", "fal-ai/flux/dev")).toBe(false);
   });
 
   it("shouldUseBriaSheetMatting respects preset.fal.sheetMatting and endpoint", () => {

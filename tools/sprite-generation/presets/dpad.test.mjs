@@ -31,7 +31,8 @@ describe("presets/dpad", () => {
     expect(p.spriteRef.pngFilename).toBe("dpad.png");
     expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
     expect(p.spriteRef.artUrlPrefix).not.toMatch(/\/$/);
-    expect(p.fal?.falExtrasPerTile).toMatchObject({ acceleration: "none" });
+    expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
+    expect(p.fal?.falExtrasSheet).toMatchObject({ aspect_ratio: "4:1", resolution: "1K" });
     expect(p.qa.spriteWidth).toBe(20);
     expect(p.qa.spriteHeight).toBe(20);
     expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);

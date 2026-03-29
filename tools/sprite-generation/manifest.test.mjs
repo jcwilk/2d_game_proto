@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { DPAD_FAL_EXTRA_INPUT } from "./presets/dpad.mjs";
+import { DPAD_FAL_EXTRAS_SHEET } from "./presets/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,
@@ -185,7 +185,7 @@ describe("manifest builder", () => {
     expect(specs.chroma.keyHex).toBe("#FF00FF");
   });
 
-  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (flux/dev strip)", () => {
+  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (nano-banana strip)", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const m = buildInitialManifest({
       kind: "dpad_tile_set",
@@ -195,7 +195,7 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      endpoint: "fal-ai/flux/dev",
+      endpoint: "fal-ai/nano-banana-2",
       imageSize: "400x100",
       tileSize: 100,
       sheetSize: 400,
@@ -206,7 +206,7 @@ describe("manifest builder", () => {
       chromaTolerance: 72,
       keyRgbForManifest: KEY_RGB,
       falExtrasPerTile: null,
-      falExtrasSheet: FAL_EXTRAS_TILE,
+      falExtrasSheet: DPAD_FAL_EXTRAS_SHEET,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
       pngBasename: "dpad.png",
@@ -218,9 +218,9 @@ describe("manifest builder", () => {
 
     const gr = /** @type {{ falExtrasPerTile: null; falExtrasSheet: object }} */ (m.generationRecipe);
     expect(gr.falExtrasPerTile).toBeNull();
-    expect(gr.falExtrasSheet).toEqual(FAL_EXTRAS_TILE);
+    expect(gr.falExtrasSheet).toEqual(DPAD_FAL_EXTRAS_SHEET);
     expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("400x100");
-    expect(String(m.workflow)).toContain("fal-ai/flux/dev");
+    expect(String(m.workflow)).toContain("fal-ai/nano-banana-2");
 
     const specs = /** @type {{ sheetSize: { width: number; height: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
     expect(specs.strategy).toBe("sheet");
@@ -233,7 +233,7 @@ describe("manifest builder", () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const sample = JSON.parse(await readFile(join(__dirname, "fixtures/dpad-generate-sheet-manifest.json"), "utf8"));
 
-    /** Matches `runPipeline` + dpad preset for **generate / sheet / flux/dev txt2img** (`fixtures/dpad-generate-sheet-manifest.json`; `public/art/dpad/manifest.json` is overwritten by `mock:dpad-workflow`). */
+    /** Matches `runPipeline` + dpad preset for **generate / sheet / nano-banana-2** (`fixtures/dpad-generate-sheet-manifest.json`; `public/art/dpad/manifest.json` is overwritten by `mock:dpad-workflow`). */
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const built = buildInitialManifest({
       kind: "dpad_tile_set",
@@ -243,7 +243,7 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      endpoint: "fal-ai/flux/dev",
+      endpoint: "fal-ai/nano-banana-2",
       imageSize: "400x100",
       tileSize: 100,
       sheetSize: 400,
@@ -254,7 +254,7 @@ describe("manifest builder", () => {
       chromaTolerance: 72,
       keyRgbForManifest: KEY_RGB,
       falExtrasPerTile: null,
-      falExtrasSheet: DPAD_FAL_EXTRA_INPUT,
+      falExtrasSheet: DPAD_FAL_EXTRAS_SHEET,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 4 },
       pngBasename: "dpad.png",

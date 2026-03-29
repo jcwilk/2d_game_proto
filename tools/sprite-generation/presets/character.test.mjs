@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
 import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
 import {
+  CHARACTER_FALSPRITE_SHEET_SUBJECT,
   CHARACTER_FRAME_SHEET_CELLS,
   CHARACTER_KIND,
   CHARACTER_PRESET_ID,
@@ -36,7 +37,7 @@ describe("presets/character", () => {
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
     expect(p.fal?.falExtrasSheet).toMatchObject({
       aspect_ratio: "1:1",
-      resolution: "2K",
+      resolution: "0.5K",
       expand_prompt: true,
       safety_tolerance: 2,
     });
@@ -44,6 +45,7 @@ describe("presets/character", () => {
     expect(typeof p.fal?.sheetRewrite?.systemPrompt).toBe("string");
     expect(p.fal?.chromaAfterBria).toBe(false);
     expect(p.sheetOnlyOutput).toBe(true);
+    expect(p.sheetNativeRaster).toBe(true);
     expect(p.qa.spriteWidth).toBe(16);
     expect(p.qa.spriteHeight).toBe(16);
     expect(p.generatorConfig?.tileBufferForFrame).toBeDefined();
@@ -55,6 +57,11 @@ describe("presets/character", () => {
     );
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(buf.length).toBeGreaterThan(100);
+  });
+
+  it("CHARACTER_FALSPRITE_SHEET_SUBJECT puts idle in the first panel (preset-owned copy)", () => {
+    expect(CHARACTER_FALSPRITE_SHEET_SUBJECT.toLowerCase()).toMatch(/idle/);
+    expect(CHARACTER_FALSPRITE_SHEET_SUBJECT).toMatch(/\(1\)/);
   });
 
   it("SHEET_CROPS covers every frame id", () => {
@@ -83,9 +90,9 @@ describe("presets/character", () => {
     expect(() => createPreset({})).toThrow(/outBase/);
   });
 
-  it("renderCharacterWalkMockTileBuffer produces distinct phases", () => {
-    const a = renderCharacterWalkMockTileBuffer({ id: "walk_0", outSubdir: "walk_0", promptVariant: "" }, 64);
-    const b = renderCharacterWalkMockTileBuffer({ id: "walk_2", outSubdir: "walk_2", promptVariant: "" }, 64);
-    expect(a.equals(b)).toBe(false);
+  it("renderCharacterWalkMockTileBuffer produces distinct phases (idle vs stride)", () => {
+    const idle = renderCharacterWalkMockTileBuffer({ id: "walk_0", outSubdir: "walk_0", promptVariant: "" }, 64);
+    const stride = renderCharacterWalkMockTileBuffer({ id: "walk_1", outSubdir: "walk_1", promptVariant: "" }, 64);
+    expect(idle.equals(stride)).toBe(false);
   });
 });

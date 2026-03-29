@@ -19,7 +19,8 @@
  * ## Raster WxH (**2gp-6iay**, normalization **2gp-r67u** in **`postprocess/png-region.mjs`**)
  *
  * After fal download, **`normalizeDecodedSheetToPreset`** may run so the decoded PNG matches **`preset.sheet`**
- * (sheet path) or **`tileSize`** (per-tile). **`assertPngBufferDimensions`** checks **`generators/fal.mjs`**
+ * (sheet path) or **`tileSize`** (per-tile), **unless** **`preset.sheetNativeRaster`** is set (keep T2I/BRIA pixels;
+ * manifest + sprite-ref use derived cell size). **`assertPngBufferDimensions`** checks **`generators/fal.mjs`**
  * at **`pipeline:raster-after-*-normalize`** (model output).
  */
 
@@ -78,6 +79,64 @@ function resolveSheetPixelDimensions(sheet) {
     return { width: sheet.size, height: sheet.size };
   }
   throw new Error("preset.sheet needs width+height or legacy size");
+}
+
+/**
+ * Build **`preset.sheet`** fields for a **uniform** rows×columns grid at **`width`×`height`** (no scaling).
+ * Used when **`sheetNativeRaster`** keeps fal/BRIA output size; crops follow **`frameSheetCells`** when set,
+ * else **`sheet.crops`** scaled from the preset’s nominal sheet size.
+ *
+ * @param {number} width
+ * @param {number} height
+ * @param {PipelinePreset} preset
+ * @returns {NonNullable<PipelinePreset['sheet']> & { width: number; height: number; spriteWidth: number; spriteHeight: number; crops: Record<string, { x: number; y: number }> }}
+ */
+function gridSheetFromRasterDimensions(width, height, preset) {
+  const sheet = /** @type {NonNullable<PipelinePreset['sheet']>} */ (preset.sheet);
+  const cols = sheet.columns;
+  const rows = sheet.rows;
+  if (cols == null || rows == null) {
+    throw new Error("sheetNativeRaster requires preset.sheet.rows and preset.sheet.columns (uniform grid)");
+  }
+  const cw = width / cols;
+  const ch = height / rows;
+  if (!Number.isInteger(cw) || !Number.isInteger(ch)) {
+    throw new Error(
+      `sheetNativeRaster: ${width}×${height} not evenly divisible by ${cols}×${rows} grid (cell ${cw}×${ch})`,
+    );
+  }
+  /** @type {Record<string, { x: number; y: number }>} */
+  const crops = {};
+  if (preset.frameSheetCells) {
+    for (const f of preset.frames) {
+      const cell = preset.frameSheetCells[f.id];
+      if (!cell) {
+        throw new Error(`sheetNativeRaster: frameSheetCells missing for frame id ${JSON.stringify(f.id)}`);
+      }
+      crops[f.id] = { x: cell.column * cw, y: cell.row * ch };
+    }
+  } else {
+    const { width: nomW, height: nomH } = resolveSheetPixelDimensions(sheet);
+    const sx = width / nomW;
+    const sy = height / nomH;
+    for (const f of preset.frames) {
+      const c = sheet.crops[f.id];
+      if (!c) {
+        throw new Error(`sheetNativeRaster: sheet.crops missing for frame id ${JSON.stringify(f.id)}`);
+      }
+      crops[f.id] = { x: Math.round(c.x * sx), y: Math.round(c.y * sy) };
+    }
+  }
+  return {
+    ...sheet,
+    width,
+    height,
+    spriteWidth: cw,
+    spriteHeight: ch,
+    crops,
+    rows,
+    columns: cols,
+  };
 }
 
 export {
@@ -176,7 +235,7 @@ function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
  * @property {import('./generators/types.mjs').GeneratorFrame[]} frames
  * @property {string} outBase  Absolute directory root for tiles + manifest + sprite-ref.
  * @property {number} tileSize
- * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
+ * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }>; rows?: number; columns?: number; spriteWidth?: number; spriteHeight?: number }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**). **`rows`** / **`columns`** / **`spriteWidth`** / **`spriteHeight`** optional unless **`sheetNativeRaster`** or **`gridFrameKeys`** sprite-ref.
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string }) => string; sheetRewriteUserPrompt?: string }} prompt
  * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; chromaFringeEdgeDist?: number; chromaSpillMaxDist?: number; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
@@ -188,6 +247,7 @@ function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
  * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock: merged via **`resolveGeneratorConfig`** into **`generate`** / **`generateSheet`** (e.g. **`shapeForFrame`**, **`sheetLayout`**).
  * @property {string[]} [postprocessSteps]  Generate mode only: ordered ids from **`POSTPROCESS_REGISTRY`** in **`pipeline-stages.mjs`** (default **`['chromaKey']`**). Mock mode ignores this.
  * @property {string} [specsNaming]  Optional override for manifest **`specs.naming`** (else derived from resolved PNG basename).
+ * @property {boolean} [sheetNativeRaster]  Sheet **generate** only: if fal/BRIA PNG size ≠ **`preset.sheet`**, keep native dimensions (no NN downscale); manifest + sprite-ref use uniform grid cell size derived from the raster.
  */
 
 /**
@@ -316,6 +376,9 @@ export async function runPipeline(preset, opts) {
   const generationResultsById = {};
   /** @type {Record<string, number>} */
   const timings = {};
+  /** Sheet dimensions + crops after generate-sheet when **`sheetNativeRaster`** kept a larger fal/BRIA buffer. */
+  /** @type {null | NonNullable<PipelinePreset['sheet']>} */
+  let effectiveSheetForManifest = null;
 
   await mkdir(preset.outBase, { recursive: true });
 
@@ -350,7 +413,7 @@ export async function runPipeline(preset, opts) {
     const sr = preset.fal?.sheetRewrite;
     const chromaAfterBriaResolved =
       opts.chromaAfterBria !== undefined ? Boolean(opts.chromaAfterBria) : Boolean(preset.fal?.chromaAfterBria);
-    await runGenerateSheetPath({
+    const genSheetResult = await runGenerateSheetPath({
       preset,
       generationResultsById,
       timings,
@@ -372,6 +435,7 @@ export async function runPipeline(preset, opts) {
       sheetRewriteMaxTokens: sr?.maxTokens,
       chromaAfterBria: chromaAfterBriaResolved,
     });
+    effectiveSheetForManifest = genSheetResult?.effectiveSheet ?? null;
   } else {
     const presetDefaultEp = preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
     const falExtrasPerTileRun = sameImageEndpointFamily(endpoint, presetDefaultEp)
@@ -423,8 +487,10 @@ export async function runPipeline(preset, opts) {
     log("WARN", "qa", "skipped (skipQa)");
   }
 
-  const sheetW = preset.sheet ? resolveSheetPixelDimensions(preset.sheet).width : preset.tileSize * 2;
-  const sheetH = preset.sheet ? resolveSheetPixelDimensions(preset.sheet).height : preset.tileSize * 2;
+  const sheetForOutputs = effectiveSheetForManifest ?? preset.sheet;
+  const sheetW = sheetForOutputs ? resolveSheetPixelDimensions(sheetForOutputs).width : preset.tileSize * 2;
+  const sheetH = sheetForOutputs ? resolveSheetPixelDimensions(sheetForOutputs).height : preset.tileSize * 2;
+  const manifestTileSize = sheetForOutputs?.spriteWidth ?? preset.tileSize;
 
   const manifest = /** @type {Record<string, unknown>} */ (
     buildInitialManifest({
@@ -437,11 +503,11 @@ export async function runPipeline(preset, opts) {
       ...(mode === "generate" ? { strategy } : {}),
       endpoint: mode === "generate" ? endpoint : null,
       imageSize,
-      tileSize: preset.tileSize,
+      tileSize: manifestTileSize,
       sheetSize: Math.max(sheetW, sheetH),
       sheetWidth: sheetW,
       sheetHeight: sheetH,
-      sheetCropMap: preset.sheet?.crops,
+      sheetCropMap: sheetForOutputs?.crops ?? preset.sheet?.crops,
       chromaKeyHex,
       chromaTolerance,
       keyRgbForManifest,
@@ -466,14 +532,15 @@ export async function runPipeline(preset, opts) {
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   log("INFO", "manifest", `wrote ${manifestPath}`);
 
+  const sheetForSpriteRef = sheetForOutputs ?? preset.sheet;
   const spriteRefPath = await writeSpriteRef(
     {
       id: preset.presetId,
-      tileSize: preset.tileSize,
+      tileSize: sheetForSpriteRef?.spriteWidth ?? preset.tileSize,
       frames,
       spriteRef: preset.spriteRef,
       ...(preset.spriteRef?.kind === "gridFrameKeys"
-        ? { sheet: preset.sheet, frameSheetCells: preset.frameSheetCells }
+        ? { sheet: sheetForSpriteRef, frameSheetCells: preset.frameSheetCells }
         : {}),
     },
     preset.outBase
@@ -840,6 +907,7 @@ async function runGenerateSheetPath({
     sheetMatting: useBria ? "bria" : "none",
     chromaAfterBria: useBria ? chromaAfterBria : null,
     sheetOnlyOutput,
+    sheetNativeRaster: Boolean(preset.sheetNativeRaster),
   });
 
   const imageStrategy = getFalImageEndpointStrategy(endpoint);
@@ -899,24 +967,50 @@ async function runGenerateSheetPath({
   const totalWallMs = useBria ? t2iWallMs + (briaWallMs ?? 0) : t2iWallMs;
   timings.sheetFal = totalWallMs;
 
+  /** @type {null | ReturnType<typeof gridSheetFromRasterDimensions>} */
+  let effectiveSheetOverride = null;
   let png = PNG.sync.read(buffer);
+  let effW = sheetW;
+  let effH = sheetH;
+  /** @type {typeof sheet} */
+  let effSheet = sheet;
+
   if (png.width !== sheetW || png.height !== sheetH) {
-    // Sheet decode policy: center-crop to preset aspect then uniform nearest-neighbor — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
-    log("WARN", "sheet", "fal output dimensions differ from preset; center-cropping to strip aspect then uniform nearest-neighbor scale", {
-      got: `${png.width}x${png.height}`,
-      want: `${sheetW}x${sheetH}`,
-    });
-    buffer = normalizeDecodedSheetToPreset(buffer, sheetW, sheetH);
-    png = PNG.sync.read(buffer);
+    if (preset.sheetNativeRaster) {
+      log("INFO", "sheet", "keeping native raster (sheetNativeRaster); skip NN downscale to preset", {
+        got: `${png.width}x${png.height}`,
+        preset: `${sheetW}x${sheetH}`,
+      });
+      effSheet = gridSheetFromRasterDimensions(png.width, png.height, preset);
+      effW = png.width;
+      effH = png.height;
+      effectiveSheetOverride = effSheet;
+    } else {
+      // Sheet decode policy: center-crop to preset aspect then uniform nearest-neighbor — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
+      log("WARN", "sheet", "fal output dimensions differ from preset; center-cropping to strip aspect then uniform nearest-neighbor scale", {
+        got: `${png.width}x${png.height}`,
+        want: `${sheetW}x${sheetH}`,
+      });
+      buffer = normalizeDecodedSheetToPreset(buffer, sheetW, sheetH);
+      png = PNG.sync.read(buffer);
+      effW = sheetW;
+      effH = sheetH;
+      effSheet = sheet;
+    }
   }
-  assertPngBufferDimensions(buffer, sheetW, sheetH, "pipeline:raster-after-sheet-normalize");
+  assertPngBufferDimensions(buffer, effW, effH, "pipeline:raster-after-sheet-normalize");
+  const cellW = effSheet.spriteWidth ?? tileSize;
+  const cellH = effSheet.spriteHeight ?? tileSize;
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
-    log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops)", { postMatting: useBria ? "bria" : "raw-t2i" });
+    log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops)", {
+      postMatting: useBria ? "bria" : "raw-t2i",
+      pixels: `${effW}x${effH}`,
+    });
   }
   if (sheetOnlyOutput) {
     for (const frame of frames) {
-      const { x, y } = sheet.crops[frame.id];
+      const { x, y } = effSheet.crops[frame.id];
       generationResultsById[frame.id] = {
         seed: outSeed,
         seedRequested: seed ?? null,
@@ -933,8 +1027,8 @@ async function runGenerateSheetPath({
     }
   } else {
     for (const frame of frames) {
-      const { x, y } = sheet.crops[frame.id];
-      const tileBufRaw = extractPngRegion(png, x, y, tileSize, tileSize);
+      const { x, y } = effSheet.crops[frame.id];
+      const tileBufRaw = extractPngRegion(png, x, y, cellW, cellH);
       const { buffer: tileBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(tileBufRaw, postSteps, {
         keyRgb,
         chromaTolerance,
@@ -980,4 +1074,5 @@ async function runGenerateSheetPath({
     }
   }
   generationResultsById._sheet = sheetMeta;
+  return { effectiveSheet: effectiveSheetOverride };
 }

@@ -2,8 +2,8 @@
   "grid": {
     "rows": 2,
     "columns": 2,
-    "spriteWidth": 64,
-    "spriteHeight": 64
+    "spriteWidth": 256,
+    "spriteHeight": 256
   },
   "frames": {
     "walk_0": {

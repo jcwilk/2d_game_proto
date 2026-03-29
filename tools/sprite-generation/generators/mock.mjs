@@ -157,12 +157,21 @@ export function walkPhaseFromFrameId(id) {
  * @returns {import('node:buffer').Buffer}
  */
 export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
-  const phase = walkPhaseFromFrameId(frame.id);
   const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
   const leftDx = [-4, 0, 4, 0];
   const rightDx = [4, 0, -4, 0];
-  const ld = leftDx[phase];
-  const rd = rightDx[phase];
+  /** `walk_0` = idle (symmetric feet); `walk_1`–`walk_3` map to three stride phases (see **`presets/character.mjs`**). */
+  let ld;
+  let rd;
+  if (frame.id === "walk_0") {
+    ld = 0;
+    rd = 0;
+  } else {
+    const ix = walkPhaseFromFrameId(frame.id);
+    const phase = ix - 1;
+    ld = leftDx[phase];
+    rd = rightDx[phase];
+  }
 
   const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
   png.data.fill(0);

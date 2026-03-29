@@ -6,8 +6,7 @@
  * (internal resolution). `DisplayMode` only controls how that resolution is letterboxed or scaled into the
  * container; scenes and gameplay must import dimensions from this module rather than repeating pixel sizes.
  *
- * **Logical playfield:** **1∶1** (square). `VIEWPORT_SIZE` matches the prior 960×540 layout’s **height** (540)
- * so vertical pixel density stays similar while the horizontal playfield narrows to a square.
+ * **Logical playfield:** **1∶1** (square). **`VIEWPORT_SIZE`** is **960** — aligns with the **width** of the old 960×540 layout and gives a larger native playfield than the earlier 540×540 square (better for non–pixel-art scale before CSS upscaling).
  *
  * **`suppressHiDPIScaling`:** `true` — use device pixel ratio 1 so one game pixel aligns to the canvas grid for
  * crisp pixels (retro / pixel-aligned art). Use `false` for smoother scaling on HiDPI at the cost of blur or
@@ -21,7 +20,7 @@ import { DisplayMode, Engine, type EngineOptions } from 'excalibur';
 export { DisplayMode };
 
 /** Fixed logical viewport edge length in CSS pixels (square 1∶1). Single source of truth for width and height. */
-export const VIEWPORT_SIZE = 540;
+export const VIEWPORT_SIZE = 960;
 
 /** Same as `VIEWPORT_SIZE` — kept for call sites that name width explicitly. */
 export const VIEWPORT_WIDTH = VIEWPORT_SIZE;

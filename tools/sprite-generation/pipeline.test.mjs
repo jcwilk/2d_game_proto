@@ -8,6 +8,8 @@ import { PNG } from "pngjs";
 import { parseFrameKeyRectManifestJson } from "../../src/art/atlasTypes.ts";
 import { hashPromptForLog } from "./generators/fal.mjs";
 import { RECIPE_VERSION_MOCK } from "./manifest.mjs";
+import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
+import { createPreset as createCharacterPreset } from "./presets/character.mjs";
 import { createPreset } from "./presets/dpad.mjs";
 import { runPipeline } from "./pipeline.mjs";
 
@@ -86,6 +88,73 @@ describe("pipeline (integration)", () => {
     expect(manifest.generationRecipe?.mode).toBe("mock");
     expect(manifest.generationResults?.up?.fromSheet).toBe(true);
     expect(manifest.generationResults?._sheet?.strategy).toBe("sheet");
+  });
+
+  it("generate sheet + sheetNativeRaster: keeps BRIA output size; sprite-ref grid matches raster", async () => {
+    vi.stubEnv("FAL_KEY", "test-key");
+    dir = join(tmpdir(), `pipe-native-raster-${process.pid}-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    const preset = createCharacterPreset({
+      outBase: dir,
+      artUrlPrefix: "art/pipeline-test-character",
+      provenanceTool: "tools/sprite-generation/pipeline.test.mjs",
+      provenanceVersion: 1,
+    });
+    expect(preset.sheetNativeRaster).toBe(true);
+
+    const nativeW = 512;
+    const nativeH = 512;
+    const png = new PNG({ width: nativeW, height: nativeH, colorType: 6 });
+    png.data.fill(0);
+    for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(png));
+
+    const falSubscribe = vi.fn(async (ep) => {
+      if (ep === "fal-ai/nano-banana-2") {
+        return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
+      }
+      if (ep === "fal-ai/bria/background/remove") {
+        return { data: { image: { url: "https://cdn.example.com/bria.png" } } };
+      }
+      throw new Error(`unexpected endpoint ${ep}`);
+    });
+    const fetchMock = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("bria.png")) {
+        return {
+          ok: true,
+          arrayBuffer: async () =>
+            pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+        };
+      }
+      throw new Error(`unexpected fetch ${u}`);
+    });
+
+    await runPipeline(preset, {
+      mode: "generate",
+      strategy: "sheet",
+      endpoint: "fal-ai/nano-banana-2",
+      skipQa: true,
+      quiet: true,
+      sheetRewrite: false,
+      keepSheet: true,
+      falSubscribe,
+      fetch: fetchMock,
+    });
+
+    const sheetBuf = await readFile(join(dir, "sheet.png"));
+    const sheetPng = PNG.sync.read(sheetBuf);
+    expect(sheetPng.width).toBe(512);
+    expect(sheetPng.height).toBe(512);
+
+    const refRaw = JSON.parse(await readFile(join(dir, "sprite-ref.json"), "utf8"));
+    const gridParsed = parseGridFrameKeysManifestJson(refRaw);
+    expect(gridParsed.grid.spriteWidth).toBe(256);
+    expect(gridParsed.grid.spriteHeight).toBe(256);
+
+    const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
+    expect(manifest.specs?.tileSize?.width).toBe(256);
+    expect(manifest.specs?.sheetSize?.width).toBe(512);
   });
 
   it("generate sheet + BRIA: mock T2I URL → BRIA → RGBA tiles; manifest alphaSource bria on _sheet", async () => {

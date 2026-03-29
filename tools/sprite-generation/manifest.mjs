@@ -26,7 +26,7 @@ export const RECIPE_VERSION_MOCK = "v2-frames";
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
 /** Bump when sheet fal + crop + alpha contract changes (flux/chroma vs nano-banana + BRIA matting). */
-export const RECIPE_VERSION_SHEET = "v16-2x2-falsprite-grid-sheet-only";
+export const RECIPE_VERSION_SHEET = "v19-native-sheet-raster";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx

@@ -188,6 +188,7 @@ Options:
 
 Examples:
   node tools/character-workflow.mjs --mode mock
+  node --env-file=.env tools/character-workflow.mjs --mode generate --strategy sheet
   FAL_KEY=… npm run character-workflow -- --mode generate --strategy sheet
 `);
 }

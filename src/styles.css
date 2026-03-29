@@ -58,19 +58,18 @@ body {
 
 /*
  * Portrait: top-align + horizontal center when the square is narrower than full width
- * (near-square / short windows — gaps left/right). margin-inline: auto on the wrap is
- * the reliable flex pattern; justify-content alone can mis-center in some cases.
+ * (near-square / short windows — gaps left/right, controls always get their strip).
  */
 @media (orientation: portrait) {
   #game-stage {
-    width: 100%;
     align-items: flex-start;
-    justify-content: flex-start;
+    justify-content: center;
     padding: 0;
   }
 
   #game-canvas-wrap {
-    margin-inline: auto;
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 
@@ -97,6 +96,7 @@ body {
   width: min(100cqw, 100cqh);
   max-width: 100%;
   max-height: 100%;
+  overflow: hidden;
 }
 
 #game-controls {

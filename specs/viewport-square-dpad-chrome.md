@@ -56,11 +56,11 @@ Pick **one** integer `VIEWPORT_SIZE` such that:
 
 Export a single constant (e.g. **`CHROME_MOVE_SPEED`** or **`DPAD_MOVE_SPEED_PX_PER_SEC`**) from **`src/engine.ts`** next to the viewport constants so tuning stays co-located with resolution policy—**or** from `directionalChrome.ts` with a one-line comment pointing at `engine.ts` if you prefer input-local tuning. Value is **pixels per second** in **world/logical** space (same units as `actor.vel`).
 
-## 4. DisplayMode and scaling (`FitScreen` vs alternatives)
+## 4. DisplayMode and scaling (`FitContainer` vs `FitScreen`)
 
-- **Default:** Keep **`DisplayMode.FitScreen`** and **`suppressHiDPIScaling`** as today (`createEngineOptions`), unless a prototype experiment shows the square canvas cannot be laid out correctly.
-- **Layout contract:** The **HTML element that wraps `#game-canvas`** must be **square in CSS** (e.g. `aspect-ratio: 1 / 1` + bounded width/height, or grid cell that forces 1∶1). Excalibur then **letterboxes or scales** the **internal** resolution inside that element per `FitScreen`—the **outer** square is a **CSS box**, not a change to Excalibur’s letterboxing model.
-- **When `FillScreen` or fixed pixel container might be needed:** Only if product QA finds `FitScreen` + square wrapper produces inconsistent black bars or double letterboxing. If switching, **re-document** `DEFAULT_DISPLAY_MODE` in `engine.ts` and this spec in one sentence.
+- **Default:** **`DisplayMode.FitContainer`** (not `FitScreen`): Excalibur’s **`FitScreen`** fits the **window** (`innerWidth` / `innerHeight`), so the canvas scales to the **full viewport** and draws **over** HTML chrome. **`FitContainer`** fits **`canvas.parentElement`** (`#game-canvas-wrap`), matching the CSS square and leaving the d-pad strip visible. Keep **`suppressHiDPIScaling`** as today unless QA says otherwise.
+- **Layout contract:** **`#game-canvas-wrap`** is **square in CSS** (`aspect-ratio: 1 / 1`, `width: min(100cqw, 100cqh)`). Excalibur scales the fixed logical resolution into that box.
+- **`FillScreen` / other modes:** Only if product QA needs a different behavior; re-document `DEFAULT_DISPLAY_MODE` in `engine.ts`.
 
 ## 5. DOM structure vs Excalibur-only
 
@@ -89,7 +89,7 @@ Extend **`index.html`** under `#app` / `#game-root` so `#game-root` is a **layou
 
 Use **CSS Grid** on `#game-root`, e.g. three rows × three columns with the canvas in the center cell and chrome in **north / south / west / east** cells. **Corner cells** may be empty or used for spacing.
 
-- **`#game-canvas-wrap`:** `aspect-ratio: 1 / 1`, `min-width: 0`, `min-height: 0` so flex/grid shrink works. **Do not** add `object-fit` on the canvas unless manual QA shows a concrete glitch—Excalibur + `FitScreen` own canvas sizing; extra CSS often fights the engine.
+- **`#game-canvas-wrap`:** `aspect-ratio: 1 / 1`, `min-width: 0`, `min-height: 0` so flex/grid shrink works. **Do not** add `object-fit` on the canvas unless manual QA shows a concrete glitch—Excalibur + **`FitContainer`** own canvas sizing inside the wrap.
 
 ### 5.2 Art wiring
 
@@ -128,7 +128,7 @@ Use **CSS Grid** on `#game-root`, e.g. three rows × three columns with the canv
 
 - **Viewport:** Logical `VIEWPORT_SIZE` stays **fixed** at load (current project policy in `engine.ts`); **no** dynamic resize of Excalibur internal resolution on window resize unless a separate ticket changes global policy.
 - **CSS:** `#game-root` uses **viewport-relative or flex sizing** (e.g. `height: 100dvh` on `#app`, grid `minmax(0, 1fr)` for tracks) so on small phones the **square** shrinks and chrome strips remain usable.
-- **Canvas:** Excalibur’s `FitScreen` scales the fixed logical buffer into the square wrapper; no extra manual `canvas` width/height setting in application code beyond what `createEngine` already does.
+- **Canvas:** Excalibur’s **`FitContainer`** scales the fixed logical buffer into `#game-canvas-wrap`; no extra manual `canvas` width/height in app code beyond `createEngine`.
 
 ## 8. Accessibility and mobile
 

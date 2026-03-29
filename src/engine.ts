@@ -15,7 +15,7 @@
  */
 import { DisplayMode, Engine, type EngineOptions } from 'excalibur';
 
-/** Re-export so call sites and `DisplayMode` enum members (e.g. `DisplayMode.FitScreen`) resolve from this module. */
+/** Re-export so call sites and `DisplayMode` enum members (e.g. `DisplayMode.FitContainer`) resolve from this module. */
 export { DisplayMode };
 
 /** Fixed logical viewport edge length in CSS pixels (square 1∶1). Single source of truth for width and height. */
@@ -36,8 +36,11 @@ export const CHROME_MOVE_SPEED = 200;
 /** Matches `Engine` option; kept as a named constant for grep-friendly policy documentation. */
 export const SUPPRESS_HI_DPI_SCALING = true;
 
-/** Default display mode: fit the window while preserving aspect ratio and resolution. */
-export const DEFAULT_DISPLAY_MODE = DisplayMode.FitScreen;
+/**
+ * Fit the **canvas parent** (`#game-canvas-wrap`), not the whole window — otherwise `FitScreen`
+ * scales to `window` size and the playfield draws over HTML chrome (d-pad strip).
+ */
+export const DEFAULT_DISPLAY_MODE = DisplayMode.FitContainer;
 
 /** Baseline `Engine` options; spread into `new Engine(...)` or override per call. */
 export function createEngineOptions(overrides?: Partial<EngineOptions>): EngineOptions {

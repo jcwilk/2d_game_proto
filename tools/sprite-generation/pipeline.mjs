@@ -16,12 +16,11 @@
  * @see `generators/types.mjs` — generator contracts
  * @see `presets/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  *
- * ## Control vs raster WxH (**2gp-6iay**, normalization **2gp-r67u** in **`postprocess/png-region.mjs`**)
+ * ## Raster WxH (**2gp-6iay**, normalization **2gp-r67u** in **`postprocess/png-region.mjs`**)
  *
  * After fal download, **`normalizeDecodedSheetToPreset`** may run so the decoded PNG matches **`preset.sheet`**
- * (sheet path) or **`tileSize`** (per-tile). **`assertPngBufferDimensions`** then checks **`generators/fal.mjs`**
- * at **`pipeline:control-canny-*`** (control buffer) and **`pipeline:raster-after-*-normalize`** (model output).
- * See **`control-image.mjs`** module header.
+ * (sheet path) or **`tileSize`** (per-tile). **`assertPngBufferDimensions`** checks **`generators/fal.mjs`**
+ * at **`pipeline:raster-after-*-normalize`** (model output).
  */
 
 import { fal } from "@fal-ai/client";
@@ -29,16 +28,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 
-import { renderControlMaskBuffer, renderControlSheetMaskBuffer, softenControlMaskBuffer } from "./control-image.mjs";
-import {
-  assertPngBufferDimensions,
-  falSubscribeControlCannyToBuffer,
-  falSubscribeToBuffer,
-  formatFalClientError,
-  pngBufferToDataUri,
-  resolveFalCredentials,
-} from "./generators/fal.mjs";
-import { generate as mockGenerate, generateSheet as mockGenerateSheet, triangleForDirection } from "./generators/mock.mjs";
+import { assertPngBufferDimensions, falSubscribeToBuffer, resolveFalCredentials } from "./generators/fal.mjs";
+import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
@@ -106,8 +97,6 @@ function maskSecret(s) {
  * @property {string} [imageSize]  Per-tile fal size, e.g. `256x256`
  * @property {boolean} [keepSheet]  Write `sheet.png` under `outBase` (sheet strategy).
  * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
- * @property {boolean} [useControlCanny]  Per-tile generate: use **`fal-ai/flux-control-lora-canny`** + mock triangle mask (default **true** when preset has **`controlEndpoint`**; set **false** for plain **`fal-ai/flux/dev`**).
- * @property {boolean} [useSheetControlCanny]  Sheet generate: use control Canny + composite mask (default **false**; primary sheet path is **`fal-ai/flux/dev`** txt2img per ADR).
  */
 
 /**
@@ -119,7 +108,7 @@ function maskSecret(s) {
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string }} prompt
- * @property {{ defaultEndpoint?: string; controlEndpoint?: string; useControlCanny?: boolean; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; falExtrasControl?: Record<string, unknown> | null }} fal
+ * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
@@ -146,24 +135,7 @@ export async function runPipeline(preset, opts) {
   const keepSheet = Boolean(opts.keepSheet);
   const savePreChroma = Boolean(opts.savePreChroma);
 
-  const useControlCanny =
-    opts.useControlCanny !== false &&
-    preset.fal?.useControlCanny !== false &&
-    Boolean(preset.fal?.controlEndpoint) &&
-    mode === "generate" &&
-    strategy === "per-tile";
-
-  /** Sheet strategy defaults to flux/dev txt2img (ADR); control Canny is opt-in only. */
-  const useControlCannySheet =
-    opts.useSheetControlCanny === true &&
-    Boolean(preset.fal?.controlEndpoint) &&
-    mode === "generate" &&
-    strategy === "sheet";
-
-  let endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
-  if ((useControlCanny || useControlCannySheet) && preset.fal?.controlEndpoint) {
-    endpoint = preset.fal.controlEndpoint;
-  }
+  const endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
 
   const frames = preset.frames;
   for (const f of frames) {
@@ -180,8 +152,6 @@ export async function runPipeline(preset, opts) {
     preset: preset.presetId,
     mode,
     ...(mode === "generate" ? { strategy } : {}),
-    ...(mode === "generate" && strategy === "per-tile" ? { controlCanny: useControlCanny } : {}),
-    ...(mode === "generate" && strategy === "sheet" ? { controlCanny: useControlCannySheet } : {}),
   });
 
   const createdAt = new Date().toISOString();
@@ -194,8 +164,6 @@ export async function runPipeline(preset, opts) {
     frameCount: frames.length,
     dryRun,
     endpoint: mode === "generate" ? endpoint : null,
-    useControlCanny: mode === "generate" && strategy === "per-tile" ? useControlCanny : undefined,
-    useControlCannySheet: mode === "generate" && strategy === "sheet" ? useControlCannySheet : undefined,
   });
 
   if (dryRun) {
@@ -210,7 +178,6 @@ export async function runPipeline(preset, opts) {
         log("INFO", "dry-run", "would call fal.subscribe ONCE", {
           endpoint,
           imageSize: `${d.width}x${d.height}`,
-          controlCanny: useControlCannySheet,
           seed: seed ?? null,
           keepSheet,
         });
@@ -276,11 +243,8 @@ export async function runPipeline(preset, opts) {
       quiet,
     });
   } else if (strategy === "sheet" && preset.sheet) {
-    const falExtrasSheetRun = useControlCannySheet
-      ? preset.fal?.falExtrasControl ?? undefined
-      : endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)
-        ? preset.fal?.falExtrasSheet ?? undefined
-        : undefined;
+    const falExtrasSheetRun =
+      endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT) ? preset.fal?.falExtrasSheet ?? undefined : undefined;
     await runGenerateSheetPath({
       preset,
       generationResultsById,
@@ -291,15 +255,11 @@ export async function runPipeline(preset, opts) {
       endpoint,
       quiet,
       keepSheet,
-      useControlCanny: useControlCannySheet,
       falExtras: falExtrasSheetRun,
     });
   } else {
-    const falExtrasPerTileRun = useControlCanny
-      ? preset.fal?.falExtrasControl ?? undefined
-      : endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)
-        ? preset.fal?.falExtrasPerTile ?? undefined
-        : undefined;
+    const falExtrasPerTileRun =
+      endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT) ? preset.fal?.falExtrasPerTile ?? undefined : undefined;
     await runGeneratePerTilePath({
       preset,
       generationResultsById,
@@ -311,7 +271,6 @@ export async function runPipeline(preset, opts) {
       imageSize,
       quiet,
       savePreChroma,
-      useControlCanny,
       falExtras: falExtrasPerTileRun,
     });
   }
@@ -363,22 +322,8 @@ export async function runPipeline(preset, opts) {
       chromaKeyHex,
       chromaTolerance,
       keyRgbForManifest,
-      falExtrasPerTile:
-        mode === "generate" && strategy === "per-tile" && useControlCanny
-          ? preset.fal?.falExtrasControl ?? null
-          : preset.fal?.falExtrasPerTile ?? null,
-      falExtrasSheet:
-        mode === "generate" && strategy === "sheet"
-          ? useControlCannySheet
-            ? preset.fal?.falExtrasControl ?? null
-            : preset.fal?.falExtrasSheet ?? null
-          : null,
-      controlCanny:
-        mode === "generate" && strategy === "per-tile"
-          ? useControlCanny
-          : mode === "generate" && strategy === "sheet"
-            ? useControlCannySheet
-            : false,
+      falExtrasPerTile: mode === "generate" && strategy === "per-tile" ? preset.fal?.falExtrasPerTile ?? null : null,
+      falExtrasSheet: mode === "generate" && strategy === "sheet" ? preset.fal?.falExtrasSheet ?? null : null,
       seed: seed ?? null,
       provenance: preset.provenance,
       pngBasename: pngBasename(preset),
@@ -558,7 +503,6 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
  * @param {string} p.endpoint
  * @param {boolean} p.quiet
  * @param {boolean} [p.savePreChroma]
- * @param {boolean} [p.useControlCanny]
  * @param {Record<string, unknown>} [p.falExtras]
  */
 async function runGeneratePerTilePath({
@@ -572,7 +516,6 @@ async function runGeneratePerTilePath({
   imageSize,
   quiet,
   savePreChroma = false,
-  useControlCanny = false,
   falExtras,
 }) {
   const pngName = pngBasename(preset);
@@ -593,44 +536,20 @@ async function runGeneratePerTilePath({
     });
     log("INFO", "prompt", `built per-tile prompt [${frame.id}]`, { chars: text.length });
 
-    log("INFO", `tile:${frame.id}`, "begin fal generate", { outPng, useControlCanny });
+    log("INFO", `tile:${frame.id}`, "begin fal generate", { outPng });
     const t0 = Date.now();
-    let buffer;
-    let outSeed;
-    let wallMs;
-    if (useControlCanny) {
-      const dir = /** @type {'up' | 'down' | 'left' | 'right'} */ (frame.id);
-      const vertices = triangleForDirection(dir, tileSize);
-      const controlBuf = renderControlMaskBuffer({ tileSize, vertices });
-      assertPngBufferDimensions(controlBuf, tileSize, tileSize, "pipeline:control-canny-tile");
-      const controlUrl = pngBufferToDataUri(controlBuf);
-      const gen = await falSubscribeControlCannyToBuffer({
-        endpoint,
-        prompt: text,
-        imageSize,
-        seed,
-        quiet,
-        falExtraInput: falExtras,
-        controlImageUrl: controlUrl,
-        log,
-      });
-      buffer = gen.buffer;
-      outSeed = gen.seed;
-      wallMs = gen.wallMs;
-    } else {
-      const gen = await falSubscribeToBuffer({
-        endpoint,
-        prompt: text,
-        imageSize,
-        seed,
-        quiet,
-        falExtraInput: falExtras,
-        log,
-      });
-      buffer = gen.buffer;
-      outSeed = gen.seed;
-      wallMs = gen.wallMs;
-    }
+    const gen = await falSubscribeToBuffer({
+      endpoint,
+      prompt: text,
+      imageSize,
+      seed,
+      quiet,
+      falExtraInput: falExtras,
+      log,
+    });
+    let buffer = gen.buffer;
+    const outSeed = gen.seed;
+    const wallMs = gen.wallMs;
     {
       let png = PNG.sync.read(buffer);
       if (png.width !== tileSize || png.height !== tileSize) {
@@ -661,7 +580,6 @@ async function runGeneratePerTilePath({
       wallMs: timings[frame.id],
       chromaApplied,
       chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
-      ...(useControlCanny ? { controlCanny: true, controlMask: "mock triangle silhouette (white on black)" } : {}),
       notes: [],
     };
     log("INFO", `tile:${frame.id}`, "fal PNG + chroma saved", generationResultsById[frame.id]);
@@ -679,7 +597,6 @@ async function runGeneratePerTilePath({
  * @param {string} p.endpoint
  * @param {boolean} p.quiet
  * @param {boolean} p.keepSheet
- * @param {boolean} [p.useControlCanny]
  * @param {Record<string, unknown>} [p.falExtras]
  */
 async function runGenerateSheetPath({
@@ -692,7 +609,6 @@ async function runGenerateSheetPath({
   endpoint,
   quiet,
   keepSheet,
-  useControlCanny = false,
   falExtras,
 }) {
   const sheet = /** @type {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} */ (
@@ -717,49 +633,20 @@ async function runGenerateSheetPath({
   log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length });
 
   const imageSizeStr = `${sheetW}x${sheetH}`;
-  log("INFO", "sheet", "single fal job + crop + chroma", { sheetPx: imageSizeStr, useControlCanny });
+  log("INFO", "sheet", "single fal job + crop + chroma", { sheetPx: imageSizeStr });
 
-  let buffer;
-  let outSeed;
-  let wallMs;
-  if (useControlCanny) {
-    let controlBuf = renderControlSheetMaskBuffer({
-      frames,
-      tileSize,
-      crops: sheet.crops,
-      sheetWidth: sheetW,
-      sheetHeight: sheetH,
-    });
-    controlBuf = softenControlMaskBuffer(controlBuf, 1);
-    assertPngBufferDimensions(controlBuf, sheetW, sheetH, "pipeline:control-canny-sheet");
-    const controlUrl = pngBufferToDataUri(controlBuf);
-    const gen = await falSubscribeControlCannyToBuffer({
-      endpoint,
-      prompt: sheetPrompt,
-      imageSize: imageSizeStr,
-      controlImageUrl: controlUrl,
-      seed,
-      quiet,
-      falExtraInput: falExtras,
-      log,
-    });
-    buffer = gen.buffer;
-    outSeed = gen.seed;
-    wallMs = gen.wallMs;
-  } else {
-    const gen = await falSubscribeToBuffer({
-      endpoint,
-      prompt: sheetPrompt,
-      imageSize: imageSizeStr,
-      seed,
-      quiet,
-      falExtraInput: falExtras,
-      log,
-    });
-    buffer = gen.buffer;
-    outSeed = gen.seed;
-    wallMs = gen.wallMs;
-  }
+  const gen = await falSubscribeToBuffer({
+    endpoint,
+    prompt: sheetPrompt,
+    imageSize: imageSizeStr,
+    seed,
+    quiet,
+    falExtraInput: falExtras,
+    log,
+  });
+  const buffer = gen.buffer;
+  const outSeed = gen.seed;
+  const wallMs = gen.wallMs;
 
   timings.sheetFal = wallMs;
   let png = PNG.sync.read(buffer);
@@ -795,12 +682,9 @@ async function runGenerateSheetPath({
       cropOrigin: `${x},${y}`,
       chromaApplied,
       chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
-      ...(useControlCanny
-        ? { controlCanny: true, controlMask: "mock triangle sheet (white on black, softened 3×3)" }
-        : {}),
       notes: [],
     };
     log("INFO", `tile:${frame.id}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
   }
-  generationResultsById._sheet = { seed: outSeed, wallMs, strategy: "sheet", controlCanny: useControlCanny };
+  generationResultsById._sheet = { seed: outSeed, wallMs, strategy: "sheet" };
 }

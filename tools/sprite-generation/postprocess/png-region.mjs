@@ -3,8 +3,8 @@ import { PNG } from "pngjs";
 /**
  * ## D-pad / fal sheet decode policy (epic **2gp-p4js**)
  *
- * `fal-ai/flux-control-lora-canny` may return a **square** PNG (e.g. 512²) when the request asks for a
- * **4∶1** strip (`400×100`) — see **`tools/sprite-generation/docs/fal-control-canny-image-size.md`**. We
+ * Some fal image models may return a **square** PNG (e.g. 512²) when the request asks for a **4∶1**
+ * strip (`400×100`). We
  * **do not** anisotropically nearest-neighbor squash that square onto the strip (different X vs Y scale
  * distorts glyphs). Instead we **center-crop** the decoded raster to the preset’s aspect ratio
  * (**`SHEET_WIDTH`∶`SHEET_HEIGHT`**, e.g. 4∶1), then apply **one** uniform nearest-neighbor resize to the

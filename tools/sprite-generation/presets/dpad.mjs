@@ -12,7 +12,7 @@
  * - **`tileSize`** — Square tile edge (px).
  * - **`sheet`** — `{ width, height, crops }` — required when `strategy === 'sheet'` (rectangular sheet pixel size + crop map).
  * - **`prompt`** — `{ frameStyle, frameComposition, sheetStyle, sheetComposition, sheetSubject }` for **`buildPrompt`** / **`buildSheetPrompt`**.
- * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for default flux/dev jobs.
+ * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for flux/dev jobs.
  * - **`qa`** — `{ spriteWidth, spriteHeight }` for png-analyze (8×8 cells on 256² when 32×32).
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
@@ -25,7 +25,7 @@
  *
  * ## `recipeId`
  *
- * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Per-tile generate defaults to **`fal-ai/flux-control-lora-canny`** + mock triangle mask when **`preset.fal.controlEndpoint`** is set; plain **`fal-ai/flux/dev`** uses a different **`RECIPE_VERSION_PER_TILE`** slug. Sheet defaults to flux/dev txt2img; opt-in sheet control uses **`RECIPE_VERSION_SHEET_CONTROL`**. Use **`recipeIdForDpad(mode, strategy)`** for ids without pipeline flags (matches default **`buildRecipeId`** branches). Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation or postprocess semantics change.
+ * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Generate mode uses **`fal-ai/flux/dev`** for both sheet and per-tile strategies (see **`DEFAULT_FAL_ENDPOINT`**). Use **`recipeIdForDpad(mode, strategy)`** for ids without pipeline flags. Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation or postprocess semantics change.
  *
  * @see `../README.md` — deterministic geometry vs stochastic T2I/chroma
  * @see `../pipeline.mjs` — orchestration, postprocess, QA analyze
@@ -59,11 +59,8 @@ export const TILE_SIZE = 100;
 export const SHEET_WIDTH = TILE_SIZE * 4;
 export const SHEET_HEIGHT = TILE_SIZE;
 
-/** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. Plain txt2img when **`--no-control`**. */
+/** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
-
-/** Per-tile generate with mock triangle control mask (Canny). See **`../control-image.mjs`**. */
-export const DEFAULT_FAL_CONTROL_ENDPOINT = "fal-ai/flux-control-lora-canny";
 
 /**
  * Extra fal input for sheet and per-tile jobs (`FluxDevInput` — no `negative_prompt` on flux/dev).
@@ -73,20 +70,6 @@ export const DPAD_FAL_EXTRA_INPUT = {
   /** FLUX/dev: small A/B range 3–5; lower can reduce over-stylized color fringing vs SDXL-style CFG. */
   guidance_scale: 4,
   acceleration: "none",
-};
-
-/**
- * fal input for **`fal-ai/flux-control-lora-canny`** (no `acceleration`; **`preprocess_depth: false`** for Canny edges).
- * @see https://fal.ai/models/fal-ai/flux-control-lora-canny/api
- */
-export const DPAD_FAL_CONTROL_EXTRA_INPUT = {
-  num_inference_steps: 32,
-  /** Slightly higher than fal default so prompt can steer texture while control stays loose. */
-  guidance_scale: 4,
-  output_format: "png",
-  preprocess_depth: false,
-  /** Lower than ~1.0 — looser fit to the triangle mask; pair with softened control image in pipeline. */
-  control_lora_strength: 0.58,
 };
 
 /** Grid cell size for png-analyze (5×5 cells on 100²). */
@@ -224,12 +207,8 @@ export function createPreset(opts) {
     },
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
-      controlEndpoint: DEFAULT_FAL_CONTROL_ENDPOINT,
-      /** When **true** (default), per-tile **`mode: generate`** uses control Canny + **`control-image`** mask. CLI **`--no-control`** sets false. */
-      useControlCanny: true,
       falExtrasPerTile: { ...DPAD_FAL_EXTRA_INPUT },
       falExtrasSheet: { ...DPAD_FAL_EXTRA_INPUT },
-      falExtrasControl: { ...DPAD_FAL_CONTROL_EXTRA_INPUT },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },

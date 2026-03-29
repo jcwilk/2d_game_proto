@@ -7,9 +7,7 @@ import { DPAD_FAL_EXTRA_INPUT } from "./presets/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,
-  RECIPE_VERSION_PER_TILE_CONTROL,
   RECIPE_VERSION_SHEET,
-  RECIPE_VERSION_SHEET_CONTROL,
   buildInitialManifest,
   buildRecipeId,
 } from "./manifest.mjs";
@@ -52,20 +50,9 @@ describe("manifest builder", () => {
 
   it("buildRecipeId: per-tile vs sheet produce distinct stable ids", () => {
     const perTile = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "per-tile" });
-    const perTilePlain = buildRecipeId({
-      preset: "dpad_four_way",
-      mode: "generate",
-      strategy: "per-tile",
-      controlCanny: false,
-    });
     const sheet = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
-    const sheetPlain = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet", controlCanny: false });
-    const sheetControl = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet", controlCanny: true });
-    expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
-    expect(perTilePlain).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
+    expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
     expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
-    expect(sheetPlain).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
-    expect(sheetControl).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
     expect(perTile).not.toBe(sheet);
   });
 
@@ -163,8 +150,7 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "per-tile",
-      controlCanny: true,
-      endpoint: "fal-ai/flux-control-lora-canny",
+      endpoint: "fal-ai/flux/dev",
       imageSize: "100x100",
       tileSize: 100,
       sheetSize: 400,
@@ -181,13 +167,14 @@ describe("manifest builder", () => {
       pngBasename: "dpad.png",
     });
 
-    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
-    expect(String(m.workflow)).toContain("control-canny");
+    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
+    expect(String(m.workflow)).toContain("fal per-tile");
+    expect(String(m.workflow)).toContain("fal-ai/flux/dev");
     const gr = /** @type {{ mode: string; endpoint: string; seedRequested: number; falExtrasPerTile: object; falExtrasSheet: null }} */ (
       m.generationRecipe
     );
     expect(gr.mode).toBe("generate");
-    expect(gr.endpoint).toBe("fal-ai/flux-control-lora-canny");
+    expect(gr.endpoint).toBe("fal-ai/flux/dev");
     expect(gr.seedRequested).toBe(1084367636);
     expect(gr.falExtrasPerTile).toEqual(FAL_EXTRAS_TILE);
     expect(gr.falExtrasSheet).toBeNull();
@@ -208,7 +195,6 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      controlCanny: false,
       endpoint: "fal-ai/flux/dev",
       imageSize: "400x100",
       tileSize: 100,
@@ -257,7 +243,6 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      controlCanny: false,
       endpoint: "fal-ai/flux/dev",
       imageSize: "400x100",
       tileSize: 100,

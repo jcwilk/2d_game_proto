@@ -40,7 +40,7 @@ function parseHexRgb(hex) {
 }
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; useControlCanny: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
   const opts = {
     mode: "mock",
     strategy: "sheet",
@@ -48,7 +48,6 @@ function parseArgs(argv) {
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
     keepSheet: false,
     savePreChroma: false,
-    useControlCanny: true,
     skipQa: false,
     dryRun: false,
     quiet: false,
@@ -87,9 +86,6 @@ function parseArgs(argv) {
         break;
       case "--save-pre-chroma":
         opts.savePreChroma = true;
-        break;
-      case "--no-control":
-        opts.useControlCanny = false;
         break;
       case "--seed":
         opts.seed = Number.parseInt(next(), 10);
@@ -138,11 +134,10 @@ Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
   --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
-                         (fal-ai/flux/dev txt2img; no control mask).
-                         **per-tile** = one fal call per frame (same --seed when set); control Canny + triangle mask unless --no-control.
+                         (fal-ai/flux/dev txt2img).
+                         **per-tile** = one fal-ai/flux/dev call per frame (same --seed when set).
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
-  --no-control           With --mode generate and **per-tile**: use plain fal-ai/flux/dev (no Canny control mask). Ignored for sheet.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
                          Ignored for sheet (sheet is always ${SHEET_WIDTH}x${SHEET_HEIGHT}).
@@ -208,7 +203,6 @@ async function main() {
       imageSize: opts.imageSize,
       keepSheet: opts.keepSheet,
       savePreChroma: opts.savePreChroma,
-      useControlCanny: opts.useControlCanny,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

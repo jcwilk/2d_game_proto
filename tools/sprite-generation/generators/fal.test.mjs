@@ -6,7 +6,6 @@ import { PNG } from "pngjs";
 import {
   assertPngBufferDimensions,
   downloadToBuffer,
-  falSubscribeControlCannyToBuffer,
   falSubscribeToBuffer,
   formatFalClientError,
   hashPromptForLog,
@@ -159,47 +158,5 @@ describe("sprite-generation fal helpers (no network)", () => {
     const req = logs.find((x) => x.message === "subscribe() request input (redacted)");
     expect(req?.extra?.image_size).toEqual({ width: 256, height: 256 });
     expect(req?.extra?.prompt).toMatchObject({ length: 4, sha256Hex16: expect.any(String) });
-  });
-
-  it("falSubscribeControlCannyToBuffer sends flux-control-lora-canny input shape (mocked subscribe)", async () => {
-    const subscribe = vi.fn(async () => ({
-      data: {
-        images: [{ url: "https://cdn.example.com/out.png" }],
-        seed: 7,
-      },
-    }));
-    const pngOne = new PNG({ width: 1, height: 1 });
-    pngOne.data[0] = pngOne.data[1] = pngOne.data[2] = 0;
-    pngOne.data[3] = 255;
-    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () =>
-        pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
-    }));
-
-    await falSubscribeControlCannyToBuffer({
-      endpoint: "fal-ai/flux-control-lora-canny",
-      prompt: "p",
-      imageSize: "400x100",
-      controlImageUrl: "data:image/png;base64,QUFB",
-      seed: 2,
-      quiet: true,
-      log: () => {},
-      falSubscribe: subscribe,
-      fetch: fetchMock,
-    });
-
-    expect(subscribe).toHaveBeenCalledOnce();
-    const call = subscribe.mock.calls[0];
-    expect(call[0]).toBe("fal-ai/flux-control-lora-canny");
-    const input = call[1].input;
-    expect(input.prompt).toBe("p");
-    expect(input.image_size).toEqual({ width: 400, height: 100 });
-    expect(input.num_images).toBe(1);
-    expect(input.output_format).toBe("png");
-    expect(input.preprocess_depth).toBe(false);
-    expect(String(input.control_lora_image_url)).toMatch(/^data:image\/png;base64,/);
-    expect(input.seed).toBe(2);
   });
 });

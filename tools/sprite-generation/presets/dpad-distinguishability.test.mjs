@@ -2,7 +2,7 @@
  * Regression QA: four D-pad directions stay visually distinguishable in **deterministic** stages.
  *
  * Does **not** assert on fal T2I or chroma-key pixels (stochastic); see `../README.md`.
- * Covers mock raster triangles + Canny control masks aligned with `triangleForDirection` / `defaultDpadShapeForFrame`.
+ * Covers mock raster triangles + white-on-black silhouette masks aligned with `triangleForDirection` / `defaultDpadShapeForFrame`.
  */
 
 import { createHash } from "node:crypto";
@@ -10,8 +10,7 @@ import { createHash } from "node:crypto";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { renderControlMaskBuffer } from "../control-image.mjs";
-import { generate, triangleForDirection } from "../generators/mock.mjs";
+import { generate, renderTriangleSilhouetteTileBuffer, triangleForDirection } from "../generators/mock.mjs";
 import { DPAD_FRAMES, TILE_SIZE } from "./dpad.mjs";
 
 /** @param {Buffer} buf */
@@ -67,11 +66,11 @@ describe("presets/dpad distinguishability (deterministic geometry)", () => {
     }
   });
 
-  it("Canny control mask buffers are pairwise distinct at preset TILE_SIZE", () => {
+  it("triangle silhouette mask buffers are pairwise distinct at preset TILE_SIZE", () => {
     const hashes = new Map();
     for (const id of ids) {
       const vertices = triangleForDirection(id, TILE_SIZE);
-      const buf = renderControlMaskBuffer({ tileSize: TILE_SIZE, vertices });
+      const buf = renderTriangleSilhouetteTileBuffer({ tileSize: TILE_SIZE, vertices });
       hashes.set(id, sha256(buf));
     }
     for (const [a, b] of pairs(ids)) {

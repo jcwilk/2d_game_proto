@@ -1,6 +1,6 @@
 ---
 id: 2gp-sxtu
-status: open
+status: closed
 deps: [2gp-fknm]
 links: []
 created: 2026-03-29T02:44:03Z

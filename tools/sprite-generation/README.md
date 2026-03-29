@@ -19,7 +19,7 @@ This section is the **canonical** description of generation strategy, on-disk/ga
 ### Chosen strategies (this repo)
 
 1. **Sheet strategy** (`--strategy sheet` in **`dpad-workflow.mjs`**, default for generate): **one** fal job at **`preset.sheet`** size (**1×4** horizontal strip: width = `TILE_SIZE * 4`, height = `TILE_SIZE`), deterministic **`preset.sheet.crops`** → per-frame PNGs → **`postprocessSteps`** (see Alpha path). Optional **`--keep-sheet`** writes `sheet.png` beside the tiles for debugging.
-2. **Per-tile strategy** (`--strategy per-tile`): **four** fal jobs (same **`--seed`** when set), each at **`--image-size`** (default per-tile square from preset). With **`useControlCanny`** (default), per-tile generation uses the **control** endpoint and **`control-image`** masks; **`--no-control`** uses plain txt2img on **`fal.defaultEndpoint`**.
+2. **Per-tile strategy** (`--strategy per-tile`): **four** **`fal-ai/flux/dev`** jobs (same **`--seed`** when set), each at **`--image-size`** (default per-tile square from preset).
 
 Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls but independent framing and easier per-direction iteration.
 
@@ -59,7 +59,6 @@ If a future pipeline emitted **2×2** (e.g. Klein), the repo would need a define
 | Endpoint id | fal model API (docs) |
 | --- | --- |
 | `fal-ai/flux/dev` | https://fal.ai/models/fal-ai/flux/dev/api |
-| `fal-ai/flux-control-lora-canny` | https://fal.ai/models/fal-ai/flux-control-lora-canny/api |
 
 General client/queue/authentication: https://docs.fal.ai/model-apis
 

@@ -193,6 +193,11 @@ export async function downloadToFile(url, destPath, fetchImpl = globalThis.fetch
 /** @see tools/sprite-generation/FALSPRITE_INTEGRATION_PLAN.md — nano-banana-2 resolution enum (verify on fal OpenAPI when changing). */
 export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
 export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
+/**
+ * Smallest **documented** fal enum for nano-banana-2 (`ResolutionEnum`: **`0.5K`**, **`1K`**, **`2K`**, **`4K`** only).
+ * There is no **`0.125K`** (or similar) — use this + **`normalizeDecodedSheetToPreset`** to reach game pixel size.
+ */
+export const NANO_BANANA2_LOW_RESOLUTION = "0.5K";
 
 /**
  * BRIA background removal — one HTTPS `image_url` in, PNG with alpha out (`data.image.url` per fal OpenAPI).

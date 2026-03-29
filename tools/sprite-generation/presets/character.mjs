@@ -4,7 +4,9 @@
  *
  * Contract matches **`presets/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../pipeline.mjs`**).
  * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/character-workflow.mjs --no-rewrite`**.
- * **`fal.chromaAfterBria`** is **on**: after BRIA sheet matting, each cropped tile runs **`chromaKey`** with **`CHARACTER_CHROMA_TOLERANCE_DEFAULT`** to remove residual magenta fringe (see **`../postprocess/chroma-key.mjs`**).
+ * **Transparency:** **BRIA** is the primary alpha path; **`fal.chromaAfterBria`** defaults to **on** so each tile runs **`chromaKey`** after crops and catches residual off-magenta (BRIA/halos/scaling). Tune **`CHARACTER_CHROMA_TOLERANCE_DEFAULT`** or **`--chroma-tolerance`**. Disable with **`--no-chroma-after-bria`** for a FalSprite-style BRIA-only path.
+ *
+ * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`aspect_ratio`** + **`resolution`** (**`CHARACTER_FAL_EXTRAS_SHEET`**: **4:1**, **`0.5K`**) so fal’s native pixels are closer to **`SHEET_WIDTH`×`SHEET_HEIGHT`** than **1K** (less harsh downscale / fringe after BRIA).
  *
  * @see `../README.md`
  * @see `../pipeline.mjs`
@@ -14,6 +16,7 @@
 import {
   NANO_BANANA2_DEFAULT_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
+  NANO_BANANA2_LOW_RESOLUTION,
 } from "../generators/fal.mjs";
 import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
 import { buildRecipeId } from "../manifest.mjs";
@@ -39,10 +42,22 @@ export const CHARACTER_KIND = "character_walk_sprite";
 export const TILE_SIZE = 64;
 
 /**
- * Default Euclidean RGB distance for chroma keying (generate mode). Higher keys more pixels near the screen color
- * (catches T2I/BRIA magenta fringe). Override with **`tools/character-workflow.mjs --chroma-tolerance`**.
+ * Default Euclidean RGB distance for the main chroma pass. Higher keys more near-magenta pixels but can eat
+ * costume pinks/purples; override with **`tools/character-workflow.mjs --chroma-tolerance`**.
  */
-export const CHARACTER_CHROMA_TOLERANCE_DEFAULT = 110;
+export const CHARACTER_CHROMA_TOLERANCE_DEFAULT = 120;
+
+/**
+ * Looser Euclidean distance **only** on pixels that border transparency (after main chroma). Keep this
+ * moderately above **`CHARACTER_CHROMA_TOLERANCE_DEFAULT`**; too high keys pinks/purples in the figure.
+ */
+export const CHARACTER_CHROMA_FRINGE_EDGE_DIST = 165;
+
+/**
+ * After silhouette peel: remove **semi-transparent** pixels (BRIA edge halos) within this Euclidean
+ * distance of the key. Opaque pixels are untouched. **`0`** disables (via CLI / **`runPipeline`**).
+ */
+export const CHARACTER_CHROMA_SPILL_MAX_DIST = 205;
 
 /** Single sheet: **1×4** horizontal strip (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**. */
 export const SHEET_WIDTH = TILE_SIZE * 4;
@@ -51,9 +66,13 @@ export const SHEET_HEIGHT = TILE_SIZE;
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
+/**
+ * Nano-banana sheet inputs: **4:1** matches the 1×4 strip; **`0.5K`** asks for a smaller native sheet so
+ * **`normalizeDecodedSheetToPreset`** does not downscale as far as with **1K** (often ~1032×256 vs ~2064×512).
+ */
 export const CHARACTER_FAL_EXTRAS_SHEET = {
   aspect_ratio: NANO_BANANA2_DEFAULT_ASPECT_RATIO,
-  resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
+  resolution: NANO_BANANA2_LOW_RESOLUTION,
 };
 
 export const CHARACTER_FAL_EXTRAS_PER_TILE = {
@@ -186,8 +205,10 @@ export function createPreset(opts) {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
       falExtrasPerTile: { ...CHARACTER_FAL_EXTRAS_PER_TILE },
       falExtrasSheet: { ...CHARACTER_FAL_EXTRAS_SHEET },
-      /** Run chroma on each tile after BRIA crops (BRIA alone often leaves bright magenta halos). */
+      /** Per-tile chroma after BRIA (default on — fringe / off-magenta cleanup); **`--no-chroma-after-bria`** to skip. */
       chromaAfterBria: true,
+      chromaFringeEdgeDist: CHARACTER_CHROMA_FRINGE_EDGE_DIST,
+      chromaSpillMaxDist: CHARACTER_CHROMA_SPILL_MAX_DIST,
       sheetRewrite: {
         enabled: true,
         systemPrompt: CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT,

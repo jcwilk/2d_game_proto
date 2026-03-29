@@ -7,7 +7,12 @@
  * **`pipeline.mjs`** `runGenerateSheetPath` (not here) so matting stays **once per sheet** before crops.
  */
 
-import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./postprocess/chroma-key.mjs";
+import {
+  CHROMA_FALLBACK_TOLERANCE_MIN,
+  chromaKeyWithBorderFallback,
+  keySemiTransparentNearKey,
+  removeMagentaFringeAdjacentToTransparent,
+} from "./postprocess/chroma-key.mjs";
 import { countFullyTransparentPercent } from "./postprocess/png-region.mjs";
 
 /** Default when `preset.postprocessSteps` is omitted and `mode === 'generate'`. */
@@ -18,6 +23,8 @@ export const DEFAULT_POSTPROCESS_STEPS_GENERATE = Object.freeze(["chromaKey"]);
  * @property {import('node:buffer').Buffer} buffer
  * @property {{ r: number; g: number; b: number }} keyRgb
  * @property {number} chromaTolerance
+ * @property {number} [chromaFringeEdgeDist]  If set, after chroma peel near-magenta pixels that border transparency (Euclidean to key).
+ * @property {number} [chromaSpillMaxDist]  After fringe: clear **semi-transparent** pixels within this Euclidean distance of the key (BRIA halos).
  * @property {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} log
  */
 
@@ -38,8 +45,23 @@ export function runChromaKeyStage(ctx) {
       transparentPercentAfter: countFullyTransparentPercent(outBuf).toFixed(2),
     });
   }
+  let finalBuf = outBuf;
+  const fringe = ctx.chromaFringeEdgeDist;
+  if (typeof fringe === "number" && fringe > 0) {
+    finalBuf = removeMagentaFringeAdjacentToTransparent(finalBuf, {
+      keyRgb: effectiveChromaKey,
+      edgeDist: fringe,
+    });
+  }
+  const spill = ctx.chromaSpillMaxDist;
+  if (typeof spill === "number" && spill > 0) {
+    finalBuf = keySemiTransparentNearKey(finalBuf, {
+      keyRgb: effectiveChromaKey,
+      maxDist: spill,
+    });
+  }
   return {
-    buffer: outBuf,
+    buffer: finalBuf,
     chromaKeySource: usedPrimaryKey ? "prompt-hex" : "corner-median",
     chromaApplied: true,
   };
@@ -83,8 +105,8 @@ export function resolvePostprocessSteps(preset, mode) {
 }
 
 /**
- * Sheet generate path: after **BRIA** matting, tiles are already RGBA — default **no** per-tile chroma.
- * Set **`preset.fal.chromaAfterBria`** to run **`postprocessSteps`** anyway (A/B vs raw BRIA).
+ * Sheet generate path: after **BRIA** matting, tiles are already RGBA — default **no** per-tile chroma (FalSprite-style).
+ * Set **`preset.fal.chromaAfterBria`** (or **`runPipeline`** **`opts.chromaAfterBria`**) to run **`postprocessSteps`** on each tile — **optional local fringe cleanup**, not required for alpha.
  *
  * @param {{ postprocessSteps?: string[]; fal?: { chromaAfterBria?: boolean } }} preset
  * @param {'mock'|'generate'} mode

@@ -80,7 +80,7 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 1. **`fal.subscribe` to `fal-ai/nano-banana-2`** → read `data.images[0].url` (same response shape as Flux in current `falSubscribeToBuffer`; if fal ever diverges, handle in the endpoint adapter from Phase A).
 2. **Call BRIA with that HTTPS `image_url`** — no client-side upload of the raw PNG for M1 (matches FalSprite’s `runDirectModel` pattern: remote URL in, PNG out). `@fal-ai/client` should use **`fal.subscribe('fal-ai/bria/background/remove', { input: { image_url } })`** unless docs mandate `fal.run`; pick one client API and document timeout/retry.
 3. **Download BRIA result** to a buffer → **`normalizeDecodedSheetToPreset`** to preset `sheet` WxH → **`extractPngRegion`** per frame.
-4. **Post-tile alpha:** If pipeline uses BRIA for the sheet, **default** postprocess to **`[]` or skip `chromaKey`** for those tiles (already RGBA). Optional: `postprocessSteps: ['chromaKey']` only when BRIA disabled for A/B.
+4. **Post-tile alpha:** If pipeline uses BRIA for the sheet, tiles can skip **`chromaKey`** (already RGBA) or run **`chromaKey`** after crops when **`preset.fal.chromaAfterBria`** is **true** (character walk defaults **on** for residual fringe / off-magenta). Optional: `postprocessSteps: ['chromaKey']` only when BRIA disabled for A/B.
 
 - **Placement:** Prefer a **sheet-level step inside `runGenerateSheetPath`** (after T2I URL, before per-tile `extractPngRegion` / chroma) so `POSTPROCESS_REGISTRY` stays **per-tile RGBA operations** (`chromaKey` only). A registry entry that runs once per sheet would be awkward; only add `briaAlpha` to `POSTPROCESS_REGISTRY` if you unify “sheet ops” and “tile ops” later.
 

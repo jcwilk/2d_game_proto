@@ -111,7 +111,106 @@ export function applyChromaKeyToPngBuffer(pngBuffer, opts) {
       out.data[i] = r;
       out.data[i + 1] = g;
       out.data[i + 2] = b;
-      out.data[i + 3] = 255;
+      // Preserve source alpha (BRIA / anti-alias). Forcing 255 was crushing soft edges into
+      // opaque magenta-tinted fringe next to the key color.
+      out.data[i + 3] = png.data[i + 3];
+    }
+  }
+  return PNG.sync.write(out);
+}
+
+/**
+ * After primary chroma, peel residual **magenta-tinted** pixels that sit on the **outer silhouette**
+ * (4-neighbor to a transparent pixel). Uses a **looser** Euclidean distance than the main key so
+ * semi-opaque BRIA fringe can be removed without keying the whole interior.
+ *
+ * @param {Buffer} pngBuffer
+ * @param {{ keyRgb: { r: number; g: number; b: number }; edgeDist: number; passes?: number }} opts
+ * @returns {Buffer}
+ */
+export function removeMagentaFringeAdjacentToTransparent(pngBuffer, opts) {
+  const { keyRgb, edgeDist } = opts;
+  const passes = opts.passes ?? 2;
+  const dist = (r, g, b) => {
+    const dr = r - keyRgb.r;
+    const dg = g - keyRgb.g;
+    const db = b - keyRgb.b;
+    return Math.sqrt(dr * dr + dg * dg + db * db);
+  };
+  let buf = pngBuffer;
+  for (let p = 0; p < passes; p++) {
+    const png = PNG.sync.read(buf);
+    const w = png.width;
+    const h = png.height;
+    const out = new PNG({ width: w, height: h, colorType: 6 });
+    out.data.set(png.data);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (w * y + x) << 2;
+        if (png.data[i + 3] === 0) continue;
+        let adjTrans = false;
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+          const ni = (w * ny + nx) << 2;
+          if (png.data[ni + 3] === 0) {
+            adjTrans = true;
+            break;
+          }
+        }
+        if (!adjTrans) continue;
+        const r = png.data[i];
+        const g = png.data[i + 1];
+        const b = png.data[i + 2];
+        if (dist(r, g, b) <= edgeDist) {
+          out.data[i] = 0;
+          out.data[i + 1] = 0;
+          out.data[i + 2] = 0;
+          out.data[i + 3] = 0;
+        }
+      }
+    }
+    buf = PNG.sync.write(out);
+  }
+  return buf;
+}
+
+/**
+ * BRIA often leaves **partially transparent** edge pixels: RGB is still magenta-tinted but the main
+ * chroma pass may not remove them cleanly when alpha is preserved. This pass only clears pixels with
+ * **`0 < alpha < 255`** within **`maxDist`** of the key — **fully opaque** pixels are unchanged (no
+ * costume loss from this step alone).
+ *
+ * @param {Buffer} pngBuffer
+ * @param {{ keyRgb: { r: number; g: number; b: number }; maxDist: number }} opts
+ * @returns {Buffer}
+ */
+export function keySemiTransparentNearKey(pngBuffer, opts) {
+  const { keyRgb, maxDist } = opts;
+  const png = PNG.sync.read(pngBuffer);
+  const out = new PNG({ width: png.width, height: png.height, colorType: 6 });
+  out.data.set(png.data);
+  const max2 = maxDist * maxDist;
+  for (let i = 0; i < png.data.length; i += 4) {
+    const a = png.data[i + 3];
+    if (a === 0 || a === 255) continue;
+    const r = png.data[i];
+    const g = png.data[i + 1];
+    const b = png.data[i + 2];
+    const dr = r - keyRgb.r;
+    const dg = g - keyRgb.g;
+    const db = b - keyRgb.b;
+    if (dr * dr + dg * dg + db * db <= max2) {
+      out.data[i] = 0;
+      out.data[i + 1] = 0;
+      out.data[i + 2] = 0;
+      out.data[i + 3] = 0;
     }
   }
   return PNG.sync.write(out);

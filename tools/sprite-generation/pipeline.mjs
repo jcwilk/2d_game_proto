@@ -119,6 +119,9 @@ function maskSecret(s) {
  * @property {import('@fal-ai/client').FalClient['subscribe']} [falSubscribe]  Test injection: mock **`fal.subscribe`** (sheet path T2I + BRIA chain).
  * @property {typeof fetch} [fetch]  Test injection for image downloads.
  * @property {boolean} [sheetRewrite]  When set, overrides **`preset.fal.sheetRewrite?.enabled`** for sheet strategy (optional OpenRouter rewrite before T2I).
+ * @property {boolean} [chromaAfterBria]  When **`!== undefined`** (including explicit **`false`**), overrides **`preset.fal.chromaAfterBria`** for sheet strategy (optional per-tile chroma after BRIA matting).
+ * @property {number} [chromaFringeEdgeDist]  Optional looser Euclidean peel on silhouette after chroma (see **`removeMagentaFringeAdjacentToTransparent`**); overrides **`preset.fal.chromaFringeEdgeDist`** when set.
+ * @property {number} [chromaSpillMaxDist]  Optional: after fringe, key semi-transparent pixels near key (see **`keySemiTransparentNearKey`**); overrides **`preset.fal.chromaSpillMaxDist`** when set.
  */
 
 /**
@@ -130,7 +133,7 @@ function maskSecret(s) {
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string }} prompt
- * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
+ * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; chromaFringeEdgeDist?: number; chromaSpillMaxDist?: number; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
@@ -152,6 +155,10 @@ export async function runPipeline(preset, opts) {
   const quiet = Boolean(opts.quiet);
   const chromaKeyHex = opts.chromaKeyHex ?? DEFAULT_CHROMA_KEY_HEX;
   const chromaTolerance = opts.chromaTolerance ?? 72;
+  const chromaFringeEdgeDist =
+    opts.chromaFringeEdgeDist !== undefined ? opts.chromaFringeEdgeDist : preset.fal?.chromaFringeEdgeDist;
+  const chromaSpillMaxDist =
+    opts.chromaSpillMaxDist !== undefined ? opts.chromaSpillMaxDist : preset.fal?.chromaSpillMaxDist;
   const seed = opts.seed;
   const imageSize = opts.imageSize ?? `${preset.tileSize}x${preset.tileSize}`;
   const keepSheet = Boolean(opts.keepSheet);
@@ -209,6 +216,11 @@ export async function runPipeline(preset, opts) {
         });
         log("INFO", "dry-run", "sheet prompt rewrite (openrouter)", {
           skipped: !sheetRewriteEnabled,
+        });
+        const chromaAfterBriaResolved =
+          opts.chromaAfterBria !== undefined ? Boolean(opts.chromaAfterBria) : Boolean(preset.fal?.chromaAfterBria);
+        log("INFO", "dry-run", "sheet tile postprocess after BRIA", {
+          chromaAfterBria: chromaAfterBriaResolved,
         });
       } else {
         log("INFO", "dry-run", "would call fal.subscribe once per frame (per-tile)", {
@@ -281,12 +293,16 @@ export async function runPipeline(preset, opts) {
         ? Boolean(opts.sheetRewrite)
         : Boolean(preset.fal?.sheetRewrite?.enabled);
     const sr = preset.fal?.sheetRewrite;
+    const chromaAfterBriaResolved =
+      opts.chromaAfterBria !== undefined ? Boolean(opts.chromaAfterBria) : Boolean(preset.fal?.chromaAfterBria);
     await runGenerateSheetPath({
       preset,
       generationResultsById,
       timings,
       chromaKeyHex,
       chromaTolerance,
+      chromaFringeEdgeDist,
+      chromaSpillMaxDist,
       seed,
       endpoint,
       quiet,
@@ -299,6 +315,7 @@ export async function runPipeline(preset, opts) {
       sheetRewriteSystemPrompt: sr?.systemPrompt ?? DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT,
       sheetRewriteTemperature: sr?.temperature,
       sheetRewriteMaxTokens: sr?.maxTokens,
+      chromaAfterBria: chromaAfterBriaResolved,
     });
   } else {
     const presetDefaultEp = preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
@@ -311,6 +328,8 @@ export async function runPipeline(preset, opts) {
       timings,
       chromaKeyHex,
       chromaTolerance,
+      chromaFringeEdgeDist,
+      chromaSpillMaxDist,
       seed,
       endpoint,
       imageSize,
@@ -557,6 +576,8 @@ async function runGeneratePerTilePath({
   timings,
   chromaKeyHex,
   chromaTolerance,
+  chromaFringeEdgeDist,
+  chromaSpillMaxDist,
   seed,
   endpoint,
   imageSize,
@@ -617,6 +638,8 @@ async function runGeneratePerTilePath({
     const { buffer: outBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(buffer, postSteps, {
       keyRgb,
       chromaTolerance,
+      chromaFringeEdgeDist,
+      chromaSpillMaxDist,
       log,
     });
     await writeFile(outPng, outBuf);
@@ -652,6 +675,9 @@ async function runGeneratePerTilePath({
  * @param {string} [p.sheetRewriteSystemPrompt]
  * @param {number} [p.sheetRewriteTemperature]
  * @param {number} [p.sheetRewriteMaxTokens]
+ * @param {boolean} [p.chromaAfterBria]  Resolved from **`runPipeline`** opts vs preset (per-tile chroma after BRIA).
+ * @param {number} [p.chromaFringeEdgeDist]
+ * @param {number} [p.chromaSpillMaxDist]
  */
 async function runGenerateSheetPath({
   preset,
@@ -659,6 +685,8 @@ async function runGenerateSheetPath({
   timings,
   chromaKeyHex,
   chromaTolerance,
+  chromaFringeEdgeDist,
+  chromaSpillMaxDist,
   seed,
   endpoint,
   quiet,
@@ -671,6 +699,7 @@ async function runGenerateSheetPath({
   sheetRewriteSystemPrompt = DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT,
   sheetRewriteTemperature,
   sheetRewriteMaxTokens,
+  chromaAfterBria = false,
 }) {
   const sheet = /** @type {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} */ (
     preset.sheet
@@ -681,7 +710,12 @@ async function runGenerateSheetPath({
   const useBria = shouldUseBriaSheetMatting(preset, endpoint);
   /** @type {'bria'|'chroma'} */
   const sheetAlphaSource = useBria ? "bria" : "chroma";
-  const postSteps = resolveSheetTilePostprocessSteps(preset, "generate", sheetAlphaSource);
+  /** FalSprite-style path: BRIA yields tile alpha; optional chroma is local fringe cleanup only. */
+  const presetForTilePost = {
+    ...preset,
+    fal: { ...(preset.fal ?? {}), chromaAfterBria },
+  };
+  const postSteps = resolveSheetTilePostprocessSteps(presetForTilePost, "generate", sheetAlphaSource);
   const { prompt, tileSize, frames } = preset;
 
   for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
@@ -722,6 +756,7 @@ async function runGenerateSheetPath({
   log("INFO", "sheet", useBria ? "T2I → BRIA matting → normalize → RGBA tile crops" : "single fal job + crop + chroma", {
     sheetPx: imageSizeStr,
     sheetMatting: useBria ? "bria" : "none",
+    chromaAfterBria: useBria ? chromaAfterBria : null,
   });
 
   const imageStrategy = getFalImageEndpointStrategy(endpoint);
@@ -783,7 +818,7 @@ async function runGenerateSheetPath({
 
   let png = PNG.sync.read(buffer);
   if (png.width !== sheetW || png.height !== sheetH) {
-    // Sheet decode policy: center-crop to preset aspect then uniform NN — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
+    // Sheet decode policy: center-crop to preset aspect then uniform nearest-neighbor — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
     log("WARN", "sheet", "fal output dimensions differ from preset; center-cropping to strip aspect then uniform nearest-neighbor scale", {
       got: `${png.width}x${png.height}`,
       want: `${sheetW}x${sheetH}`,
@@ -802,6 +837,8 @@ async function runGenerateSheetPath({
     const { buffer: tileBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(tileBufRaw, postSteps, {
       keyRgb,
       chromaTolerance,
+      chromaFringeEdgeDist,
+      chromaSpillMaxDist,
       log,
     });
     const outPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);

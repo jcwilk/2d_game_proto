@@ -4,6 +4,8 @@ import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } fr
 import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
 import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
 import {
+  CHARACTER_CHROMA_FRINGE_EDGE_DIST,
+  CHARACTER_CHROMA_SPILL_MAX_DIST,
   CHARACTER_KIND,
   CHARACTER_PRESET_ID,
   CHARACTER_SHEET_LAYOUT,
@@ -32,10 +34,12 @@ describe("presets/character", () => {
     expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
     expect(p.spriteRef.artUrlPrefix).not.toMatch(/\/$/);
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
-    expect(p.fal?.falExtrasSheet).toMatchObject({ aspect_ratio: "4:1", resolution: "1K" });
+    expect(p.fal?.falExtrasSheet).toMatchObject({ aspect_ratio: "4:1", resolution: "0.5K" });
     expect(p.fal?.sheetRewrite?.enabled).toBe(true);
     expect(typeof p.fal?.sheetRewrite?.systemPrompt).toBe("string");
     expect(p.fal?.chromaAfterBria).toBe(true);
+    expect(p.fal?.chromaFringeEdgeDist).toBe(CHARACTER_CHROMA_FRINGE_EDGE_DIST);
+    expect(p.fal?.chromaSpillMaxDist).toBe(CHARACTER_CHROMA_SPILL_MAX_DIST);
     expect(p.qa.spriteWidth).toBe(16);
     expect(p.qa.spriteHeight).toBe(16);
     expect(p.generatorConfig?.tileBufferForFrame).toBeDefined();
@@ -63,6 +67,12 @@ describe("presets/character", () => {
     expect(recipeIdForCharacter("generate", "sheet")).toBe(
       `sprite-gen-${CHARACTER_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`,
     );
+  });
+
+  it("optional chroma-after-BRIA can be disabled on the preset object (BRIA-only tiles)", () => {
+    const p = createPreset({ outBase: "/tmp/character-out" });
+    const briaOnly = { ...p, fal: { ...p.fal, chromaAfterBria: false } };
+    expect(briaOnly.fal?.chromaAfterBria).toBe(false);
   });
 
   it("throws without outBase", () => {

@@ -38,7 +38,7 @@ function parseHexRgb(hex) {
 }
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number; sheetRewrite: boolean | undefined }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number; sheetRewrite: boolean | undefined; chromaAfterBria: boolean | undefined; chromaFringeEdgeDist: number | undefined; chromaSpillMaxDist: number | undefined }} */
   const opts = {
     mode: "mock",
     strategy: "sheet",
@@ -54,6 +54,10 @@ function parseArgs(argv) {
     chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
     /** `undefined` → use preset (`character` defaults to rewrite on for generate sheet). */
     sheetRewrite: undefined,
+    /** `undefined` → use preset (`character` defaults chroma-after-BRIA on). */
+    chromaAfterBria: undefined,
+    /** `undefined` → use preset silhouette peel distance; **`0`** disables peel. */
+    chromaFringeEdgeDist: undefined,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -103,6 +107,12 @@ function parseArgs(argv) {
       case "--no-rewrite":
         opts.sheetRewrite = false;
         break;
+      case "--chroma-after-bria":
+        opts.chromaAfterBria = true;
+        break;
+      case "--no-chroma-after-bria":
+        opts.chromaAfterBria = false;
+        break;
       case "--quiet":
       case "-q":
         opts.quiet = true;
@@ -118,6 +128,22 @@ function parseArgs(argv) {
           throw new Error("--chroma-tolerance must be an integer 0–255");
         }
         opts.chromaTolerance = v;
+        break;
+      }
+      case "--chroma-fringe-edge-dist": {
+        const v = Number.parseInt(next(), 10);
+        if (Number.isNaN(v) || v < 0 || v > 400) {
+          throw new Error("--chroma-fringe-edge-dist must be an integer 0–400 (0 = off)");
+        }
+        opts.chromaFringeEdgeDist = v;
+        break;
+      }
+      case "--chroma-spill-max-dist": {
+        const v = Number.parseInt(next(), 10);
+        if (Number.isNaN(v) || v < 0 || v > 400) {
+          throw new Error("--chroma-spill-max-dist must be an integer 0–400 (0 = off)");
+        }
+        opts.chromaSpillMaxDist = v;
         break;
       }
       case "--help":
@@ -150,6 +176,9 @@ Options:
   --dry-run
   --rewrite              Sheet: force OpenRouter prompt rewrite before T2I (needs FAL_KEY).
   --no-rewrite           Sheet: skip rewrite (preset defaults to rewrite ON for generate).
+  --chroma-after-bria    Sheet: run per-tile chroma after BRIA (fringe cleanup; default on for character preset).
+  --no-chroma-after-bria Sheet: skip per-tile chroma after BRIA (BRIA alpha only).
+  --chroma-fringe-edge-dist <0-400>  After chroma: peel near-key pixels on the silhouette (default from preset; 0 = off).
   --quiet, -q
   --help, -h
 
@@ -203,6 +232,9 @@ async function main() {
       keepSheet: opts.keepSheet,
       savePreChroma: opts.savePreChroma,
       sheetRewrite: opts.sheetRewrite,
+      ...(opts.chromaAfterBria !== undefined ? { chromaAfterBria: opts.chromaAfterBria } : {}),
+      ...(opts.chromaFringeEdgeDist !== undefined ? { chromaFringeEdgeDist: opts.chromaFringeEdgeDist } : {}),
+      ...(opts.chromaSpillMaxDist !== undefined ? { chromaSpillMaxDist: opts.chromaSpillMaxDist } : {}),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

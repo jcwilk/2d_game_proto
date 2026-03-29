@@ -7,6 +7,7 @@ import {
   POSTPROCESS_REGISTRY,
   resolveGeneratorConfig,
   resolvePostprocessSteps,
+  resolveSheetTilePostprocessSteps,
   runChromaKeyStage,
 } from "./pipeline-stages.mjs";
 import { createPreset } from "./presets/dpad.mjs";
@@ -37,6 +38,14 @@ describe("pipeline-stages", () => {
 
   it("resolvePostprocessSteps: rejects unknown step ids", () => {
     expect(() => resolvePostprocessSteps({ postprocessSteps: ["nope"] }, "generate")).toThrow(/unknown postprocess step/);
+  });
+
+  it("resolveSheetTilePostprocessSteps: BRIA alpha skips chroma unless chromaAfterBria", () => {
+    const base = { postprocessSteps: ["chromaKey"] };
+    expect(resolveSheetTilePostprocessSteps(base, "generate", "bria")).toEqual([]);
+    expect(resolveSheetTilePostprocessSteps({ ...base, fal: { chromaAfterBria: true } }, "generate", "bria")).toEqual([
+      "chromaKey",
+    ]);
   });
 
   it("resolveGeneratorConfig merges preset.generatorConfig with runtime", () => {

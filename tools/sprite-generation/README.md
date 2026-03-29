@@ -16,6 +16,8 @@ The **primary** local command for the four-direction D-pad layout is **`npm run 
 
 **CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, optional **`--rewrite`** for sheet OpenRouter prompt rewrite before T2I, etc.).
 
+**Character walk** (four frames, **`public/art/character/`**): **`npm run character-workflow`** / **`tools/character-workflow.mjs`** uses **`presets/character.mjs`**. Fal’s nano-banana **`resolution`** enum is only **`0.5K` / `1K` / `2K` / `4K`** (there is no sub-0.5K tier). Sheet T2I uses **`4:1`** + **`0.5K`** (smallest tier) then **`normalizeDecodedSheetToPreset`** (**center-crop** to strip aspect, then **nearest-neighbor** uniform scale — avoids bilinear thinning of thin limbs at downscale). Per-tile **`chromaKey`** after BRIA is **on**. **Downscale** in **`normalizeDecodedSheetToPreset`** is **nearest-neighbor only** (no blending in our code — any softness is from the model/BRIA). Post-chroma: **`--chroma-tolerance`** (default **120**), silhouette peel **`--chroma-fringe-edge-dist`** (default **165**), then semi-transparent spill **`--chroma-spill-max-dist`** (default **205**, clears BRIA halos with `0 < alpha < 255` only). Chroma **preserves alpha** on non-keyed opaque pixels.
+
 ### Optional live generation (`--mode generate`)
 
 Run **`npm run dpad-workflow -- --mode generate`** (or `node tools/dpad-workflow.mjs --mode generate`). Set **`FAL_KEY`** in the environment ([fal.ai model APIs](https://docs.fal.ai/model-apis)).
@@ -44,7 +46,7 @@ This section is the **canonical** description of generation strategy, on-disk/ga
 
 | Approach | Role in this repo |
 | --- | --- |
-| **FalSprite-style** (e.g. nano-banana + OpenRouter via fal, BRIA, grid tooling) | **Out of scope** — we do not replicate that full stack; see **Out of scope** below. |
+| **FalSprite (full app / generic N×N UI)** | **Out of scope** — we do not ship that UI. **Same model stack** (nano-banana, BRIA, optional OpenRouter on fal) is used by **presets** where documented; see **`FALSPRITE_INTEGRATION_PLAN.md`**. |
 | **Flux 2 Klein + 2×2 spritesheet LoRA** | **Not the production dpad contract.** A 2×2 Klein raster would need an explicit **crop/stitch** map or manifest/game changes to feed four directional tiles; not adopted until documented and implemented. |
 | **nano-banana-2 + BRIA + dpad preset** | **In scope — primary path:** defaults in **`presets/dpad.mjs`** (`DEFAULT_FAL_ENDPOINT`, sheet geometry, crops, nano **`falExtrasSheet`**). |
 | **FLUX.1 [dev] on fal + dpad preset** | **In scope — alternate:** pass **`--endpoint fal-ai/flux/dev`**; Flux-shaped **`falExtras`** apply only within the Flux family. |
@@ -61,7 +63,7 @@ Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls b
 - **Full FalSprite parity** (multi-model grids, OpenRouter routing, FalSprite UI).
 - **Replacing** the dpad **1×4 + `frameKeyRect`** contract with **2×2 Klein** output **without** a written crop/stitch or manifest migration plan.
 
-**BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). Optional **`preset.fal.chromaAfterBria`** runs **`postprocessSteps`** on tiles after BRIA (usually unnecessary). Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
+**BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). **`preset.fal.chromaAfterBria`** (character walk defaults **on**; use **`runPipeline`** / CLI to override) runs **`postprocessSteps`** on tiles **after** BRIA for residual fringe / keyed background. Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
 
 ### Runtime topology (game + `public/art`)
 
@@ -76,7 +78,7 @@ If a future pipeline emitted **2×2** (e.g. Klein), the repo would need a define
 ### Alpha path: chroma vs BRIA (testable surface)
 
 - **Per-tile postprocess:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes **`postprocessSteps`**; **`resolvePostprocessSteps`** applies it in generate mode for **per-tile** and for **sheet** when alpha comes from **chroma** (flux) or when **`preset.fal.chromaAfterBria`** is set after BRIA. **`runPipeline`** passes **`chromaKeyHex`** (default **`#FF00FF`**) and tolerance into the chroma stage.
-- **Sheet BRIA:** **`fal-ai/bria/background/remove`** runs **once per sheet** after T2I when **`shouldUseBriaSheetMatting`** is true (default for **`fal-ai/nano-banana-2`**; override with **`preset.fal.sheetMatting: 'none'`** or **`'bria'`**). Matted tiles skip chroma unless **`chromaAfterBria`**. **`generationResults._sheet.alphaSource`** records **`bria`** vs **`chroma`** vs **`none`** (mock).
+- **Sheet BRIA:** **`fal-ai/bria/background/remove`** runs **once per sheet** after T2I when **`shouldUseBriaSheetMatting`** is true (default for **`fal-ai/nano-banana-2`**; override with **`preset.fal.sheetMatting: 'none'`** or **`'bria'`**). Matted tiles run **`chromaKey`** after crop when **`chromaAfterBria`** is set (character walk: default **on**). **`generationResults._sheet.alphaSource`** records **`bria`** vs **`chroma`** vs **`none`** (mock).
 
 **`resolveGeneratorConfig`** (`pipeline-stages.mjs`) merges **`preset.generatorConfig`** with runtime **`tileSize`**, **`seed`**, and sheet layout for mock/fal **shape** wiring — separate from postprocess ids but part of the same preset contract.
 

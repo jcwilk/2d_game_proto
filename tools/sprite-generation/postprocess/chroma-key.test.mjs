@@ -6,12 +6,30 @@ import {
   CHROMA_FALLBACK_TOLERANCE_MIN,
   applyChromaKeyToPngBuffer,
   chromaKeyWithBorderFallback,
+  keySemiTransparentNearKey,
+  removeMagentaFringeAdjacentToTransparent,
 } from "./chroma-key.mjs";
 import { countFullyTransparentPercent } from "./png-region.mjs";
 
 describe("chroma-key", () => {
   it("exports CHROMA_FALLBACK_TOLERANCE_MIN unchanged", () => {
     expect(CHROMA_FALLBACK_TOLERANCE_MIN).toBe(64);
+  });
+
+  it("applyChromaKeyToPngBuffer preserves source alpha for non-keyed pixels (BRIA soft edges)", () => {
+    const png = new PNG({ width: 1, height: 1, colorType: 6 });
+    png.data[0] = 20;
+    png.data[1] = 200;
+    png.data[2] = 30;
+    png.data[3] = 90;
+    const raw = PNG.sync.write(png);
+    const out = applyChromaKeyToPngBuffer(raw, {
+      keyRgb: { r: 255, g: 0, b: 255 },
+      tolerance: 40,
+    });
+    const d = PNG.sync.read(out).data;
+    expect(d[3]).toBe(90);
+    expect([d[0], d[1], d[2]]).toEqual([20, 200, 30]);
   });
 
   it("applyChromaKeyToPngBuffer: primary key removes matching pixels deterministically", () => {
@@ -38,6 +56,39 @@ describe("chroma-key", () => {
     expect([decoded.data[20], decoded.data[21], decoded.data[22], decoded.data[23]]).toEqual([
       0, 255, 0, 255,
     ]);
+  });
+
+  it("keySemiTransparentNearKey clears only partial-alpha pixels near key", () => {
+    const png = new PNG({ width: 2, height: 1, colorType: 6 });
+    png.data.fill(0);
+    // left: semi-transparent magenta; right: opaque magenta (unchanged by spill)
+    png.data.set([255, 0, 255, 100, 255, 0, 255, 255], 0);
+    const raw = PNG.sync.write(png);
+    const out = keySemiTransparentNearKey(raw, {
+      keyRgb: { r: 255, g: 0, b: 255 },
+      maxDist: 10,
+    });
+    const d = PNG.sync.read(out).data;
+    expect([d[0], d[1], d[2], d[3]]).toEqual([0, 0, 0, 0]);
+    expect([d[4], d[5], d[6], d[7]]).toEqual([255, 0, 255, 255]);
+  });
+
+  it("removeMagentaFringeAdjacentToTransparent clears near-key pixels that border transparency", () => {
+    const png = new PNG({ width: 3, height: 1, colorType: 6 });
+    png.data.fill(0);
+    // center: opaque pink-magenta fringe; neighbors transparent
+    png.data[8] = 240;
+    png.data[9] = 40;
+    png.data[10] = 230;
+    png.data[11] = 255;
+    const raw = PNG.sync.write(png);
+    const out = removeMagentaFringeAdjacentToTransparent(raw, {
+      keyRgb: { r: 255, g: 0, b: 255 },
+      edgeDist: 250,
+      passes: 1,
+    });
+    const mid = PNG.sync.read(out).data;
+    expect([mid[8], mid[9], mid[10], mid[11]]).toEqual([0, 0, 0, 0]);
   });
 
   it("chromaKeyWithBorderFallback uses primary key when enough pixels are keyed out", () => {

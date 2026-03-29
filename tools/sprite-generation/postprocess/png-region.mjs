@@ -7,10 +7,11 @@ import { PNG } from "pngjs";
  * strip (`400×100`). We
  * **do not** anisotropically nearest-neighbor squash that square onto the strip (different X vs Y scale
  * distorts glyphs). Instead we **center-crop** the decoded raster to the preset’s aspect ratio
- * (**`SHEET_WIDTH`∶`SHEET_HEIGHT`**, e.g. 4∶1), then apply **one** uniform nearest-neighbor resize to the
- * exact preset pixel size (same scale factor on both axes — pixel-art friendly). Rejected for this path:
- * relying on fal always honoring non-square `image_size`; changing strip dimensions without updating the
- * preset; using anisotropic NN as the sole fix from square output.
+ * (**`SHEET_WIDTH`∶`SHEET_HEIGHT`**, e.g. 4∶1), then apply **one** uniform **nearest-neighbor** resize to the
+ * exact preset pixel size (**`resizePngBufferNearest`**). Bilinear blending was tried for softer fringes but
+ * thins small limbs/sprites at strong downscales; NN keeps discrete samples per output pixel (pixel-art policy).
+ * Rejected for this path: relying on fal always honoring non-square `image_size`; changing strip dimensions
+ * without updating the preset; using anisotropic NN as the sole fix from square output.
  */
 
 /**
@@ -89,8 +90,78 @@ export function resizePngBufferNearest(pngBuffer, targetW, targetH) {
 }
 
 /**
- * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform nearest-neighbor resize to exactly
- * **`targetW`×`targetH`**. See module comment (epic **2gp-p4js**).
+ * Bilinear resize with **premultiplied alpha** (reduces dark/magenta halos when downscaling RGBA sheets).
+ *
+ * @param {Buffer} pngBuffer
+ * @param {number} targetW
+ * @param {number} targetH
+ * @returns {Buffer}
+ */
+export function resizePngBufferBilinearPremultiplied(pngBuffer, targetW, targetH) {
+  const src = PNG.sync.read(pngBuffer);
+  if (src.width === targetW && src.height === targetH) {
+    return pngBuffer;
+  }
+  const sw = src.width;
+  const sh = src.height;
+  if (sw < 2 || sh < 2) {
+    return resizePngBufferNearest(pngBuffer, targetW, targetH);
+  }
+  const dst = new PNG({ width: targetW, height: targetH, colorType: 6 });
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  const samplePm = (xi, yi) => {
+    const cx = clamp(xi, 0, sw - 1);
+    const cy = clamp(yi, 0, sh - 1);
+    const i = (sw * cy + cx) << 2;
+    const r = src.data[i];
+    const g = src.data[i + 1];
+    const b = src.data[i + 2];
+    const a = src.data[i + 3];
+    const af = a / 255;
+    return { pr: r * af, pg: g * af, pb: b * af, pa: a };
+  };
+  for (let y = 0; y < targetH; y++) {
+    for (let x = 0; x < targetW; x++) {
+      const sx = ((x + 0.5) * sw) / targetW - 0.5;
+      const sy = ((y + 0.5) * sh) / targetH - 0.5;
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      const fx = sx - x0;
+      const fy = sy - y0;
+      const c00 = samplePm(x0, y0);
+      const c10 = samplePm(x0 + 1, y0);
+      const c01 = samplePm(x0, y0 + 1);
+      const c11 = samplePm(x0 + 1, y0 + 1);
+      const w00 = (1 - fx) * (1 - fy);
+      const w10 = fx * (1 - fy);
+      const w01 = (1 - fx) * fy;
+      const w11 = fx * fy;
+      const pmR = w00 * c00.pr + w10 * c10.pr + w01 * c01.pr + w11 * c11.pr;
+      const pmG = w00 * c00.pg + w10 * c10.pg + w01 * c01.pg + w11 * c11.pg;
+      const pmB = w00 * c00.pb + w10 * c10.pb + w01 * c01.pb + w11 * c11.pb;
+      const pmA = w00 * c00.pa + w10 * c10.pa + w01 * c01.pa + w11 * c11.pa;
+      const di = (targetW * y + x) << 2;
+      const outA = Math.round(Math.min(255, Math.max(0, pmA)));
+      if (outA <= 0) {
+        dst.data[di] = 0;
+        dst.data[di + 1] = 0;
+        dst.data[di + 2] = 0;
+        dst.data[di + 3] = 0;
+        continue;
+      }
+      const fa = outA / 255;
+      dst.data[di] = Math.round(Math.min(255, Math.max(0, pmR / fa)));
+      dst.data[di + 1] = Math.round(Math.min(255, Math.max(0, pmG / fa)));
+      dst.data[di + 2] = Math.round(Math.min(255, Math.max(0, pmB / fa)));
+      dst.data[di + 3] = outA;
+    }
+  }
+  return PNG.sync.write(dst);
+}
+
+/**
+ * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform **nearest-neighbor** resize to exactly
+ * **`targetW`×`targetH`** (see **`resizePngBufferNearest`**). See module comment (epic **2gp-p4js**).
  *
  * @param {Buffer} pngBuffer
  * @param {number} targetW  Preset sheet width (e.g. **`SHEET_WIDTH`**).

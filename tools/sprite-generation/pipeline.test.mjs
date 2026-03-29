@@ -150,6 +150,57 @@ describe("pipeline (integration)", () => {
     expect(upPng.height).toBe(100);
   });
 
+  it("generate sheet + BRIA + chromaAfterBria opt-in: per-tile chroma runs after BRIA crops", async () => {
+    vi.stubEnv("FAL_KEY", "test-key");
+    dir = join(tmpdir(), `pipe-gen-bria-chroma-${process.pid}-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    const preset = dpadLikePreset(dir);
+
+    const sheetW = 400;
+    const sheetH = 100;
+    const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
+    png.data.fill(0);
+    for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(png));
+
+    const falSubscribe = vi.fn(async (ep) => {
+      if (ep === "fal-ai/nano-banana-2") {
+        return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
+      }
+      if (ep === "fal-ai/bria/background/remove") {
+        return { data: { image: { url: "https://cdn.example.com/bria.png" } } };
+      }
+      throw new Error(`unexpected endpoint ${ep}`);
+    });
+    const fetchMock = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("bria.png")) {
+        return {
+          ok: true,
+          arrayBuffer: async () =>
+            pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await runPipeline(preset, {
+      mode: "generate",
+      strategy: "sheet",
+      endpoint: "fal-ai/nano-banana-2",
+      skipQa: true,
+      quiet: true,
+      sheetRewrite: false,
+      chromaAfterBria: true,
+      falSubscribe,
+      fetch: fetchMock,
+    });
+
+    const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
+    expect(manifest.generationResults?._sheet?.alphaSource).toBe("bria");
+    expect(manifest.generationResults?.up?.chromaApplied).toBe(true);
+  });
+
   it("generate sheet: preset falExtrasSheet merges when --endpoint is same nano-banana family (not exact string)", async () => {
     vi.stubEnv("FAL_KEY", "test-key");
     dir = join(tmpdir(), `pipe-gen-family-${process.pid}-${Date.now()}`);

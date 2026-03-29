@@ -19,8 +19,8 @@ body {
  * so it shrinks when the window is nearly square, leaving room for the control strip.
  *
  * Alignment: the square sits on the far edge from the controls (not centered in the
- * leftover band). Portrait → flush top; landscape → flush left. Padding opens only on
- * the sides away from that edge (see per-orientation rules).
+ * leftover band). Portrait → flush top + flush left; landscape → flush left + flush top.
+ * No inset on those edges so the canvas meets the screen corner.
  */
 
 #game-root {
@@ -55,27 +55,21 @@ body {
   container-name: game-stage;
 }
 
-/* Portrait: playfield top-aligned (and horizontally centered); padding except top */
+/* Portrait: flush top + flush left (no centering gap on the left) */
 @media (orientation: portrait) {
   #game-stage {
     align-items: flex-start;
-    justify-content: center;
-    padding-top: 0;
-    padding-left: min(0.5rem, 2vw);
-    padding-right: min(0.5rem, 2vw);
-    padding-bottom: min(0.5rem, 2vw);
+    justify-content: flex-start;
+    padding: 0;
   }
 }
 
-/* Landscape: playfield left-aligned (and top-aligned); padding except left */
+/* Landscape: flush left + flush top (no inset gap above the playfield) */
 @media (orientation: landscape) {
   #game-stage {
     justify-content: flex-start;
     align-items: flex-start;
-    padding-left: 0;
-    padding-top: min(0.5rem, 2vw);
-    padding-right: min(0.5rem, 2vw);
-    padding-bottom: min(0.5rem, 2vw);
+    padding: 0;
   }
 }
 

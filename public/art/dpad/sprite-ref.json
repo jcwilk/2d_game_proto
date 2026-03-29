@@ -2,8 +2,8 @@
   "grid": {
     "rows": 2,
     "columns": 2,
-    "spriteWidth": 100,
-    "spriteHeight": 100
+    "spriteWidth": 256,
+    "spriteHeight": 256
   },
   "frames": {
     "up": {

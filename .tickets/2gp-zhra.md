@@ -1,6 +1,6 @@
 ---
 id: 2gp-zhra
-status: open
+status: closed
 deps: [2gp-wur1]
 links: []
 created: 2026-03-29T17:54:41Z

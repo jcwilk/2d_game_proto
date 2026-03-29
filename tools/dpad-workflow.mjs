@@ -141,7 +141,7 @@ D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
-  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
+  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 2×2 grid + crop
                          (default T2I: fal-ai/nano-banana-2 + optional BRIA matting).
                          **per-tile** = one T2I call per frame (same --seed when set); default endpoint matches preset.
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.

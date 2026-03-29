@@ -863,7 +863,6 @@ async function runGenerateSheetPath({
   const { tileSize, frames } = preset;
   const sheetOnlyOutput = Boolean(preset.sheetOnlyOutput);
   const sheetGridSize = preset.sheetGridSize ?? 4;
-  const hasFalspriteBuilder = typeof preset.prompt?.sheetPromptBuilder === "function";
 
   if (!sheetOnlyOutput) {
     for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
@@ -887,9 +886,15 @@ async function runGenerateSheetPath({
       log,
       falSubscribe,
     });
-    promptForT2i = hasFalspriteBuilder
-      ? buildFalspriteStyleSpritePrompt(rw.text.trim(), sheetGridSize)
-      : rw.text;
+    promptForT2i =
+      typeof preset.prompt?.sheetPromptBuilder === "function"
+        ? preset.prompt.sheetPromptBuilder({
+            sheetWidth: sheetW,
+            sheetHeight: sheetH,
+            chromaKeyHex,
+            rewrittenBase: rw.text.trim(),
+          })
+        : rw.text;
     rewriteWallMs = rw.wallMs;
     timings.rewritePrompt = rewriteWallMs;
   } else {

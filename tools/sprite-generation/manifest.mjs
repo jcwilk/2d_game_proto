@@ -20,13 +20,13 @@
  */
 
 /** Bump a slug when mock path semantics (frames list, mock generator contract) change. */
-export const RECIPE_VERSION_MOCK = "v2-frames";
+export const RECIPE_VERSION_MOCK = "v3-dpad-2x2-grid";
 
 /** Bump when per-tile fal + chroma postprocess contract changes (plain txt2img). */
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
 /** Bump when sheet fal + crop + alpha contract changes (flux/chroma vs nano-banana + BRIA matting). */
-export const RECIPE_VERSION_SHEET = "v19-native-sheet-raster";
+export const RECIPE_VERSION_SHEET = "v20-dpad-2x2-sheet-only";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx

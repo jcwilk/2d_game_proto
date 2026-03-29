@@ -2,8 +2,25 @@
  * DOM-native directional chrome (d-pad) outside the canvas. Complements
  * `subscribePointerInput` in `pointer.ts` — see that module’s header for the
  * engine vs chrome split.
+ *
+ * One **`sheet.png`** (2×2) is loaded; each control shows a quadrant via CSS
+ * **`background-position`**. Path: **`art/dpad/sheet.png`** under Vite `public/` (same rule as
+ * **`publicArtUrl`** in **`atlasLoader.ts`**, inlined here to avoid pulling Excalibur in tests).
  */
 export type Direction = 'up' | 'down' | 'left' | 'right';
+
+function dpadSheetPublicUrl(): string {
+  const base = import.meta.env.BASE_URL;
+  return base.endsWith('/') ? `${base}art/dpad/sheet.png` : `${base}/art/dpad/sheet.png`;
+}
+
+/** Row-major 2×2 sheet: up | down / left | right — matches `presets/dpad.mjs` `DPAD_FRAME_SHEET_CELLS`. */
+const CHROME_SHEET_BG_POSITION: Record<Direction, string> = {
+  up: '0% 0%',
+  down: '100% 0%',
+  left: '0% 100%',
+  right: '100% 100%',
+};
 
 export interface ActiveDirectionFlags {
   up: boolean;
@@ -45,7 +62,7 @@ export interface DirectionalChromeHandle {
 
 /**
  * Wires `.game-chrome` nodes under `root`: pointer listeners, per §6.2 maps/sets,
- * and `img.src` from `import.meta.env.BASE_URL`.
+ * and `sheet.png` slice via CSS background on `.game-chrome-img`.
  */
 export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHandle {
   const pointerToDirection = new Map<number, Direction>();
@@ -58,13 +75,17 @@ export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHan
 
   const chromeNodes = root.querySelectorAll<HTMLElement>('.game-chrome');
 
-  const base = import.meta.env.BASE_URL;
+  const sheetUrl = dpadSheetPublicUrl();
   for (const el of chromeNodes) {
     const dir = directionFromDataset(el);
     if (!dir) continue;
-    const url = `${base}art/dpad/${dir}/dpad.png`;
-    const img = el.querySelector<HTMLImageElement>('img.game-chrome-img');
-    if (img) img.src = url;
+    const node = el.querySelector<HTMLElement>('.game-chrome-img');
+    if (node) {
+      node.style.backgroundImage = `url("${sheetUrl}")`;
+      node.style.backgroundSize = '200% 200%';
+      node.style.backgroundRepeat = 'no-repeat';
+      node.style.backgroundPosition = CHROME_SHEET_BG_POSITION[dir];
+    }
   }
 
   function activeFromSets(): ActiveDirectionFlags {

@@ -50,9 +50,9 @@ function dpadGridPreset() {
     },
     frameSheetCells: {
       up: { column: 0, row: 0 },
-      right: { column: 1, row: 0 },
+      down: { column: 1, row: 0 },
       left: { column: 0, row: 1 },
-      down: { column: 1, row: 1 },
+      right: { column: 1, row: 1 },
     },
     spriteRef: {
       kind: 'gridFrameKeys',
@@ -105,7 +105,7 @@ describe('sprite-ref', () => {
       spriteHeight: 256,
     });
     expect(manifest.frames['up']).toEqual({ column: 0, row: 0 });
-    expect(manifest.frames['down']).toEqual({ column: 1, row: 1 });
+    expect(manifest.frames['down']).toEqual({ column: 1, row: 0 });
     expect(raw['image']).toBe('art/dpad/sheet.png');
   });
 

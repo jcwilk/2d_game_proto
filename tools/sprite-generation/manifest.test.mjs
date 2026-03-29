@@ -31,8 +31,8 @@ const FAL_EXTRAS_TILE = {
 const SHEET_CROPS_FIXTURE = {
   up: { x: 0, y: 0 },
   down: { x: 100, y: 0 },
-  left: { x: 200, y: 0 },
-  right: { x: 300, y: 0 },
+  left: { x: 0, y: 100 },
+  right: { x: 100, y: 100 },
 };
 
 const KEY_RGB = { r: 255, g: 0, b: 255 };
@@ -68,9 +68,9 @@ describe("manifest builder", () => {
       endpoint: null,
       imageSize: "100x100",
       tileSize: 100,
-      sheetSize: 400,
-      sheetWidth: 400,
-      sheetHeight: 100,
+      sheetSize: 200,
+      sheetWidth: 200,
+      sheetHeight: 200,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 42,
@@ -80,6 +80,7 @@ describe("manifest builder", () => {
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
       pngBasename: "dpad.png",
+      specsNaming: "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png",
     });
 
     for (const k of requiredTopLevelKeys()) {
@@ -98,7 +99,7 @@ describe("manifest builder", () => {
     expect(specs.tileSize).toEqual({ width: 100, height: 100 });
     expect(specs).not.toHaveProperty("strategy");
     expect(specs).not.toHaveProperty("chroma");
-    expect(specs.naming).toBe("dpad.png per frame folder (outSubdir)");
+    expect(specs.naming).toBe("sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png");
 
     const gr = /** @type {{ mode: string; endpoint: unknown; falExtrasPerTile: unknown; falExtrasSheet: unknown; note: string }} */ (
       m.generationRecipe
@@ -122,9 +123,9 @@ describe("manifest builder", () => {
       endpoint: null,
       imageSize: "100x100",
       tileSize: 100,
-      sheetSize: 400,
-      sheetWidth: 400,
-      sheetHeight: 100,
+      sheetSize: 200,
+      sheetWidth: 200,
+      sheetHeight: 200,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 42,
@@ -196,11 +197,11 @@ describe("manifest builder", () => {
       mode: "generate",
       strategy: "sheet",
       endpoint: "fal-ai/nano-banana-2",
-      imageSize: "400x100",
+      imageSize: "200x200",
       tileSize: 100,
-      sheetSize: 400,
-      sheetWidth: 400,
-      sheetHeight: 100,
+      sheetSize: 200,
+      sheetWidth: 200,
+      sheetHeight: 200,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 72,
@@ -214,19 +215,19 @@ describe("manifest builder", () => {
 
     expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
     expect(m.workflow).toContain("fal sheet");
-    expect(m.workflow).toContain("400×100");
+    expect(m.workflow).toContain("200×200");
 
     const gr = /** @type {{ falExtrasPerTile: null; falExtrasSheet: object }} */ (m.generationRecipe);
     expect(gr.falExtrasPerTile).toBeNull();
     expect(gr.falExtrasSheet).toEqual(DPAD_FAL_EXTRAS_SHEET);
-    expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("400x100");
+    expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("200x200");
     expect(String(m.workflow)).toContain("fal-ai/nano-banana-2");
 
     const specs = /** @type {{ sheetSize: { width: number; height: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
     expect(specs.strategy).toBe("sheet");
-    expect(specs.sheetSize).toEqual({ width: 400, height: 100 });
+    expect(specs.sheetSize).toEqual({ width: 200, height: 200 });
     expect(specs.sheetCropMap).toEqual(SHEET_CROPS_FIXTURE);
-    expect(specs.imageSize).toBe("400x100");
+    expect(specs.imageSize).toBe("200x200");
   });
 
   it("structural field names align with generate-sheet fixture (not public/ mock output)", async () => {
@@ -244,11 +245,11 @@ describe("manifest builder", () => {
       mode: "generate",
       strategy: "sheet",
       endpoint: "fal-ai/nano-banana-2",
-      imageSize: "400x100",
+      imageSize: "200x200",
       tileSize: 100,
-      sheetSize: 400,
-      sheetWidth: 400,
-      sheetHeight: 100,
+      sheetSize: 200,
+      sheetWidth: 200,
+      sheetHeight: 200,
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 72,

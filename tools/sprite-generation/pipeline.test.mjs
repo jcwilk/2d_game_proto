@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 
 import { parseFrameKeyRectManifestJson } from "../../src/art/atlasTypes.ts";
+import { buildDpadGridSpritePrompt } from "./prompt.mjs";
 import { hashPromptForLog } from "./generators/fal.mjs";
 import { RECIPE_VERSION_MOCK } from "./manifest.mjs";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
@@ -23,6 +24,26 @@ function dpadLikePreset(outBase) {
   });
 }
 
+/**
+ * D-pad preset with per-frame PNG output + chroma postprocess (for tests that assert cropped tiles).
+ * @param {string} outBase
+ */
+function dpadLikePresetPerTileOutput(outBase) {
+  const p = dpadLikePreset(outBase);
+  return {
+    ...p,
+    sheetOnlyOutput: false,
+    sheetNativeRaster: false,
+    postprocessSteps: ["chromaKey"],
+    spriteRef: {
+      kind: "frameKeyRect",
+      jsonRelativePath: "sprite-ref.json",
+      artUrlPrefix: "art/pipeline-test",
+      pngFilename: "dpad.png",
+    },
+  };
+}
+
 describe("pipeline (integration)", () => {
   /** @type {string | undefined} */
   let dir;
@@ -38,7 +59,7 @@ describe("pipeline (integration)", () => {
   it("mock per-tile: PNGs, manifest, sprite-ref, png-analyze sidecars under tmpdir", async () => {
     dir = join(tmpdir(), `pipe-mock-tile-${process.pid}-${Date.now()}`);
     await mkdir(dir, { recursive: true });
-    const preset = dpadLikePreset(dir);
+    const preset = dpadLikePresetPerTileOutput(dir);
 
     const result = await runPipeline(preset, { mode: "mock", strategy: "per-tile" });
 
@@ -69,24 +90,29 @@ describe("pipeline (integration)", () => {
     expect(refRaw.images?.up).toBe("art/pipeline-test/up/dpad.png");
   });
 
-  it("mock sheet + crop: four tiles from one mock sheet, manifest records sheet strategy metadata", async () => {
+  it("mock sheet + sheetOnlyOutput: sheet.png + grid sprite-ref, no per-frame PNGs", async () => {
     dir = join(tmpdir(), `pipe-mock-sheet-${process.pid}-${Date.now()}`);
     await mkdir(dir, { recursive: true });
     const preset = dpadLikePreset(dir);
 
     await runPipeline(preset, { mode: "mock", strategy: "sheet" });
 
-    for (const id of ["up", "down", "left", "right"]) {
-      const pngPath = join(dir, id, "dpad.png");
-      const buf = await readFile(pngPath);
-      const png = PNG.sync.read(buf);
-      expect(png.width).toBe(100);
-      expect(png.height).toBe(100);
-    }
+    const sheetBuf = await readFile(join(dir, "sheet.png"));
+    const sheetPng = PNG.sync.read(sheetBuf);
+    expect(sheetPng.width).toBe(200);
+    expect(sheetPng.height).toBe(200);
+
+    const refRaw = JSON.parse(await readFile(join(dir, "sprite-ref.json"), "utf8"));
+    expect(refRaw.image).toBe("art/pipeline-test/sheet.png");
+    const gridParsed = parseGridFrameKeysManifestJson(refRaw);
+    expect(gridParsed.grid.rows).toBe(2);
+    expect(gridParsed.frames.up).toEqual({ column: 0, row: 0 });
+    expect(gridParsed.frames.right).toEqual({ column: 1, row: 1 });
 
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
     expect(manifest.generationRecipe?.mode).toBe("mock");
     expect(manifest.generationResults?.up?.fromSheet).toBe(true);
+    expect(manifest.generationResults?.up?.sheetOnly).toBe(true);
     expect(manifest.generationResults?._sheet?.strategy).toBe("sheet");
   });
 
@@ -157,14 +183,14 @@ describe("pipeline (integration)", () => {
     expect(manifest.specs?.sheetSize?.width).toBe(512);
   });
 
-  it("generate sheet + BRIA: mock T2I URL → BRIA → RGBA tiles; manifest alphaSource bria on _sheet", async () => {
+  it("generate sheet + BRIA: mock T2I URL → BRIA → sheet.png; manifest alphaSource bria on _sheet", async () => {
     vi.stubEnv("FAL_KEY", "test-key");
     dir = join(tmpdir(), `pipe-gen-bria-${process.pid}-${Date.now()}`);
     await mkdir(dir, { recursive: true });
     const preset = dpadLikePreset(dir);
 
-    const sheetW = 400;
-    const sheetH = 100;
+    const sheetW = 200;
+    const sheetH = 200;
     const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
     png.data.fill(0);
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
@@ -213,20 +239,20 @@ describe("pipeline (integration)", () => {
     expect(manifest.generationResults?.up?.alphaSource).toBe("bria");
     expect(manifest.generationResults?.up?.chromaApplied).toBe(false);
 
-    const upBuf = await readFile(join(dir, "up", "dpad.png"));
-    const upPng = PNG.sync.read(upBuf);
-    expect(upPng.width).toBe(100);
-    expect(upPng.height).toBe(100);
+    const sheetBuf = await readFile(join(dir, "sheet.png"));
+    const sheetPng = PNG.sync.read(sheetBuf);
+    expect(sheetPng.width).toBe(200);
+    expect(sheetPng.height).toBe(200);
   });
 
   it("generate sheet + BRIA + chromaAfterBria opt-in: per-tile chroma runs after BRIA crops", async () => {
     vi.stubEnv("FAL_KEY", "test-key");
     dir = join(tmpdir(), `pipe-gen-bria-chroma-${process.pid}-${Date.now()}`);
     await mkdir(dir, { recursive: true });
-    const preset = dpadLikePreset(dir);
+    const preset = dpadLikePresetPerTileOutput(dir);
 
-    const sheetW = 400;
-    const sheetH = 100;
+    const sheetW = 200;
+    const sheetH = 200;
     const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
     png.data.fill(0);
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
@@ -276,8 +302,8 @@ describe("pipeline (integration)", () => {
     await mkdir(dir, { recursive: true });
     const preset = dpadLikePreset(dir);
 
-    const sheetW = 400;
-    const sheetH = 100;
+    const sheetW = 200;
+    const sheetH = 200;
     const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
     png.data.fill(0);
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
@@ -318,8 +344,8 @@ describe("pipeline (integration)", () => {
       fetch: fetchMock,
     });
 
-    expect(t2iInput?.aspect_ratio).toBe("4:1");
-    expect(t2iInput?.resolution).toBe("1K");
+    expect(t2iInput?.aspect_ratio).toBe("1:1");
+    expect(t2iInput?.resolution).toBe("0.5K");
   });
 
   it("generate sheet + BRIA + rewrite: openrouter then T2I; manifest records rewriteModel and rewrittenPromptFingerprint", async () => {
@@ -328,8 +354,8 @@ describe("pipeline (integration)", () => {
     await mkdir(dir, { recursive: true });
     const preset = dpadLikePreset(dir);
 
-    const sheetW = 400;
-    const sheetH = 100;
+    const sheetW = 200;
+    const sheetH = 200;
     const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
     png.data.fill(0);
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
@@ -375,11 +401,11 @@ describe("pipeline (integration)", () => {
     });
 
     expect(falSubscribe).toHaveBeenCalledTimes(3);
-    expect(t2iInput?.prompt).toBe(rewritten);
+    expect(String(t2iInput?.prompt)).toContain(rewritten);
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
     const sheet = manifest.generationResults?._sheet;
     expect(sheet?.rewriteModel).toBe("openai/gpt-4o-mini");
-    expect(sheet?.rewrittenPromptFingerprint).toBe(hashPromptForLog(rewritten));
+    expect(sheet?.rewrittenPromptFingerprint).toBe(hashPromptForLog(buildDpadGridSpritePrompt(rewritten, 2)));
     expect(sheet?.rewriteWallMs).toBeGreaterThanOrEqual(0);
   });
 });

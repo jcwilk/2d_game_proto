@@ -247,7 +247,8 @@ export function createPreset(opts) {
       sheetComposition: CHARACTER_WALK_SHEET_COMPOSITION,
       sheetSubject: CHARACTER_FALSPRITE_SHEET_SUBJECT,
       sheetRewriteUserPrompt: CHARACTER_WALK_SHEET_REWRITE_USER_SEED,
-      sheetPromptBuilder: () => buildFalspriteStyleSpritePrompt(CHARACTER_FALSPRITE_SHEET_SUBJECT, 2),
+      sheetPromptBuilder: (ctx) =>
+        buildFalspriteStyleSpritePrompt(ctx.rewrittenBase ?? CHARACTER_FALSPRITE_SHEET_SUBJECT, 2),
       framePromptSuffix: CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
     },
     fal: {

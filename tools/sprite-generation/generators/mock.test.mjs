@@ -105,7 +105,7 @@ describe("sprite-generation mock generator", () => {
     expect(rgbaAt(sheet, 128, 128).a).toBeGreaterThan(0);
   });
 
-  it("composes 1×4 dpad strip at 100px tile (400×100 sheet)", async () => {
+  it("composes 2×2 dpad sheet at 100px tile (200×200 sheet)", async () => {
     const frames = [
       { id: "up", outSubdir: "u", promptVariant: "" },
       { id: "down", outSubdir: "d", promptVariant: "" },
@@ -116,11 +116,11 @@ describe("sprite-generation mock generator", () => {
       tileSize: 100,
       sheetLayout: DPAD_SHEET_LAYOUT,
     });
-    expect(metadata.width).toBe(400);
-    expect(metadata.height).toBe(100);
+    expect(metadata.width).toBe(200);
+    expect(metadata.height).toBe(200);
     const sheet = PNG.sync.read(buffer);
-    expect(sheet.width).toBe(400);
-    expect(sheet.height).toBe(100);
+    expect(sheet.width).toBe(200);
+    expect(sheet.height).toBe(200);
   });
 
   it("exports pointInTriangle consistent with raster", () => {

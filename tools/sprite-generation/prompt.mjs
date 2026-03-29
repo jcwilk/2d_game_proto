@@ -8,18 +8,19 @@
 
 export const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 
-/** Suffix after per-frame `subject`: centering, chroma-friendly HUD glyph (dpad default). */
+/** Suffix after per-frame `subject`: centering; per-tile strategy only (sheet uses {@link buildDpadGridSpritePrompt}). */
 export const DPAD_FRAME_PROMPT_SUFFIX =
   ` The glyph is optically centered in the square (roughly equal empty margin on all four sides). ` +
   `Readable at small size; subtle soft shading, light bevel, or gentle inner gradient within the triangle is OK for material read — avoid muddy blur. ` +
-  `No halo, vignette, or color bleed from the background into the triangle; minimize pink or magenta fringing on the outline. ` +
+  `No halo, vignette, or color bleed from the background into the triangle; keep the glyph edge crisp. ` +
   `No other shapes, no text, no duplicate triangles, no extra arrows or chevrons, no hardware chrome frame, no grid lines, no watermark.`;
 
 /** Opening line for dpad per-tile prompts. Placeholders: `{tileSize}`. */
 export const DPAD_FRAME_STYLE = `Stylized {tileSize}px square 2D HUD direction glyph (game UI, not photoreal). `;
 
 /**
- * Shared background + single-triangle rules before the per-frame subject. Placeholders: `{chromaKeyHex}`.
+ * Shared background + single-triangle rules before the per-frame subject (per-tile strategy only).
+ * Placeholders: `{chromaKeyHex}` — kept for legacy chroma postprocess; prefer sheet + {@link buildDpadGridSpritePrompt}.
  */
 export const DPAD_FRAME_COMPOSITION =
   `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
@@ -41,8 +42,24 @@ export const DPAD_SHEET_COMPOSITION =
 export const DPAD_SHEET_SUBJECT =
   `Panel order left to right: (1) up, (2) down, (3) left, (4) right — one triangle per panel, four distinct orientations, consistent design language.`;
 
+/** Base line for {@link buildDpadGridSpritePrompt} (`HUD GLYPH AND DIRECTION`). Sheet T2I default when rewrite is off. */
+export const DPAD_FALSPRITE_SHEET_SUBJECT =
+  `Stylized 2D HUD direction set (game UI, not photoreal). ` +
+  `Panel order left-to-right, top row then bottom (2×2 grid): (1) NORTH / up; (2) SOUTH / down; ` +
+  `(3) WEST / left; (4) EAST / right — one triangle per cell, four distinct orientations, consistent design language.`;
+
 /**
- * OpenRouter sheet rewrite (**`preset.fal.sheetRewrite`**) — D-pad HUD strip: variety while keeping geometry + chroma.
+ * OpenRouter sheet rewrite for 2×2 HUD grid (no chroma-hex language; flat backdrop only).
+ */
+export const DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE 2×2 HUD sprite sheet (four equal cells in row-major order: up, down, left, right). " +
+  "Preserve: exact 2×2 grid, four single triangles in those orientations only, one uniform flat-color background, no extra arrows. " +
+  "Improve: tasteful material (soft plastic, brushed metal, stone, or paper UI), cohesive muted palette, subtle depth or bevel language — still flat 2D game UI glyphs, not photoreal objects or 3D extruded buttons. " +
+  "Output only the improved prompt text, no preamble.";
+
+/**
+ * OpenRouter sheet rewrite (**`preset.fal.sheetRewrite`**) — legacy **1×4** strip: variety while keeping geometry + chroma.
+ * @deprecated D-pad sheet preset uses {@link DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT} and 2×2 {@link buildDpadGridSpritePrompt}.
  */
 export const DPAD_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for ONE horizontal 1×4 HUD sprite sheet (four equal panels: up, down, left, right). " +
@@ -107,6 +124,38 @@ const FALSPRITE_NUM_WORDS = /** @type {Record<number, string>} */ ({
  * @param {number} [gridSize=4]  Clamped implicitly to supported map keys; unknown → `"four"`.
  * @returns {string}
  */
+/**
+ * D-pad HUD sheet T2I: same grid discipline as {@link buildFalspriteStyleSpritePrompt}, but four
+ * directional triangles (no character / walk language). No chroma hex — flat backdrop only.
+ *
+ * @param {string} basePrompt  Rewritten or static HUD/direction block (single block).
+ * @param {number} [gridSize=2]  N for an N×N cell grid (D-pad uses **2**).
+ * @returns {string}
+ */
+export function buildDpadGridSpritePrompt(basePrompt, gridSize = 2) {
+  const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
+  return [
+    "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
+    "",
+    `FORMAT: A single image containing a ${w}-by-${w} grid of equally sized cells.`,
+    "Every cell must be the exact same dimensions, perfectly aligned, with no gaps or overlap.",
+    "",
+    "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
+    "no watermarks, no signatures, no UI chrome outside the four direction glyphs.",
+    "",
+    "CONSISTENCY: The same visual style, palette, and material treatment in every cell.",
+    "Stylized 2D HUD direction triangles — game UI, not photoreal hardware.",
+    "Strong clean silhouette for each glyph against a plain solid flat-color background",
+    "(one uniform screen color across the entire image — no gradients in the backdrop).",
+    "",
+    "PANEL FLOW: Cells read left-to-right, top-to-bottom. Each cell contains exactly one",
+    "filled triangle with three straight sides — one orientation per cell (four distinct directions).",
+    "",
+    "HUD GLYPH AND DIRECTION:",
+    basePrompt,
+  ].join("\n");
+}
+
 export function buildFalspriteStyleSpritePrompt(basePrompt, gridSize = 4) {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "four";
   return [

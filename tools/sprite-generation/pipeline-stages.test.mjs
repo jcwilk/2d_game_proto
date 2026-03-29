@@ -31,9 +31,9 @@ describe("pipeline-stages", () => {
     expect(resolvePostprocessSteps({ postprocessSteps: ["chromaKey"] }, "generate")).toEqual(["chromaKey"]);
   });
 
-  it("resolvePostprocessSteps: dpad preset matches DEFAULT_POSTPROCESS_STEPS_GENERATE", () => {
+  it("resolvePostprocessSteps: dpad preset uses no chroma postprocess (BRIA sheet path)", () => {
     const preset = createPreset({ outBase: "/tmp/dpad-pipeline-stages-test" });
-    expect(resolvePostprocessSteps(preset, "generate")).toEqual([...DEFAULT_POSTPROCESS_STEPS_GENERATE]);
+    expect(resolvePostprocessSteps(preset, "generate")).toEqual([]);
   });
 
   it("resolvePostprocessSteps: rejects unknown step ids", () => {

@@ -1,9 +1,9 @@
 {
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
-  "recipeId": "sprite-gen-dpad_four_way-sheet-v15-bria-sheet-rgba",
+  "recipeId": "sprite-gen-dpad_four_way-sheet-v20-dpad-2x2-sheet-only",
   "createdAt": "2026-03-28T12:00:00.000Z",
-  "workflow": "fal sheet (fal-ai/nano-banana-2, 400×100px, txt2img → crop)",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 200×200px, txt2img → crop)",
   "specs": {
     "tileSize": {
       "width": 100,
@@ -28,8 +28,8 @@
       }
     ],
     "sheetSize": {
-      "width": 400,
-      "height": 100
+      "width": 200,
+      "height": 200
     },
     "sheetCropMap": {
       "up": {
@@ -41,16 +41,16 @@
         "y": 0
       },
       "left": {
-        "x": 200,
-        "y": 0
+        "x": 0,
+        "y": 100
       },
       "right": {
-        "x": 300,
-        "y": 0
+        "x": 100,
+        "y": 100
       }
     },
-    "imageSize": "400x100",
-    "naming": "dpad.png per frame folder (outSubdir)",
+    "imageSize": "200x200",
+    "naming": "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png",
     "strategy": "sheet",
     "chroma": {
       "keyHex": "#FF00FF",
@@ -70,10 +70,12 @@
     "seedRequested": null,
     "falExtrasPerTile": null,
     "falExtrasSheet": {
-      "aspect_ratio": "4:1",
-      "resolution": "1K"
+      "aspect_ratio": "1:1",
+      "resolution": "0.5K",
+      "expand_prompt": true,
+      "safety_tolerance": 2
     },
-    "note": "Real: one fal sheet job at 400x100, crop to 100px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
+    "note": "Real: one fal sheet job at 200x200, crop to 100px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
   },
   "frames": [],
   "provenance": {

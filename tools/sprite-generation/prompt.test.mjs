@@ -50,7 +50,7 @@ describe("sprite-generation prompt", () => {
     });
     expect(out).toContain(DEFAULT_CHROMA_KEY_HEX);
     expect(out).toContain("subtle soft shading");
-    expect(out).toContain("minimize pink or magenta fringing");
+    expect(out).toContain("keep the glyph edge crisp");
     expect(out).toContain("TEST_SUBJECT_LINE.");
   });
 

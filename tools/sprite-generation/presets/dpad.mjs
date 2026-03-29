@@ -17,7 +17,7 @@
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
  *
- * **`generatorConfig`** — Merged via **`resolveGeneratorConfig`** into mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — generate mode only: ordered postprocess ids (**`POSTPROCESS_REGISTRY`** in **`../pipeline-stages.mjs`**); mock mode does not run these. Default when omitted: **`['chromaKey']`**.
+ * **`generatorConfig`** — Merged via **`resolveGeneratorConfig`** into mock **`generate`** / **`generateSheet`** (**`shapeForFrame`**, **`sheetLayout`**). **`postprocessSteps`** — generate mode only: ordered postprocess ids (**`POSTPROCESS_REGISTRY`** in **`../pipeline-stages.mjs`**); mock mode does not run these. Default when omitted matches **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** (currently **`['chromaKey']`**); this preset sets the same sequence explicitly.
  *
  * ## Determinism vs T2I / chroma variance
  *
@@ -34,6 +34,7 @@
 
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import { buildRecipeId } from "../manifest.mjs";
+import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
 import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 import {
   DPAD_FRAME_COMPOSITION,
@@ -236,8 +237,8 @@ export function createPreset(opts) {
       shapeForFrame: defaultDpadShapeForFrame,
       sheetLayout: DPAD_SHEET_LAYOUT,
     },
-    /** Explicit default for documentation; same as `pipeline-stages` default for generate. */
-    postprocessSteps: ["chromaKey"],
+    /** Same sequence as **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** — single source of truth for generate-mode defaults. */
+    postprocessSteps: [...DEFAULT_POSTPROCESS_STEPS_GENERATE],
     spriteRef: {
       kind: "frameKeyRect",
       jsonRelativePath: spriteRefJsonRelativePath,

@@ -6,6 +6,7 @@ import {
   RECIPE_VERSION_SHEET,
 } from "../manifest.mjs";
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
+import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
 import {
   createPreset,
   DPAD_FRAMES,
@@ -39,7 +40,7 @@ describe("presets/dpad", () => {
     expect(p.qa.spriteHeight).toBe(20);
     expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);
     expect(p.generatorConfig?.sheetLayout).toEqual(DPAD_SHEET_LAYOUT);
-    expect(p.postprocessSteps).toEqual(["chromaKey"]);
+    expect(p.postprocessSteps).toEqual([...DEFAULT_POSTPROCESS_STEPS_GENERATE]);
   });
 
   it("SHEET_CROPS covers every frame id", () => {

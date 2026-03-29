@@ -1,6 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
+import { runChromaKeyStage } from "../pipeline-stages.mjs";
 import {
   CHROMA_FALLBACK_TOLERANCE_MIN,
   applyChromaKeyToPngBuffer,
@@ -56,6 +57,32 @@ describe("chroma-key", () => {
     expect(usedPrimaryKey).toBe(true);
     expect(keyRgb).toEqual({ r: 255, g: 0, b: 255 });
     expect(countFullyTransparentPercent(buffer)).toBe(100);
+  });
+
+  it("runChromaKeyStage matches chromaKeyWithBorderFallback policy (pipeline registry stage)", () => {
+    const png = new PNG({ width: 4, height: 4, colorType: 6 });
+    for (let i = 0; i < png.data.length; i += 4) {
+      png.data[i] = 255;
+      png.data[i + 1] = 0;
+      png.data[i + 2] = 255;
+      png.data[i + 3] = 255;
+    }
+    const raw = PNG.sync.write(png);
+    const log = () => {};
+    const tol = 0;
+    const direct = chromaKeyWithBorderFallback(raw, {
+      keyRgb: { r: 255, g: 0, b: 255 },
+      tolerance: tol,
+      fallbackTolerance: Math.max(tol, CHROMA_FALLBACK_TOLERANCE_MIN),
+    });
+    const staged = runChromaKeyStage({
+      buffer: raw,
+      keyRgb: { r: 255, g: 0, b: 255 },
+      chromaTolerance: tol,
+      log,
+    });
+    expect(staged.buffer.equals(direct.buffer)).toBe(true);
+    expect(staged.chromaApplied).toBe(true);
   });
 
   it("chromaKeyWithBorderFallback takes corner-median fallback when primary removes <0.8%", () => {

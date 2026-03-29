@@ -2,6 +2,10 @@
  * Data-driven **postprocess** and **generator config** helpers for `pipeline.mjs`.
  * Known postprocess step ids are registered in **`POSTPROCESS_REGISTRY`**; presets list
  * **`postprocessSteps`** (generate mode only) in order.
+ *
+ * **Alpha path:** only **`chromaKey`** is registered today (magenta/screen hex from **`prompt.mjs`**
+ * via pipeline opts — not BRIA-class matting). Future ids such as **`briaAlpha`** stay out of the
+ * registry until implemented (**`tools/sprite-generation/README.md`**).
  */
 
 import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./postprocess/chroma-key.mjs";

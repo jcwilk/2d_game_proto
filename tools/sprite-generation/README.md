@@ -41,10 +41,18 @@ If a future pipeline emitted **2×2** (e.g. Klein), the repo would need a define
 
 ### Alpha path: chroma vs BRIA (testable surface)
 
-- **Implemented:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes an ordered list **`postprocessSteps`** (default **`['chromaKey']`**); **`resolvePostprocessSteps`** applies it in generate mode. **`runPipeline`** also passes **`chromaKeyHex`** / tolerance into the chroma stage via pipeline options. This is the **chroma** alpha path (screen color → RGBA).
+- **Implemented:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes an ordered list **`postprocessSteps`**; **`resolvePostprocessSteps`** applies it in generate mode (see **Default postprocess contract** below). **`runPipeline`** passes **`chromaKeyHex`** (default **`#FF00FF`** — **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.mjs`**) and tolerance into the chroma stage. Prompts describe a flat **magenta** screen for T2I; the postprocess step keys that screen color to alpha (not “red chroma” — that phrase in older notes meant *chroma-keying* vs neural matting, not a red key color).
 - **Future / placeholder:** a second step id such as **`briaAlpha`** (name TBD) would mean **BRIA**-class matting **after** fal download — **not in registry today**. Adding it requires a new registry entry, tests, and a follow-up ticket; until then treat **BRIA** as **out of scope** for automation, not silent behavior.
 
 **`resolveGeneratorConfig`** (`pipeline-stages.mjs`) merges **`preset.generatorConfig`** with runtime **`tileSize`**, **`seed`**, and sheet layout for mock/fal **shape** wiring — separate from postprocess ids but part of the same preset contract.
+
+#### Default postprocess contract (dpad + generate defaults)
+
+| Surface | Value |
+| --- | --- |
+| **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** (`pipeline-stages.mjs`) | **`['chromaKey']`** |
+| D-pad **`createPreset`** **`postprocessSteps`** | Same sequence (cloned from the constant above) |
+| Default **`chromaKeyHex`** in prompts | **`#FF00FF`** — symbol **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.mjs`** |
 
 ### Verified fal endpoint ids
 

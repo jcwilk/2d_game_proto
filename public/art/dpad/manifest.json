@@ -2,7 +2,7 @@
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
   "recipeId": "sprite-gen-dpad_four_way-sheet-v20-dpad-2x2-sheet-only",
-  "createdAt": "2026-03-29T17:21:10.168Z",
+  "createdAt": "2026-03-29T17:24:54.966Z",
   "workflow": "fal sheet (fal-ai/nano-banana-2, 512×512px, txt2img → crop)",
   "specs": {
     "tileSize": {
@@ -82,7 +82,7 @@
       "id": "up",
       "outSubdir": "up",
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,0",
@@ -95,7 +95,7 @@
       "id": "down",
       "outSubdir": "down",
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "256,0",
@@ -108,7 +108,7 @@
       "id": "left",
       "outSubdir": "left",
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,256",
@@ -121,7 +121,7 @@
       "id": "right",
       "outSubdir": "right",
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "256,256",
@@ -138,7 +138,7 @@
   "generationResults": {
     "up": {
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,0",
@@ -149,7 +149,7 @@
     },
     "down": {
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "256,0",
@@ -160,7 +160,7 @@
     },
     "left": {
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,256",
@@ -171,7 +171,7 @@
     },
     "right": {
       "seedRequested": null,
-      "wallMs": 24815,
+      "wallMs": 35922,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "256,256",
@@ -181,14 +181,14 @@
       "notes": []
     },
     "_sheet": {
-      "wallMs": 24815,
+      "wallMs": 35922,
       "strategy": "sheet",
       "alphaSource": "bria",
-      "t2iWallMs": 22816,
-      "briaWallMs": 1999,
+      "t2iWallMs": 30882,
+      "briaWallMs": 5040,
       "rewriteModel": "openai/gpt-4o-mini",
-      "rewrittenPromptFingerprint": "2de5ba32b8ee93b3",
-      "rewriteWallMs": 3574
+      "rewrittenPromptFingerprint": "d673cfaed9f3f324",
+      "rewriteWallMs": 9884
     }
   }
 }

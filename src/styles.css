@@ -18,9 +18,10 @@ body {
  * The playfield square uses the smaller of the stage’s width/height (container query)
  * so it shrinks when the window is nearly square, leaving room for the control strip.
  *
- * Alignment: the square sits on the far edge from the controls (not centered in the
- * leftover band). Portrait → flush top + flush left; landscape → flush left + flush top.
- * No inset on those edges so the canvas meets the screen corner.
+ * Alignment: the square sits on the far edge from the controls when the stage is
+ * wide or tall enough. When the stage is nearly square (aspect ≈ 1∶1), the playfield
+ * shrinks (e.g. 85% of width) and gutters appear so the control strip never fights the
+ * canvas — portrait: pillarbox (gaps left/right); landscape: letterbox (gaps top/bottom).
  */
 
 #game-root {
@@ -75,7 +76,7 @@ body {
 
 /*
  * Square canvas area: side length = min(stage width, stage height).
- * When the viewport is almost square, the stage is smaller → the square shrinks and the strip stays usable.
+ * Near-square stage: also cap width with 85cqw so gutters free space for the control strip.
  */
 #game-canvas-wrap {
   position: relative;
@@ -84,6 +85,26 @@ body {
   width: min(100cqw, 100cqh);
   max-width: 100%;
   max-height: 100%;
+}
+
+/* Stage width/height within ~±10% of square: shrink playfield + gutters (controls stay usable) */
+@media (orientation: portrait) {
+  @container game-stage (min-aspect-ratio: 9 / 10) and (max-aspect-ratio: 10 / 9) {
+    #game-canvas-wrap {
+      width: min(100cqw, 100cqh, 85cqw);
+      margin-inline: auto;
+    }
+  }
+}
+
+@media (orientation: landscape) {
+  @container game-stage (min-aspect-ratio: 9 / 10) and (max-aspect-ratio: 10 / 9) {
+    #game-canvas-wrap {
+      width: min(100cqw, 100cqh, 85cqw);
+      margin-inline: auto;
+      align-self: center;
+    }
+  }
 }
 
 #game-controls {

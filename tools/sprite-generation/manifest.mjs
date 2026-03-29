@@ -25,8 +25,8 @@ export const RECIPE_VERSION_MOCK = "v2-frames";
 /** Bump when per-tile fal + chroma postprocess contract changes (plain txt2img). */
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
-/** Bump when sheet fal + crop + chroma contract changes (plain flux/dev sheet). */
-export const RECIPE_VERSION_SHEET = "v14-frames-chroma";
+/** Bump when sheet fal + crop + alpha contract changes (flux/chroma vs nano-banana + BRIA matting). */
+export const RECIPE_VERSION_SHEET = "v15-bria-sheet-rgba";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx
@@ -77,7 +77,10 @@ function buildRecipeNote(p) {
     return "Mock: geometry from pngjs triangles, not T2I.";
   }
   if (p.mode === "generate" && p.strategy === "sheet") {
-    return `Real: one fal job at ${p.sheetWidth}x${p.sheetHeight}, crop to ${p.tileSize}px, then chroma-key (${p.chromaKeyHex}) → RGBA.`;
+    return (
+      `Real: one fal sheet job at ${p.sheetWidth}x${p.sheetHeight}, crop to ${p.tileSize}px; ` +
+      `alpha via BRIA matting (nano-banana path) or chroma-key (${p.chromaKeyHex}) with flux/dev — see preset fal.sheetMatting.`
+    );
   }
   return (
     `Real: one fal.subscribe per frame with identical prompt template + PER_TILE_FAL_EXTRA_INPUT; ` +

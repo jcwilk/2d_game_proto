@@ -49,9 +49,10 @@ Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls b
 
 ### Out of scope (explicit)
 
-- **Full FalSprite parity** (multi-model grids, OpenRouter routing, BRIA-first pipelines as in external “FalSprite” references).
+- **Full FalSprite parity** (multi-model grids, OpenRouter routing, FalSprite UI).
 - **Replacing** the dpad **1×4 + `frameKeyRect`** contract with **2×2 Klein** output **without** a written crop/stitch or manifest migration plan.
-- **BRIA** (or similar neural matting) as a **registered** `POSTPROCESS_REGISTRY` step — **not implemented**; reserved as a future id (see Alpha path).
+
+**BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). Optional **`preset.fal.chromaAfterBria`** runs **`postprocessSteps`** on tiles after BRIA (usually unnecessary). Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
 
 ### Runtime topology (game + `public/art`)
 
@@ -65,8 +66,8 @@ If a future pipeline emitted **2×2** (e.g. Klein), the repo would need a define
 
 ### Alpha path: chroma vs BRIA (testable surface)
 
-- **Implemented:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes an ordered list **`postprocessSteps`**; **`resolvePostprocessSteps`** applies it in generate mode (see **Default postprocess contract** below). **`runPipeline`** passes **`chromaKeyHex`** (default **`#FF00FF`** — **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.mjs`**) and tolerance into the chroma stage. Prompts describe a flat **magenta** screen for T2I; the postprocess step keys that screen color to alpha (not “red chroma” — that phrase in older notes meant *chroma-keying* vs neural matting, not a red key color).
-- **Future / placeholder:** a second step id such as **`briaAlpha`** (name TBD) would mean **BRIA**-class matting **after** fal download — **not in registry today**. Adding it requires a new registry entry, tests, and a follow-up ticket; until then treat **BRIA** as **out of scope** for automation, not silent behavior.
+- **Per-tile postprocess:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes **`postprocessSteps`**; **`resolvePostprocessSteps`** applies it in generate mode for **per-tile** and for **sheet** when alpha comes from **chroma** (flux) or when **`preset.fal.chromaAfterBria`** is set after BRIA. **`runPipeline`** passes **`chromaKeyHex`** (default **`#FF00FF`**) and tolerance into the chroma stage.
+- **Sheet BRIA:** **`fal-ai/bria/background/remove`** runs **once per sheet** after T2I when **`shouldUseBriaSheetMatting`** is true (default for **`fal-ai/nano-banana-2`**; override with **`preset.fal.sheetMatting: 'none'`** or **`'bria'`**). Matted tiles skip chroma unless **`chromaAfterBria`**. **`generationResults._sheet.alphaSource`** records **`bria`** vs **`chroma`** vs **`none`** (mock).
 
 **`resolveGeneratorConfig`** (`pipeline-stages.mjs`) merges **`preset.generatorConfig`** with runtime **`tileSize`**, **`seed`**, and sheet layout for mock/fal **shape** wiring — separate from postprocess ids but part of the same preset contract.
 

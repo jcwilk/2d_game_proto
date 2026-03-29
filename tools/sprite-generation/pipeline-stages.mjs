@@ -3,9 +3,8 @@
  * Known postprocess step ids are registered in **`POSTPROCESS_REGISTRY`**; presets list
  * **`postprocessSteps`** (generate mode only) in order.
  *
- * **Alpha path:** only **`chromaKey`** is registered today (magenta/screen hex from **`prompt.mjs`**
- * via pipeline opts — not BRIA-class matting). Future ids such as **`briaAlpha`** stay out of the
- * registry until implemented (**`tools/sprite-generation/README.md`**).
+ * **Alpha path:** **`chromaKey`** is the only per-tile postprocess id. **BRIA** sheet matting runs in
+ * **`pipeline.mjs`** `runGenerateSheetPath` (not here) so matting stays **once per sheet** before crops.
  */
 
 import { CHROMA_FALLBACK_TOLERANCE_MIN, chromaKeyWithBorderFallback } from "./postprocess/chroma-key.mjs";
@@ -81,6 +80,26 @@ export function resolvePostprocessSteps(preset, mode) {
     return [...preset.postprocessSteps];
   }
   return [...DEFAULT_POSTPROCESS_STEPS_GENERATE];
+}
+
+/**
+ * Sheet generate path: after **BRIA** matting, tiles are already RGBA — default **no** per-tile chroma.
+ * Set **`preset.fal.chromaAfterBria`** to run **`postprocessSteps`** anyway (A/B vs raw BRIA).
+ *
+ * @param {{ postprocessSteps?: string[]; fal?: { chromaAfterBria?: boolean } }} preset
+ * @param {'mock'|'generate'} mode
+ * @param {'bria'|'chroma'} sheetAlphaSource
+ * @returns {string[]}
+ */
+export function resolveSheetTilePostprocessSteps(preset, mode, sheetAlphaSource) {
+  if (mode !== "generate") return [];
+  if (sheetAlphaSource === "bria") {
+    if (preset.fal?.chromaAfterBria) {
+      return resolvePostprocessSteps(preset, mode);
+    }
+    return [];
+  }
+  return resolvePostprocessSteps(preset, mode);
 }
 
 /**

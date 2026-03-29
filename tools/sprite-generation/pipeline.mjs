@@ -28,12 +28,25 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PNG } from "pngjs";
 
-import { assertPngBufferDimensions, falSubscribeToBuffer, resolveFalCredentials } from "./generators/fal.mjs";
+import {
+  assertPngBufferDimensions,
+  falSubscribeBriaBackgroundRemoveToBuffer,
+  falSubscribeImageToUrlResult,
+  falSubscribeToBuffer,
+  getFalImageEndpointStrategy,
+  resolveFalCredentials,
+  shouldUseBriaSheetMatting,
+} from "./generators/fal.mjs";
 import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
-import { applyPostprocessPipeline, resolveGeneratorConfig, resolvePostprocessSteps } from "./pipeline-stages.mjs";
+import {
+  applyPostprocessPipeline,
+  resolveGeneratorConfig,
+  resolvePostprocessSteps,
+  resolveSheetTilePostprocessSteps,
+} from "./pipeline-stages.mjs";
 import { extractPngRegion, normalizeDecodedSheetToPreset } from "./postprocess/png-region.mjs";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
@@ -60,6 +73,7 @@ export {
   POSTPROCESS_REGISTRY,
   DEFAULT_POSTPROCESS_STEPS_GENERATE,
   resolvePostprocessSteps,
+  resolveSheetTilePostprocessSteps,
   resolveGeneratorConfig,
   applyPostprocessPipeline,
 } from "./pipeline-stages.mjs";
@@ -97,6 +111,8 @@ function maskSecret(s) {
  * @property {string} [imageSize]  Per-tile fal size, e.g. `256x256`
  * @property {boolean} [keepSheet]  Write `sheet.png` under `outBase` (sheet strategy).
  * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
+ * @property {import('@fal-ai/client').FalClient['subscribe']} [falSubscribe]  Test injection: mock **`fal.subscribe`** (sheet path T2I + BRIA chain).
+ * @property {typeof fetch} [fetch]  Test injection for image downloads.
  */
 
 /**
@@ -108,7 +124,7 @@ function maskSecret(s) {
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string }} prompt
- * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null }} fal
+ * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
@@ -256,6 +272,8 @@ export async function runPipeline(preset, opts) {
       quiet,
       keepSheet,
       falExtras: falExtrasSheetRun,
+      falSubscribe: opts.falSubscribe,
+      fetch: opts.fetch,
     });
   } else {
     const falExtrasPerTileRun =
@@ -489,7 +507,7 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
     };
     log("INFO", `tile:${frame.id}`, "cropped from mock sheet", { cropOrigin: `${x},${y}`, bytes: tileBufRaw.length });
   }
-  generationResultsById._sheet = { wallMs: timings.mockSheet, strategy: "sheet", mode: "mock" };
+  generationResultsById._sheet = { wallMs: timings.mockSheet, strategy: "sheet", mode: "mock", alphaSource: "none" };
 }
 
 /**
@@ -598,6 +616,8 @@ async function runGeneratePerTilePath({
  * @param {boolean} p.quiet
  * @param {boolean} p.keepSheet
  * @param {Record<string, unknown>} [p.falExtras]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [p.falSubscribe]
+ * @param {typeof fetch} [p.fetch]
  */
 async function runGenerateSheetPath({
   preset,
@@ -610,6 +630,8 @@ async function runGenerateSheetPath({
   quiet,
   keepSheet,
   falExtras,
+  falSubscribe,
+  fetch: fetchImpl,
 }) {
   const sheet = /** @type {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} */ (
     preset.sheet
@@ -617,7 +639,10 @@ async function runGenerateSheetPath({
   const { width: sheetW, height: sheetH } = resolveSheetPixelDimensions(sheet);
   const pngName = pngBasename(preset);
   const keyRgb = parseHexRgb(chromaKeyHex);
-  const postSteps = resolvePostprocessSteps(preset, "generate");
+  const useBria = shouldUseBriaSheetMatting(preset, endpoint);
+  /** @type {'bria'|'chroma'} */
+  const sheetAlphaSource = useBria ? "bria" : "chroma";
+  const postSteps = resolveSheetTilePostprocessSteps(preset, "generate", sheetAlphaSource);
   const { prompt, tileSize, frames } = preset;
 
   for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
@@ -633,22 +658,68 @@ async function runGenerateSheetPath({
   log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length });
 
   const imageSizeStr = `${sheetW}x${sheetH}`;
-  log("INFO", "sheet", "single fal job + crop + chroma", { sheetPx: imageSizeStr });
+  log("INFO", "sheet", useBria ? "T2I → BRIA matting → normalize → RGBA tile crops" : "single fal job + crop + chroma", {
+    sheetPx: imageSizeStr,
+    sheetMatting: useBria ? "bria" : "none",
+  });
 
-  const gen = await falSubscribeToBuffer({
-    endpoint,
+  const imageStrategy = getFalImageEndpointStrategy(endpoint);
+  const t2iInput = imageStrategy.buildInput({
     prompt: sheetPrompt,
     imageSize: imageSizeStr,
     seed,
-    quiet,
     falExtraInput: falExtras,
-    log,
   });
-  let buffer = gen.buffer;
-  const outSeed = gen.seed;
-  const wallMs = gen.wallMs;
 
-  timings.sheetFal = wallMs;
+  /** @type {Buffer} */
+  let buffer;
+  /** @type {number | undefined} */
+  let outSeed;
+  let t2iWallMs = 0;
+  /** @type {number | null} */
+  let briaWallMs = null;
+
+  if (useBria) {
+    const t2i = await falSubscribeImageToUrlResult({
+      endpoint,
+      input: /** @type {Record<string, unknown>} */ (t2iInput),
+      quiet,
+      log,
+      falSubscribe,
+    });
+    outSeed = t2i.seed;
+    t2iWallMs = t2i.wallMs;
+    const bria = await falSubscribeBriaBackgroundRemoveToBuffer({
+      imageUrl: t2i.imageUrl,
+      quiet,
+      log,
+      falSubscribe,
+      fetch: fetchImpl,
+    });
+    buffer = bria.buffer;
+    briaWallMs = bria.wallMs;
+    timings.sheetT2i = t2iWallMs;
+    timings.briaSheet = briaWallMs;
+  } else {
+    const gen = await falSubscribeToBuffer({
+      endpoint,
+      prompt: sheetPrompt,
+      imageSize: imageSizeStr,
+      seed,
+      quiet,
+      falExtraInput: falExtras,
+      log,
+      falSubscribe,
+      fetch: fetchImpl,
+    });
+    buffer = gen.buffer;
+    outSeed = gen.seed;
+    t2iWallMs = gen.wallMs;
+  }
+
+  const totalWallMs = useBria ? t2iWallMs + (briaWallMs ?? 0) : t2iWallMs;
+  timings.sheetFal = totalWallMs;
+
   let png = PNG.sync.read(buffer);
   if (png.width !== sheetW || png.height !== sheetH) {
     // Sheet decode policy: center-crop to preset aspect then uniform NN — see **`postprocess/png-region.mjs`** (epic **2gp-p4js**, **2gp-r67u**).
@@ -662,7 +733,7 @@ async function runGenerateSheetPath({
   assertPngBufferDimensions(buffer, sheetW, sheetH, "pipeline:raster-after-sheet-normalize");
   if (keepSheet) {
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
-    log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops, pre-chroma)");
+    log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops)", { postMatting: useBria ? "bria" : "raw-t2i" });
   }
   for (const frame of frames) {
     const { x, y } = sheet.crops[frame.id];
@@ -677,14 +748,29 @@ async function runGenerateSheetPath({
     generationResultsById[frame.id] = {
       seed: outSeed,
       seedRequested: seed ?? null,
-      wallMs,
+      wallMs: totalWallMs,
       fromSheet: true,
       cropOrigin: `${x},${y}`,
+      alphaSource: sheetAlphaSource,
       chromaApplied,
       chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
       notes: [],
     };
-    log("INFO", `tile:${frame.id}`, "cropped from sheet + chroma", { cropOrigin: `${x},${y}`, bytes: tileBuf.length });
+    log("INFO", `tile:${frame.id}`, useBria ? "cropped from matted sheet" : "cropped from sheet + chroma", {
+      cropOrigin: `${x},${y}`,
+      bytes: tileBuf.length,
+    });
   }
-  generationResultsById._sheet = { seed: outSeed, wallMs, strategy: "sheet" };
+  /** @type {Record<string, unknown>} */
+  const sheetMeta = {
+    seed: outSeed,
+    wallMs: totalWallMs,
+    strategy: "sheet",
+    alphaSource: sheetAlphaSource,
+  };
+  if (useBria) {
+    sheetMeta.t2iWallMs = t2iWallMs;
+    sheetMeta.briaWallMs = briaWallMs;
+  }
+  generationResultsById._sheet = sheetMeta;
 }

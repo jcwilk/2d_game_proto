@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 
 import { parseFrameKeyRectManifestJson } from "../../src/art/atlasTypes.ts";
@@ -25,6 +25,7 @@ describe("pipeline (integration)", () => {
   let dir;
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     if (dir) {
       await rm(dir, { recursive: true, force: true });
       dir = undefined;
@@ -84,5 +85,65 @@ describe("pipeline (integration)", () => {
     expect(manifest.generationRecipe?.mode).toBe("mock");
     expect(manifest.generationResults?.up?.fromSheet).toBe(true);
     expect(manifest.generationResults?._sheet?.strategy).toBe("sheet");
+  });
+
+  it("generate sheet + BRIA: mock T2I URL → BRIA → RGBA tiles; manifest alphaSource bria on _sheet", async () => {
+    vi.stubEnv("FAL_KEY", "test-key");
+    dir = join(tmpdir(), `pipe-gen-bria-${process.pid}-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+    const preset = dpadLikePreset(dir);
+
+    const sheetW = 400;
+    const sheetH = 100;
+    const png = new PNG({ width: sheetW, height: sheetH, colorType: 6 });
+    png.data.fill(0);
+    for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(png));
+
+    const falSubscribe = vi.fn(async (ep) => {
+      if (ep === "fal-ai/nano-banana-2") {
+        return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
+      }
+      if (ep === "fal-ai/bria/background/remove") {
+        return { data: { images: [{ url: "https://cdn.example.com/bria.png" }] } };
+      }
+      throw new Error(`unexpected endpoint ${ep}`);
+    });
+    const fetchMock = vi.fn(async (url) => {
+      const u = String(url);
+      if (u.includes("t2i.png")) {
+        throw new Error("T2I PNG should not be downloaded when BRIA matting is used");
+      }
+      if (u.includes("bria.png")) {
+        return {
+          ok: true,
+          arrayBuffer: async () =>
+            pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+
+    await runPipeline(preset, {
+      mode: "generate",
+      strategy: "sheet",
+      endpoint: "fal-ai/nano-banana-2",
+      skipQa: true,
+      quiet: true,
+      falSubscribe,
+      fetch: fetchMock,
+    });
+
+    expect(falSubscribe).toHaveBeenCalledTimes(2);
+    const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
+    expect(manifest.generationResults?._sheet?.alphaSource).toBe("bria");
+    expect(manifest.generationResults?._sheet?.briaWallMs).toBeGreaterThanOrEqual(0);
+    expect(manifest.generationResults?.up?.alphaSource).toBe("bria");
+    expect(manifest.generationResults?.up?.chromaApplied).toBe(false);
+
+    const upBuf = await readFile(join(dir, "up", "dpad.png"));
+    const upPng = PNG.sync.read(upBuf);
+    expect(upPng.width).toBe(100);
+    expect(upPng.height).toBe(100);
   });
 });

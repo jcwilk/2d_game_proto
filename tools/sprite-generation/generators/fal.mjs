@@ -195,6 +195,13 @@ export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
 export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
 
 /**
+ * BRIA background removal — one HTTPS `image_url` in, PNG with alpha out (`data.images[0].url`).
+ * Uses **`fal.subscribe`** (queued) like other fal image models; **`fal.run`** is a shorter synchronous
+ * alternative in fal docs — we keep **subscribe** for consistent queue/logging with T2I (**Phase C** plan).
+ */
+export const BRIA_BACKGROUND_REMOVE_ENDPOINT = "fal-ai/bria/background/remove";
+
+/**
  * True for `fal-ai/nano-banana-2` and ids that share the same family prefix (version suffixes).
  *
  * @param {string} endpoint
@@ -202,6 +209,22 @@ export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
 export function isNanoBanana2Endpoint(endpoint) {
   const e = String(endpoint);
   return e === "fal-ai/nano-banana-2" || e.startsWith("fal-ai/nano-banana-2/");
+}
+
+/**
+ * Sheet path: run BRIA matting after nano-banana (or any T2I that returns an HTTPS image URL) when
+ * **`preset.fal.sheetMatting`** is **`'bria'`**, or **`'auto'`** / omitted and **`endpoint`** is nano-banana-2.
+ * Set **`preset.fal.sheetMatting`** to **`'none'`** to force chroma-only on the raw T2I PNG (e.g. Flux).
+ *
+ * @param {{ fal?: { sheetMatting?: 'auto' | 'bria' | 'none' } }} preset
+ * @param {string} endpoint
+ * @returns {boolean}
+ */
+export function shouldUseBriaSheetMatting(preset, endpoint) {
+  const m = preset.fal?.sheetMatting;
+  if (m === "bria") return true;
+  if (m === "none") return false;
+  return isNanoBanana2Endpoint(endpoint);
 }
 
 /**
@@ -334,8 +357,8 @@ export function getFalImageEndpointStrategy(endpoint) {
 }
 
 /**
- * Generic subscribe → download PNG → decode metadata. Prefer **`falSubscribeToBuffer`** for pipeline
- * (it picks Flux vs nano-banana-2 input shape). Use this when **`input`** is already built.
+ * Subscribe only — parses **`data.images[0].url`** but does **not** download. Use to chain **BRIA** with
+ * the T2I result URL without fetching the intermediate PNG (**`FALSPRITE_INTEGRATION_PLAN.md`** Phase C).
  *
  * @param {object} params
  * @param {string} params.endpoint
@@ -343,16 +366,13 @@ export function getFalImageEndpointStrategy(endpoint) {
  * @param {boolean} [params.quiet]
  * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
  * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {typeof fetch} [params.fetch]
- * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]  default: **`parseFalImageSubscribeResult`**
- * @param {Record<string, unknown>} [params.doneLogExtras]  Merged into the final **`subscribe() done`** line (e.g. requested image size vs aspect ratio).
- * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
+ * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]
+ * @returns {Promise<{ imageUrl: string; seed?: number; wallMs: number; image0: Record<string, unknown> }>}
  */
-export async function falSubscribeImageToBuffer(params) {
-  const { endpoint, input, quiet, falSubscribe, fetch: fetchImpl, parseResult, doneLogExtras } = params;
+export async function falSubscribeImageToUrlResult(params) {
+  const { endpoint, input, quiet, falSubscribe, parseResult } = params;
   const log = params.log ?? defaultLog;
   const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
-  const fetchFn = fetchImpl ?? globalThis.fetch;
   const parse = parseResult ?? parseFalImageSubscribeResult;
 
   log("INFO", `fal:${endpoint}`, "subscribe() request input (redacted)", redactFalInputForLog(input));
@@ -384,17 +404,57 @@ export async function falSubscribeImageToBuffer(params) {
   const parsed = parse(data);
   const img0 = parsed.image0;
 
-  log("INFO", `fal:${endpoint}`, "download starting", { urlHost: parsed.url ? new URL(parsed.url).host : "?" });
-  const buffer = await downloadToBuffer(parsed.url, fetchFn);
+  log("INFO", `fal:${endpoint}`, "subscribe() URL ready (download deferred)", {
+    wallMs,
+    seedReturned: parsed.seed,
+    urlHost: parsed.url ? new URL(parsed.url).host : "?",
+  });
 
-  const outSeed = parsed.seed;
+  return { imageUrl: parsed.url, seed: parsed.seed, wallMs, image0: img0 };
+}
+
+/**
+ * Generic subscribe → download PNG → decode metadata. Prefer **`falSubscribeToBuffer`** for pipeline
+ * (it picks Flux vs nano-banana-2 input shape). Use this when **`input`** is already built.
+ *
+ * @param {object} params
+ * @param {string} params.endpoint
+ * @param {Record<string, unknown>} params.input
+ * @param {boolean} [params.quiet]
+ * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
+ * @param {typeof fetch} [params.fetch]
+ * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]  default: **`parseFalImageSubscribeResult`**
+ * @param {Record<string, unknown>} [params.doneLogExtras]  Merged into the final **`subscribe() done`** line (e.g. requested image size vs aspect ratio).
+ * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
+ */
+export async function falSubscribeImageToBuffer(params) {
+  const { endpoint, input, quiet, falSubscribe, fetch: fetchImpl, parseResult, doneLogExtras } = params;
+  const log = params.log ?? defaultLog;
+  const fetchFn = fetchImpl ?? globalThis.fetch;
+  const parse = parseResult ?? parseFalImageSubscribeResult;
+
+  const urlResult = await falSubscribeImageToUrlResult({
+    endpoint,
+    input,
+    quiet,
+    log,
+    falSubscribe,
+    parseResult: parse,
+  });
+
+  log("INFO", `fal:${endpoint}`, "download starting", { urlHost: urlResult.imageUrl ? new URL(urlResult.imageUrl).host : "?" });
+  const buffer = await downloadToBuffer(urlResult.imageUrl, fetchFn);
+
+  const outSeed = urlResult.seed;
+  const img0 = urlResult.image0;
   const pngDims = readPngBufferDimensions(buffer);
   const apiWh =
     img0 && "width" in img0 && "height" in img0
       ? { width: Number(img0.width), height: Number(img0.height) }
       : null;
   log("INFO", `fal:${endpoint}`, "subscribe() done", {
-    wallMs,
+    wallMs: urlResult.wallMs,
     seedReturned: outSeed,
     bytes: buffer.length,
     falResponseImagePx: apiWh,
@@ -402,7 +462,34 @@ export async function falSubscribeImageToBuffer(params) {
     ...(doneLogExtras && typeof doneLogExtras === "object" ? doneLogExtras : {}),
   });
 
-  return { buffer, seed: outSeed, wallMs };
+  return { buffer, seed: outSeed, wallMs: urlResult.wallMs };
+}
+
+/**
+ * **`fal-ai/bria/background/remove`**: HTTPS **`image_url`** in (typically T2I **`data.images[0].url`**), PNG with alpha out.
+ *
+ * @param {object} params
+ * @param {string} params.imageUrl
+ * @param {boolean} [params.quiet]
+ * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
+ * @param {typeof fetch} [params.fetch]
+ * @returns {Promise<{ buffer: Buffer; wallMs: number }>}
+ */
+export async function falSubscribeBriaBackgroundRemoveToBuffer(params) {
+  const { imageUrl, quiet, falSubscribe, fetch: fetchImpl } = params;
+  const log = params.log ?? defaultLog;
+  /** @type {Record<string, unknown>} */
+  const input = { image_url: imageUrl };
+  return falSubscribeImageToBuffer({
+    endpoint: BRIA_BACKGROUND_REMOVE_ENDPOINT,
+    input,
+    quiet,
+    log,
+    falSubscribe,
+    fetch: fetchImpl,
+    doneLogExtras: { briaMatting: true },
+  });
 }
 
 /**

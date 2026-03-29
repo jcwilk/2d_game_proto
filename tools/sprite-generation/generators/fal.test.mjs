@@ -5,9 +5,12 @@ import { PNG } from "pngjs";
 
 import {
   assertPngBufferDimensions,
+  BRIA_BACKGROUND_REMOVE_ENDPOINT,
   downloadToBuffer,
-  falSubscribeToBuffer,
+  falSubscribeBriaBackgroundRemoveToBuffer,
   falSubscribeImageToBuffer,
+  falSubscribeImageToUrlResult,
+  falSubscribeToBuffer,
   formatFalClientError,
   getFalImageEndpointStrategy,
   hashPromptForLog,
@@ -17,6 +20,7 @@ import {
   readPngBufferDimensions,
   redactFalInputForLog,
   resolveFalCredentials,
+  shouldUseBriaSheetMatting,
   NANO_BANANA2_DEFAULT_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
 } from "./fal.mjs";
@@ -35,6 +39,13 @@ describe("sprite-generation fal helpers (no network)", () => {
   it("isNanoBanana2Endpoint matches fal-ai/nano-banana-2 family", () => {
     expect(isNanoBanana2Endpoint("fal-ai/nano-banana-2")).toBe(true);
     expect(isNanoBanana2Endpoint("fal-ai/flux/dev")).toBe(false);
+  });
+
+  it("shouldUseBriaSheetMatting respects preset.fal.sheetMatting and endpoint", () => {
+    expect(shouldUseBriaSheetMatting({}, "fal-ai/nano-banana-2")).toBe(true);
+    expect(shouldUseBriaSheetMatting({ fal: { sheetMatting: "none" } }, "fal-ai/nano-banana-2")).toBe(false);
+    expect(shouldUseBriaSheetMatting({ fal: { sheetMatting: "bria" } }, "fal-ai/flux/dev")).toBe(true);
+    expect(shouldUseBriaSheetMatting({}, "fal-ai/flux/dev")).toBe(false);
   });
 
   it("getFalImageEndpointStrategy selects nano vs flux builders", () => {
@@ -290,5 +301,52 @@ describe("sprite-generation fal helpers (no network)", () => {
     });
     expect(r.buffer.length).toBeGreaterThan(0);
     expect(subscribe).toHaveBeenCalledOnce();
+  });
+
+  it("falSubscribeImageToUrlResult returns URL without downloading", async () => {
+    const subscribe = vi.fn(async () => ({
+      data: { images: [{ url: "https://cdn.example.com/only-url.png" }], seed: 3 },
+    }));
+    const r = await falSubscribeImageToUrlResult({
+      endpoint: "fal-ai/flux/dev",
+      input: { prompt: "x", image_size: { width: 1, height: 1 }, num_images: 1, output_format: "png" },
+      quiet: true,
+      falSubscribe: subscribe,
+    });
+    expect(r.imageUrl).toBe("https://cdn.example.com/only-url.png");
+    expect(r.seed).toBe(3);
+  });
+
+  it("falSubscribeBriaBackgroundRemoveToBuffer calls BRIA endpoint with image_url", async () => {
+    const captured = [];
+    const subscribe = vi.fn(async (ep, opts) => {
+      captured.push({ ep, input: opts.input });
+      return {
+        data: { images: [{ url: "https://cdn.example.com/matted.png" }] },
+      };
+    });
+    const pngOne = new PNG({ width: 2, height: 2 });
+    pngOne.data.fill(0);
+    for (let i = 3; i < pngOne.data.length; i += 4) pngOne.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () =>
+        pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+    }));
+
+    await falSubscribeBriaBackgroundRemoveToBuffer({
+      imageUrl: "https://cdn.example.com/in.png",
+      quiet: true,
+      falSubscribe: subscribe,
+      fetch: fetchMock,
+    });
+
+    expect(subscribe).toHaveBeenCalledWith(
+      BRIA_BACKGROUND_REMOVE_ENDPOINT,
+      expect.objectContaining({ input: expect.any(Object) }),
+    );
+    expect(captured[0].input.image_url).toBe("https://cdn.example.com/in.png");
+    expect(fetchMock).toHaveBeenCalled();
   });
 });

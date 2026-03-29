@@ -1,0 +1,85 @@
+{
+  "kind": "dpad_tile_set",
+  "preset": "dpad_four_way",
+  "recipeId": "sprite-gen-dpad_four_way-sheet-v14-frames-chroma",
+  "createdAt": "2026-03-28T12:00:00.000Z",
+  "workflow": "fal sheet (fal-ai/flux/dev, 400×100px, txt2img → crop)",
+  "specs": {
+    "tileSize": {
+      "width": 100,
+      "height": 100
+    },
+    "framePreset": [
+      {
+        "id": "up",
+        "outSubdir": "up"
+      },
+      {
+        "id": "down",
+        "outSubdir": "down"
+      },
+      {
+        "id": "left",
+        "outSubdir": "left"
+      },
+      {
+        "id": "right",
+        "outSubdir": "right"
+      }
+    ],
+    "sheetSize": {
+      "width": 400,
+      "height": 100
+    },
+    "sheetCropMap": {
+      "up": {
+        "x": 0,
+        "y": 0
+      },
+      "down": {
+        "x": 100,
+        "y": 0
+      },
+      "left": {
+        "x": 200,
+        "y": 0
+      },
+      "right": {
+        "x": 300,
+        "y": 0
+      }
+    },
+    "imageSize": "400x100",
+    "naming": "dpad.png per frame folder (outSubdir)",
+    "strategy": "sheet",
+    "chroma": {
+      "keyHex": "#FF00FF",
+      "keyRgb": {
+        "r": 255,
+        "g": 0,
+        "b": 255
+      },
+      "tolerance": 72,
+      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
+    },
+    "seedPolicyPerTile": null
+  },
+  "generationRecipe": {
+    "mode": "generate",
+    "endpoint": "fal-ai/flux/dev",
+    "seedRequested": null,
+    "falExtrasPerTile": null,
+    "falExtrasSheet": {
+      "num_inference_steps": 40,
+      "guidance_scale": 4,
+      "acceleration": "none"
+    },
+    "note": "Real: one fal job at 400x100, crop to 100px, then chroma-key (#FF00FF) → RGBA."
+  },
+  "frames": [],
+  "provenance": {
+    "tool": "tools/dpad-workflow.mjs",
+    "version": 4
+  },
+  "generationResults": {}
+}

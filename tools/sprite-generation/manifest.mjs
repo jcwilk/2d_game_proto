@@ -1,7 +1,7 @@
 /**
  * Manifest builder for sprite-generation outputs (`manifest.json`).
  *
- * Assembles the same structural shape as **`public/art/dpad/manifest.json`**:
+ * Assembles the same structural shape as **`fixtures/dpad-generate-sheet-manifest.json`** (generate/sheet reference; **`public/art/dpad/manifest.json`** is mock workflow output):
  * `kind`, `preset`, `recipeId`, `createdAt`, `workflow`, `specs`, `generationRecipe`,
  * `frames[]`, `provenance`, and initial `generationResults`.
  *

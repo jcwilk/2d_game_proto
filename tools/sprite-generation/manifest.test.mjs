@@ -229,11 +229,11 @@ describe("manifest builder", () => {
     expect(specs.imageSize).toBe("400x100");
   });
 
-  it("structural field names align with checked-in public/art/dpad/manifest.json sample", async () => {
+  it("structural field names align with generate-sheet fixture (not public/ mock output)", async () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const sample = JSON.parse(await readFile(join(__dirname, "../../public/art/dpad/manifest.json"), "utf8"));
+    const sample = JSON.parse(await readFile(join(__dirname, "fixtures/dpad-generate-sheet-manifest.json"), "utf8"));
 
-    /** Matches `runPipeline` + dpad preset for **generate / sheet / flux/dev txt2img** (checked-in `public/art/dpad/manifest.json`). */
+    /** Matches `runPipeline` + dpad preset for **generate / sheet / flux/dev txt2img** (`fixtures/dpad-generate-sheet-manifest.json`; `public/art/dpad/manifest.json` is overwritten by `mock:dpad-workflow`). */
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const built = buildInitialManifest({
       kind: "dpad_tile_set",

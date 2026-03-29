@@ -1,6 +1,6 @@
 ---
 id: 2gp-esal
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T02:43:54Z
@@ -24,3 +24,13 @@ All child tickets are closed (each child’s `deps` satisfied before close). `np
 
 Children: **2gp-vk43**, **2gp-ibfz**, **2gp-j2xm**, **2gp-fknm**, **2gp-sxtu**, **2gp-i75o**.
 
+
+## Notes
+
+**2026-03-29T02:53:26Z**
+
+Epic verification (branch fal_assets): All children 2gp-vk43, 2gp-ibfz, 2gp-j2xm, 2gp-fknm, 2gp-sxtu, 2gp-i75o confirmed closed. npm test: vitest 23 files / 95 tests passed. npm run mock:dpad-workflow: completed successfully; sheet strategy, manifest.json + sprite-ref.json + four direction tiles under public/art/dpad/ match 1×4 topology per tools/sprite-generation/README.md (2gp-vk43). Regenerated dpad outputs reverted from git working tree after verification (no binary-only commit). 2gp-sxtu: no legacy control-canny modules in tools/sprite-generation code; only documented historical README section mentions fal-ai/flux-control-lora-canny; dpad-workflow.mjs uses DEFAULT_FAL_ENDPOINT flux/dev. Fal model IDs: see README ADR — fal-ai/flux/dev https://fal.ai/models/fal-ai/flux/dev/api verified 2026-03-28 per child 2gp-vk43 closure.
+
+**2026-03-29T02:54:08Z**
+
+Follow-up (verifier): manifest structural test failed — it expected generate/sheet specs keys vs public/art/dpad/manifest.json (mock workflow output). Added tools/sprite-generation/fixtures/dpad-generate-sheet-manifest.json from buildInitialManifest; manifest.test.mjs reads fixture; manifest.mjs docstring clarified. npm test green (95).

@@ -2,6 +2,7 @@ html,
 body {
   margin: 0;
   height: 100%;
+  background-color: #000;
 }
 
 #app {
@@ -9,6 +10,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background-color: #000;
 }
 
 /*
@@ -31,6 +33,7 @@ body {
   min-width: 0;
   display: flex;
   width: 100%;
+  background-color: #000;
 }
 
 /* Default: portrait — stack: stage (flex) then controls (fixed min strip) */
@@ -51,6 +54,7 @@ body {
   display: flex;
   box-sizing: border-box;
   overflow: hidden;
+  background-color: #000;
   /* Largest square that fits inside this region shrinks when controls eat space */
   container-type: size;
   container-name: game-stage;
@@ -108,6 +112,7 @@ body {
   box-sizing: border-box;
   padding: 0.4rem;
   touch-action: none;
+  background-color: #000;
 }
 
 /* Portrait: horizontal bar at bottom */

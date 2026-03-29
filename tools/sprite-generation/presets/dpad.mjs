@@ -11,8 +11,8 @@
  * - **`outBase`** — Absolute directory for tiles, `manifest.json`, `sprite-ref.json`.
  * - **`tileSize`** — Square tile edge (px).
  * - **`sheet`** — `{ width, height, crops }` — required when `strategy === 'sheet'` (rectangular sheet pixel size + crop map).
- * - **`prompt`** — `{ frameStyle, frameComposition, sheetStyle, sheetComposition, sheetSubject }` for **`buildPrompt`** / **`buildSheetPrompt`**.
- * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet }` for fal T2I (default **`fal-ai/nano-banana-2`** + nano-shaped extras).
+ * - **`prompt`** — `{ frameStyle, frameComposition, sheetStyle, sheetComposition, sheetSubject, framePromptSuffix? }` for **`buildPrompt`** / **`buildSheetPrompt`**.
+ * - **`fal`** — `{ defaultEndpoint, falExtrasPerTile, falExtrasSheet, sheetRewrite? }` for fal T2I + optional OpenRouter sheet rewrite (default **`fal-ai/nano-banana-2`** + nano-shaped extras).
  * - **`qa`** — `{ spriteWidth, spriteHeight }` for png-analyze (8×8 cells on 256² when 32×32).
  * - **`provenance`** — Manifest `provenance.tool` + `.version`.
  * - **`spriteRef`** — **`kind: 'frameKeyRect'`** — per-frame PNG URLs under Vite `public/` (see **`../sprite-ref.mjs`**, **`src/art/atlasTypes.ts`** `parseFrameKeyRectManifestJson`).
@@ -30,6 +30,8 @@
  * @see `../README.md` — deterministic geometry vs stochastic T2I/chroma
  * @see `../pipeline.mjs` — orchestration, postprocess, QA analyze
  * @see `../manifest.mjs` — `buildRecipeId`, recipe version slugs
+ *
+ * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/dpad-workflow.mjs --no-rewrite`**.
  */
 
 import {
@@ -42,8 +44,10 @@ import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
 import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 import {
   DPAD_FRAME_COMPOSITION,
+  DPAD_FRAME_PROMPT_SUFFIX,
   DPAD_FRAME_STYLE,
   DPAD_SHEET_COMPOSITION,
+  DPAD_SHEET_REWRITE_SYSTEM_PROMPT,
   DPAD_SHEET_STYLE,
   DPAD_SHEET_SUBJECT,
 } from "../prompt.mjs";
@@ -99,7 +103,7 @@ export const DPAD_FRAMES = Object.freeze([
     promptVariant:
       `Orientation NORTH (up): one isosceles triangle only, pointing straight up. ` +
       `Apex sits on the top edge at horizontal center; the base is a horizontal segment below the apex, parallel to the bottom edge. ` +
-      `Flat 2D orthographic symbol only — no perspective, no 3D block, no extrusion, no chevron pair.`,
+      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair.`,
   },
   {
     id: "down",
@@ -107,7 +111,7 @@ export const DPAD_FRAMES = Object.freeze([
     promptVariant:
       `Orientation SOUTH (down): one isosceles triangle only, pointing straight down. ` +
       `Apex sits on the bottom edge at horizontal center; the base is a horizontal segment above the apex. ` +
-      `Flat 2D orthographic symbol only — no perspective, no 3D block, no extrusion, no chevron pair.`,
+      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair.`,
   },
   {
     id: "left",
@@ -117,7 +121,7 @@ export const DPAD_FRAMES = Object.freeze([
       `The tip touches the left edge at vertical midline; the base is a vertical segment on the right half of the tile. ` +
       `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
       `Do not draw an upward or downward arrow; this is a horizontal-left control glyph. ` +
-      `Flat 2D orthographic symbol only — no perspective, no 3D block.`,
+      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks.`,
   },
   {
     id: "right",
@@ -127,7 +131,7 @@ export const DPAD_FRAMES = Object.freeze([
       `The tip touches the right edge at vertical midline; the base is a vertical segment on the left half of the tile. ` +
       `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
       `Do not draw an upward, downward, or leftward arrow. ` +
-      `Flat 2D orthographic symbol only — no perspective, no 3D block.`,
+      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks.`,
   },
 ]);
 
@@ -215,11 +219,16 @@ export function createPreset(opts) {
       sheetStyle: DPAD_SHEET_STYLE,
       sheetComposition: DPAD_SHEET_COMPOSITION,
       sheetSubject: DPAD_SHEET_SUBJECT,
+      framePromptSuffix: DPAD_FRAME_PROMPT_SUFFIX,
     },
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
       falExtrasPerTile: { ...DPAD_FAL_EXTRAS_PER_TILE },
       falExtrasSheet: { ...DPAD_FAL_EXTRAS_SHEET },
+      sheetRewrite: {
+        enabled: true,
+        systemPrompt: DPAD_SHEET_REWRITE_SYSTEM_PROMPT,
+      },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
     provenance: { tool: provenanceTool, version: provenanceVersion },

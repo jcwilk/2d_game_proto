@@ -45,7 +45,7 @@ import {
 import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
-import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX } from "./prompt.mjs";
+import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX, DPAD_FRAME_PROMPT_SUFFIX } from "./prompt.mjs";
 import {
   applyPostprocessPipeline,
   resolveGeneratorConfig,
@@ -129,7 +129,7 @@ function maskSecret(s) {
  * @property {string} outBase  Absolute directory root for tiles + manifest + sprite-ref.
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
- * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string }} prompt
+ * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string }} prompt
  * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
@@ -447,6 +447,7 @@ async function runMockPerTilePath({ preset, generationResultsById, timings, seed
       style: prompt.frameStyle,
       composition: prompt.frameComposition,
       subject,
+      suffix: prompt.framePromptSuffix ?? DPAD_FRAME_PROMPT_SUFFIX,
     });
     if (!quiet) {
       log("DEBUG", "prompt", `preview [${frame.id}]`, { text: text.slice(0, 120) + "…" });
@@ -578,6 +579,7 @@ async function runGeneratePerTilePath({
       style: prompt.frameStyle,
       composition: prompt.frameComposition,
       subject,
+      suffix: prompt.framePromptSuffix ?? DPAD_FRAME_PROMPT_SUFFIX,
     });
     log("INFO", "prompt", `built per-tile prompt [${frame.id}]`, { chars: text.length });
 

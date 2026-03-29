@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 /**
- * D-pad tile workflow CLI — **delegates** to **`createPreset`** (`presets/dpad.mjs`) +
- * **`runPipeline`** (`sprite-generation/pipeline.mjs`). See preset and pipeline docs for behavior.
+ * Character walk-cycle workflow CLI — **`createPreset`** (`presets/character.mjs`) +
+ * **`runPipeline`** (`sprite-generation/pipeline.mjs`).
  *
- * Modes: `--mode mock` (default) | `--mode generate` (fal; needs FAL_KEY).
- *
- * @see tools/sprite-generation/presets/dpad.mjs
+ * @see tools/sprite-generation/presets/character.mjs
  * @see tools/sprite-generation/pipeline.mjs
  */
 
@@ -18,18 +16,18 @@ import { log } from "./sprite-generation/logging.mjs";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
 import {
+  CHARACTER_CHROMA_TOLERANCE_DEFAULT,
   createPreset,
   DEFAULT_FAL_ENDPOINT,
   SHEET_HEIGHT,
   SHEET_WIDTH,
   TILE_SIZE,
-} from "./sprite-generation/presets/dpad.mjs";
+} from "./sprite-generation/presets/character.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_BASE = join(__dirname, "..", "public", "art", "dpad");
+const OUT_BASE = join(__dirname, "..", "public", "art", "character");
 
-/** Euclidean RGB distance vs key — default tuned for FLUX magenta drift + fringe removal. */
-const DEFAULT_CHROMA_TOLERANCE = 72;
+const DEFAULT_CHROMA_TOLERANCE = CHARACTER_CHROMA_TOLERANCE_DEFAULT;
 
 function parseHexRgb(hex) {
   const s = String(hex).trim();
@@ -54,7 +52,7 @@ function parseArgs(argv) {
     help: false,
     chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
     chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
-    /** `undefined` → use preset (dpad defaults to rewrite on for generate sheet). */
+    /** `undefined` → use preset (`character` defaults to rewrite on for generate sheet). */
     sheetRewrite: undefined,
   };
   for (let i = 2; i < argv.length; i++) {
@@ -134,39 +132,30 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node tools/dpad-workflow.mjs [options]
+  console.log(`Usage: node tools/character-workflow.mjs [options]
 
-D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
+Character walk-cycle preset: manifest + four frames + png-analyze QA.
 
 Options:
-  --mode mock|generate   mock = RGBA triangles (default, no API).
-                         generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
-  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
-                         (default T2I: fal-ai/nano-banana-2 + optional BRIA matting).
-                         **per-tile** = one T2I call per frame (same --seed when set); default endpoint matches preset.
-  --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
-  --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
-  --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT}). Preset fal extras merge when the endpoint matches the same family (e.g. nano-banana ids).
-  --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
-                         Ignored for sheet (sheet is always ${SHEET_WIDTH}x${SHEET_HEIGHT}).
-  --seed <int>           Optional fal seed: one job (sheet) or the SAME seed every per-tile call.
-  --chroma-key <#RRGGBB>  Screen color in prompts + post removal (default: ${DEFAULT_CHROMA_KEY_HEX}).
-  --chroma-tolerance <0-255>  Euclidean RGB distance from key for transparency (default: ${DEFAULT_CHROMA_TOLERANCE}).
-  --skip-qa              Skip png-analyze step.
-  --dry-run              Print planned actions only; no writes, no API calls.
-                         For --mode generate, does NOT require FAL_KEY (planning only).
+  --mode mock|generate   mock = deterministic walk figures (default, no API).
+  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop.
+  --keep-sheet           With --strategy sheet: also write public/art/character/sheet.png for debugging.
+  --save-pre-chroma      With --mode generate --strategy per-tile: write pre-chroma PNG per frame.
+  --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT}).
+  --image-size <WxH>     per-tile size (default: ${TILE_SIZE}x${TILE_SIZE}).
+  --seed <int>
+  --chroma-key <#RRGGBB>  (default: ${DEFAULT_CHROMA_KEY_HEX})
+  --chroma-tolerance <0-255>  (default: ${DEFAULT_CHROMA_TOLERANCE})
+  --skip-qa
+  --dry-run
   --rewrite              Sheet: force OpenRouter prompt rewrite before T2I (needs FAL_KEY).
   --no-rewrite           Sheet: skip rewrite (preset defaults to rewrite ON for generate).
-  --quiet, -q            Less STDOUT (errors still print).
-  --help, -h             This message.
-
-Environment (generate mode):
-  FAL_KEY or FAL_KEY_ID + FAL_KEY_SECRET
+  --quiet, -q
+  --help, -h
 
 Examples:
-  node tools/dpad-workflow.mjs --mode mock
-  FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet
-  node --env-file=.env tools/dpad-workflow.mjs --mode generate --endpoint fal-ai/flux/dev
+  node tools/character-workflow.mjs --mode mock
+  FAL_KEY=… npm run character-workflow -- --mode generate --strategy sheet --keep-sheet
 `);
 }
 
@@ -195,8 +184,8 @@ async function main() {
 
   const preset = createPreset({
     outBase: OUT_BASE,
-    provenanceTool: "tools/dpad-workflow.mjs",
-    provenanceVersion: 4,
+    provenanceTool: "tools/character-workflow.mjs",
+    provenanceVersion: 1,
   });
 
   try {

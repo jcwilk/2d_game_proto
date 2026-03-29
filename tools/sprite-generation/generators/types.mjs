@@ -39,6 +39,13 @@
  */
 
 /**
+ * @callback TileBufferForFrameFn
+ * @param {GeneratorFrame} frame
+ * @param {{ tileSize: number }} ctx
+ * @returns {import('node:buffer').Buffer}  PNG bytes for one tile (RGBA).
+ */
+
+/**
  * Postprocess step id (see **`../pipeline-stages.mjs`** **`POSTPROCESS_REGISTRY`**).
  *
  * @typedef {'chromaKey'} PostprocessStepId
@@ -51,6 +58,7 @@
  * @property {number} [tileSize=256]  Width and height of one frame.
  * @property {number} [seed]  Carried in metadata for parity with fal; mock geometry ignores it unless a preset uses it.
  * @property {ShapeForFrameFn} [shapeForFrame]  Override triangle (or other) shape per frame; defaults to D-pad triangles from `frame.id`.
+ * @property {TileBufferForFrameFn} [tileBufferForFrame]  When set, used instead of **`shapeForFrame`** + triangle raster (e.g. character walk mocks).
  * @property {{ r: number; g: number; b: number; a: number }} [fill]  Opaque glyph color; background stays transparent.
  * @property {MockSheetLayout} [sheetLayout]  **Required** for mock `generateSheet`: cell coords per `frame.id` (use `sheetLayoutFromCrops` with `preset.sheet.crops`).
  */

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
+import { DPAD_FRAME_PROMPT_SUFFIX } from "../prompt.mjs";
 import {
   createPreset,
   DPAD_FRAMES,
@@ -33,6 +34,9 @@ describe("presets/dpad", () => {
     expect(p.spriteRef.artUrlPrefix).not.toMatch(/\/$/);
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
     expect(p.fal?.falExtrasSheet).toMatchObject({ aspect_ratio: "4:1", resolution: "1K" });
+    expect(p.fal?.sheetRewrite?.enabled).toBe(true);
+    expect(typeof p.fal?.sheetRewrite?.systemPrompt).toBe("string");
+    expect(p.prompt?.framePromptSuffix).toBe(DPAD_FRAME_PROMPT_SUFFIX);
     expect(p.qa.spriteWidth).toBe(20);
     expect(p.qa.spriteHeight).toBe(20);
     expect(p.generatorConfig?.shapeForFrame).toBe(defaultDpadShapeForFrame);

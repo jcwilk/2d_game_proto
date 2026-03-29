@@ -12,6 +12,8 @@
  * **`suppressHiDPIScaling`:** `true` — use device pixel ratio 1 so one game pixel aligns to the canvas grid for
  * crisp pixels (retro / pixel-aligned art). Use `false` for smoother scaling on HiDPI at the cost of blur or
  * fractional pixel alignment.
+ *
+ * **`antialiasing`:** `false` — nearest-neighbor sampling for textures and pixelated canvas upscaling (pixel art).
  */
 import { DisplayMode, Engine, type EngineOptions } from 'excalibur';
 
@@ -49,6 +51,8 @@ export function createEngineOptions(overrides?: Partial<EngineOptions>): EngineO
     height: VIEWPORT_HEIGHT,
     displayMode: DEFAULT_DISPLAY_MODE,
     suppressHiDPIScaling: SUPPRESS_HI_DPI_SCALING,
+    /** Nearest-neighbor textures + `image-rendering: pixelated` when scaling the canvas (pixel art). */
+    antialiasing: false,
     ...overrides,
   };
 }

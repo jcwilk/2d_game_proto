@@ -2,7 +2,7 @@
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
   "recipeId": "sprite-gen-dpad_four_way-sheet-v15-bria-sheet-rgba",
-  "createdAt": "2026-03-29T03:38:22.983Z",
+  "createdAt": "2026-03-29T05:46:38.793Z",
   "workflow": "fal sheet (fal-ai/nano-banana-2, 400×100px, txt2img → crop)",
   "specs": {
     "tileSize": {
@@ -67,7 +67,7 @@
   "generationRecipe": {
     "mode": "generate",
     "endpoint": "fal-ai/nano-banana-2",
-    "seedRequested": 42,
+    "seedRequested": null,
     "falExtrasPerTile": null,
     "falExtrasSheet": {
       "aspect_ratio": "4:1",
@@ -79,8 +79,8 @@
     {
       "id": "up",
       "outSubdir": "up",
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "0,0",
       "alphaSource": "bria",
@@ -91,8 +91,8 @@
     {
       "id": "down",
       "outSubdir": "down",
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "100,0",
       "alphaSource": "bria",
@@ -103,8 +103,8 @@
     {
       "id": "left",
       "outSubdir": "left",
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "200,0",
       "alphaSource": "bria",
@@ -115,8 +115,8 @@
     {
       "id": "right",
       "outSubdir": "right",
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "300,0",
       "alphaSource": "bria",
@@ -131,8 +131,8 @@
   },
   "generationResults": {
     "up": {
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "0,0",
       "alphaSource": "bria",
@@ -141,8 +141,8 @@
       "notes": []
     },
     "down": {
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "100,0",
       "alphaSource": "bria",
@@ -151,8 +151,8 @@
       "notes": []
     },
     "left": {
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "200,0",
       "alphaSource": "bria",
@@ -161,8 +161,8 @@
       "notes": []
     },
     "right": {
-      "seedRequested": 42,
-      "wallMs": 51886,
+      "seedRequested": null,
+      "wallMs": 37311,
       "fromSheet": true,
       "cropOrigin": "300,0",
       "alphaSource": "bria",
@@ -171,11 +171,14 @@
       "notes": []
     },
     "_sheet": {
-      "wallMs": 51886,
+      "wallMs": 37311,
       "strategy": "sheet",
       "alphaSource": "bria",
-      "t2iWallMs": 48904,
-      "briaWallMs": 2982
+      "t2iWallMs": 31443,
+      "briaWallMs": 5868,
+      "rewriteModel": "openai/gpt-4o-mini",
+      "rewrittenPromptFingerprint": "1e4e82730b4451a1",
+      "rewriteWallMs": 5288
     }
   }
 }

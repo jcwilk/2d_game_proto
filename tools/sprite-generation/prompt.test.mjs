@@ -40,7 +40,7 @@ describe("sprite-generation prompt", () => {
     expect(out).toContain("No API calls here.");
   });
 
-  it("buildPrompt: default chroma and dpad suffix include prohibitions and crisp-pixel rules", () => {
+  it("buildPrompt: default chroma and dpad suffix include chroma-safe HUD rules", () => {
     const out = buildPrompt({
       tileSize: 256,
       chromaKeyHex: undefined,
@@ -49,17 +49,19 @@ describe("sprite-generation prompt", () => {
       subject: "TEST_SUBJECT_LINE.",
     });
     expect(out).toContain(DEFAULT_CHROMA_KEY_HEX);
-    expect(out).toContain("no gradients inside the shape");
-    expect(out).toContain("no soft glow");
+    expect(out).toContain("subtle soft shading");
+    expect(out).toContain("minimize pink or magenta fringing");
     expect(out).toContain("TEST_SUBJECT_LINE.");
   });
 
   it("buildSheetPrompt matches dpad 1×4 strip wording for same inputs", () => {
     const chroma = "#FF00FF";
     const expected =
-      `1×4 horizontal pixel art HUD strip on one 400×100px canvas: four equal square panels in a single row. ` +
+      `1×4 horizontal stylized 2D HUD direction strip on one 400×100px canvas: four equal square panels in a single row. ` +
       `Entire image background is one flat solid screen color ${chroma} (pure magenta), full bleed, no gradients. ` +
-      `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not ${chroma}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. ` +
+      `One triangle per panel: same material, palette, and stylistic treatment in all four — muted natural colors, subtle bevel or soft cel-shade OK; ` +
+      `not ${chroma} on the glyphs. Triangles small, optically centered, generous margin; ` +
+      `no text, no pinwheel, no extra arrows beyond the four directions. ` +
       DPAD_SHEET_SUBJECT;
 
     const got = buildSheetPrompt({

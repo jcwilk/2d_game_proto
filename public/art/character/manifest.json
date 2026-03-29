@@ -1,0 +1,184 @@
+{
+  "kind": "character_walk_sprite",
+  "preset": "character_walk",
+  "recipeId": "sprite-gen-character_walk-sheet-v15-bria-sheet-rgba",
+  "createdAt": "2026-03-29T05:53:44.100Z",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 256×64px, txt2img → crop)",
+  "specs": {
+    "tileSize": {
+      "width": 64,
+      "height": 64
+    },
+    "framePreset": [
+      {
+        "id": "walk_0",
+        "outSubdir": "walk_0"
+      },
+      {
+        "id": "walk_1",
+        "outSubdir": "walk_1"
+      },
+      {
+        "id": "walk_2",
+        "outSubdir": "walk_2"
+      },
+      {
+        "id": "walk_3",
+        "outSubdir": "walk_3"
+      }
+    ],
+    "sheetSize": {
+      "width": 256,
+      "height": 64
+    },
+    "sheetCropMap": {
+      "walk_0": {
+        "x": 0,
+        "y": 0
+      },
+      "walk_1": {
+        "x": 64,
+        "y": 0
+      },
+      "walk_2": {
+        "x": 128,
+        "y": 0
+      },
+      "walk_3": {
+        "x": 192,
+        "y": 0
+      }
+    },
+    "imageSize": "256x64",
+    "naming": "character.png per frame folder (outSubdir)",
+    "strategy": "sheet",
+    "chroma": {
+      "keyHex": "#FF00FF",
+      "keyRgb": {
+        "r": 255,
+        "g": 0,
+        "b": 255
+      },
+      "tolerance": 110,
+      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
+    },
+    "seedPolicyPerTile": null
+  },
+  "generationRecipe": {
+    "mode": "generate",
+    "endpoint": "fal-ai/nano-banana-2",
+    "seedRequested": null,
+    "falExtrasPerTile": null,
+    "falExtrasSheet": {
+      "aspect_ratio": "4:1",
+      "resolution": "1K"
+    },
+    "note": "Real: one fal sheet job at 256x64, crop to 64px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
+  },
+  "frames": [
+    {
+      "id": "walk_0",
+      "outSubdir": "walk_0",
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "0,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    {
+      "id": "walk_1",
+      "outSubdir": "walk_1",
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "64,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    {
+      "id": "walk_2",
+      "outSubdir": "walk_2",
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "128,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    {
+      "id": "walk_3",
+      "outSubdir": "walk_3",
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "192,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    }
+  ],
+  "provenance": {
+    "tool": "tools/character-workflow.mjs",
+    "version": 1
+  },
+  "generationResults": {
+    "walk_0": {
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "0,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    "walk_1": {
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "64,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    "walk_2": {
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "128,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    "walk_3": {
+      "seedRequested": null,
+      "wallMs": 38231,
+      "fromSheet": true,
+      "cropOrigin": "192,0",
+      "alphaSource": "bria",
+      "chromaApplied": true,
+      "chromaKeySource": "prompt-hex",
+      "notes": []
+    },
+    "_sheet": {
+      "wallMs": 38231,
+      "strategy": "sheet",
+      "alphaSource": "bria",
+      "t2iWallMs": 35285,
+      "briaWallMs": 2946,
+      "rewriteModel": "openai/gpt-4o-mini",
+      "rewrittenPromptFingerprint": "9dfa189678587979",
+      "rewriteWallMs": 3544
+    }
+  }
+}

@@ -131,6 +131,7 @@ describe("pipeline (integration)", () => {
       endpoint: "fal-ai/nano-banana-2",
       skipQa: true,
       quiet: true,
+      sheetRewrite: false,
       falSubscribe,
       fetch: fetchMock,
     });
@@ -192,6 +193,7 @@ describe("pipeline (integration)", () => {
       endpoint: "fal-ai/nano-banana-2/rc",
       skipQa: true,
       quiet: true,
+      sheetRewrite: false,
       falSubscribe,
       fetch: fetchMock,
     });

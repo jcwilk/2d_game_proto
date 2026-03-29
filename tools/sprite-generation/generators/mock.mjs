@@ -132,6 +132,83 @@ export function renderTriangleSilhouetteTileBuffer(opts) {
 }
 
 /**
+ * Walk-cycle phase index from preset frame id **`walk_0`** … **`walk_3`**.
+ *
+ * @param {string} id
+ * @returns {0|1|2|3}
+ */
+export function walkPhaseFromFrameId(id) {
+  const m = /^walk_(\d)$/.exec(id);
+  if (!m) {
+    throw new Error(`mock character walk: frame id must be walk_0..walk_3, got ${JSON.stringify(id)}`);
+  }
+  const n = Number(m[1]);
+  if (n < 0 || n > 3 || !Number.isInteger(n)) {
+    throw new Error(`mock character walk: invalid walk index in ${JSON.stringify(id)}`);
+  }
+  return /** @type {0|1|2|3} */ (n);
+}
+
+/**
+ * Deterministic RGBA tile: simple “pixel” figure with four leg phases (mock walk cycle).
+ *
+ * @param {import('./types.mjs').GeneratorFrame} frame
+ * @param {number} tileSize
+ * @returns {import('node:buffer').Buffer}
+ */
+export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
+  const phase = walkPhaseFromFrameId(frame.id);
+  const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
+  const leftDx = [-4, 0, 4, 0];
+  const rightDx = [4, 0, -4, 0];
+  const ld = leftDx[phase];
+  const rd = rightDx[phase];
+
+  const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
+  png.data.fill(0);
+
+  const cx = (tileSize / 2) | 0;
+  const head = Math.max(4, Math.round((tileSize * 10) / 64));
+  const hx0 = cx - (head / 2) | 0;
+  const hy0 = Math.max(2, Math.round(tileSize * 0.08));
+  const bw = Math.max(6, Math.round((tileSize * 12) / 64));
+  const bh = Math.round(tileSize * 0.28);
+  const bx0 = cx - (bw / 2) | 0;
+  const by0 = hy0 + head + 2;
+  const legW = Math.max(4, Math.round((tileSize * 5) / 64));
+  const legH = Math.min(Math.round(tileSize * 0.34), tileSize - by0 - bh - 4);
+  const footY = tileSize - legH - 2;
+  const leftLegX = bx0 - 2 + ld;
+  const rightLegX = bx0 + bw - legW + 2 + rd;
+
+  /**
+   * @param {number} x0
+   * @param {number} y0
+   * @param {number} w
+   * @param {number} h
+   */
+  const fillRect = (x0, y0, w, h) => {
+    for (let y = y0; y < y0 + h; y++) {
+      for (let x = x0; x < x0 + w; x++) {
+        if (x < 0 || y < 0 || x >= tileSize || y >= tileSize) continue;
+        const i = (tileSize * y + x) << 2;
+        png.data[i] = fill.r;
+        png.data[i + 1] = fill.g;
+        png.data[i + 2] = fill.b;
+        png.data[i + 3] = fill.a;
+      }
+    }
+  };
+
+  fillRect(hx0, hy0, head, head);
+  fillRect(bx0, by0, bw, bh);
+  fillRect(leftLegX, footY, legW, legH);
+  fillRect(rightLegX, footY, legW, legH);
+
+  return PNG.sync.write(png);
+}
+
+/**
  * One sheet PNG: each frame’s triangle at **`crops[id]`** (top-left px), same per-cell geometry as **`renderTriangleSilhouetteTileBuffer`**.
  *
  * @param {object} opts
@@ -235,6 +312,18 @@ export function softenTriangleMaskBuffer(buffer, passes = 1) {
  */
 export async function generate(frame, config = {}) {
   const tileSize = config.tileSize ?? 256;
+  if (typeof config.tileBufferForFrame === "function") {
+    const buffer = config.tileBufferForFrame(frame, { tileSize });
+    return {
+      buffer,
+      metadata: {
+        width: tileSize,
+        height: tileSize,
+        mode: "mock",
+        seed: config.seed,
+      },
+    };
+  }
   const fill = config.fill ?? { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
   const shapeForFrame = config.shapeForFrame ?? defaultDpadShapeForFrame;
   const vertices = shapeForFrame(frame, { tileSize });

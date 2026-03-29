@@ -8,33 +8,90 @@
 
 export const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 
-/** Suffix after per-frame `subject`: centering, crisp pixels, prohibitions (dpad default). */
+/** Suffix after per-frame `subject`: centering, chroma-friendly HUD glyph (dpad default). */
 export const DPAD_FRAME_PROMPT_SUFFIX =
   ` The glyph is optically centered in the square (roughly equal empty margin on all four sides). ` +
-  `Crisp pixel edges, no soft glow, no gradients inside the shape, no shading, no lighting. ` +
-  `No halo, vignette, or color bleed from the background into the triangle; no pink or magenta fringing on the glyph outline. ` +
-  `No other shapes, no text, no duplicate triangles, no extra arrows or chevrons, no shadows, no hardware chrome, no grid lines, no watermark.`;
+  `Readable at small size; subtle soft shading, light bevel, or gentle inner gradient within the triangle is OK for material read — avoid muddy blur. ` +
+  `No halo, vignette, or color bleed from the background into the triangle; minimize pink or magenta fringing on the outline. ` +
+  `No other shapes, no text, no duplicate triangles, no extra arrows or chevrons, no hardware chrome frame, no grid lines, no watermark.`;
 
 /** Opening line for dpad per-tile prompts. Placeholders: `{tileSize}`. */
-export const DPAD_FRAME_STYLE = `Flat {tileSize}px square pixel art HUD icon. `;
+export const DPAD_FRAME_STYLE = `Stylized {tileSize}px square 2D HUD direction glyph (game UI, not photoreal). `;
 
 /**
  * Shared background + single-triangle rules before the per-frame subject. Placeholders: `{chromaKeyHex}`.
  */
 export const DPAD_FRAME_COMPOSITION =
   `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
-  `Exactly one filled triangle with three straight sides; the glyph fill is a single solid dark neutral gray (approximately #2A2A2A), not {chromaKeyHex}, not blue-tinted. `;
+  `Exactly one filled triangle with three straight sides. ` +
+  `Use a cohesive, natural-looking fill: muted slate, warm gray, soft blue-gray, or desaturated stone — pick one palette and stick to it; ` +
+  `light highlights and soft shadow on the glyph are OK. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta in the triangle (reserved for the keyable background). `;
 
 /** Sheet prompt segments (dpad 1×4 horizontal strip). Placeholders: `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}`. */
 export const DPAD_SHEET_STYLE =
-  `1×4 horizontal pixel art HUD strip on one {sheetWidth}×{sheetHeight}px canvas: four equal square panels in a single row. `;
+  `1×4 horizontal stylized 2D HUD direction strip on one {sheetWidth}×{sheetHeight}px canvas: four equal square panels in a single row. `;
 
 export const DPAD_SHEET_COMPOSITION =
   `Entire image background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients. ` +
-  `One solid filled triangle per panel (same dark neutral gray ink approximately #2A2A2A everywhere, not {chromaKeyHex}, not blue-tinted); triangles small, optically centered in each panel, generous margin; no text, no shadows, no hardware, no pinwheel, no extra arrows. `;
+  `One triangle per panel: same material, palette, and stylistic treatment in all four — muted natural colors, subtle bevel or soft cel-shade OK; ` +
+  `not {chromaKeyHex} on the glyphs. Triangles small, optically centered, generous margin; ` +
+  `no text, no pinwheel, no extra arrows beyond the four directions. `;
 
 export const DPAD_SHEET_SUBJECT =
-  `Panel order left to right: (1) up, (2) down, (3) left, (4) right — one triangle per panel, four distinct orientations.`;
+  `Panel order left to right: (1) up, (2) down, (3) left, (4) right — one triangle per panel, four distinct orientations, consistent design language.`;
+
+/**
+ * OpenRouter sheet rewrite (**`preset.fal.sheetRewrite`**) — D-pad HUD strip: variety while keeping geometry + chroma.
+ */
+export const DPAD_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE horizontal 1×4 HUD sprite sheet (four equal panels: up, down, left, right). " +
+  "Preserve: exact panel grid, dimensions, chroma key background color, four single triangles in those orientations only, no extra arrows. " +
+  "Improve: tasteful material (soft plastic, brushed metal, stone, or paper UI), cohesive muted palette, subtle depth or bevel language — still flat 2D game UI glyphs, not photoreal objects or 3D extruded buttons. " +
+  "Output only the improved prompt text, no preamble.";
+
+/** Suffix for character walk frames: centered figure, chroma-friendly edges. */
+export const CHARACTER_WALK_FRAME_PROMPT_SUFFIX =
+  ` The character is optically centered in the square (roughly equal empty margin on all four sides). ` +
+  `Readable silhouette; light cel-shading or soft ambient occlusion is OK; avoid heavy motion blur. ` +
+  `No halo or color bleed from the background into the figure; minimize pink or magenta fringing on the outline. ` +
+  `No text, no watermark, no duplicate characters, no extra limbs, no grid lines.`;
+
+/** Opening line for per-frame walk prompts. Placeholders: `{tileSize}`. */
+export const CHARACTER_WALK_FRAME_STYLE =
+  `Stylized {tileSize}px square 2D side-view game character sprite (not photoreal), single walk frame. `;
+
+/**
+ * Shared background + single-character rules. Placeholders: `{chromaKeyHex}`.
+ */
+export const CHARACTER_WALK_FRAME_COMPOSITION =
+  `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
+  `Exactly one small humanoid figure (head + torso + two legs visible). ` +
+  `Use a coherent, creative palette: natural skin tones, clothing, and hair as you like — varied, expressive colors. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta in the figure, clothing, or shadows (those are reserved for the keyable background). ` +
+  `Avoid neon purples that could be confused with the background. `;
+
+/** 1×4 horizontal strip for four walk phases. Placeholders: `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}`. */
+export const CHARACTER_WALK_SHEET_STYLE =
+  `1×4 horizontal stylized 2D game character strip on one {sheetWidth}×{sheetHeight}px canvas: four equal square panels in a single row. `;
+
+export const CHARACTER_WALK_SHEET_COMPOSITION =
+  `Entire image background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients. ` +
+  `One character per panel: same identity, outfit, and palette across all four — creative color, believable materials, light shading OK. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the character or cast shadows. ` +
+  `Figures small, optically centered, generous margin; four sequential walk-cycle poses left-to-right; no text, no duplicate rows. `;
+
+export const CHARACTER_WALK_SHEET_SUBJECT =
+  `Panel order left to right: walk cycle frames (1) contact left, (2) passing, (3) contact right, (4) passing — one pose per panel, consistent design.`;
+
+/**
+ * OpenRouter sheet rewrite (**`preset.fal.sheetRewrite`**) — character strip: encourage variety while keeping layout + chroma constraints.
+ */
+export const CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE horizontal 1×4 sprite sheet (four equal panels, left to right walk cycle). " +
+  "Preserve: exact panel grid, dimensions, chroma key background color, four distinct walk phases in order, single consistent character. " +
+  "Improve: vivid but coherent clothing and skin tones, material read, subtle personality, and clear readable poses — still a 2D game sprite, not a full illustration or photoreal render. " +
+  "Output only the improved prompt text, no preamble.";
 
 /**
  * Replace `{tileSize}`, `{sheetSize}`, `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}` in a template string.

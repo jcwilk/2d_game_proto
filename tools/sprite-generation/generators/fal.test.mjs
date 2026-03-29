@@ -16,6 +16,7 @@ import {
   hashPromptForLog,
   isNanoBanana2Endpoint,
   sameImageEndpointFamily,
+  parseFalBriaBackgroundRemoveResult,
   parseFalImageSubscribeResult,
   OPENROUTER_ROUTER_ENDPOINT,
   parseImageSize,
@@ -89,6 +90,14 @@ describe("sprite-generation fal helpers (no network)", () => {
         input: expect.objectContaining({ prompt: "user", system_prompt: "sys", model: "openai/gpt-4o-mini" }),
       }),
     );
+  });
+
+  it("parseFalBriaBackgroundRemoveResult reads image.url (BRIA output schema)", () => {
+    const p = parseFalBriaBackgroundRemoveResult({
+      image: { url: "https://v3.fal.media/out.png", width: 100, height: 100 },
+    });
+    expect(p.url).toBe("https://v3.fal.media/out.png");
+    expect(p.image0.width).toBe(100);
   });
 
   it("parseFalImageSubscribeResult reads images[0].url from fixture-shaped data", () => {
@@ -361,7 +370,7 @@ describe("sprite-generation fal helpers (no network)", () => {
     const subscribe = vi.fn(async (ep, opts) => {
       captured.push({ ep, input: opts.input });
       return {
-        data: { images: [{ url: "https://cdn.example.com/matted.png" }] },
+        data: { image: { url: "https://cdn.example.com/matted.png", width: 2, height: 2 } },
       };
     });
     const pngOne = new PNG({ width: 2, height: 2 });

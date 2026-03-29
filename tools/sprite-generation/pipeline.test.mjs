@@ -106,7 +106,7 @@ describe("pipeline (integration)", () => {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
       if (ep === "fal-ai/bria/background/remove") {
-        return { data: { images: [{ url: "https://cdn.example.com/bria.png" }] } };
+        return { data: { image: { url: "https://cdn.example.com/bria.png" } } };
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
@@ -170,7 +170,7 @@ describe("pipeline (integration)", () => {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
       if (ep === "fal-ai/bria/background/remove") {
-        return { data: { images: [{ url: "https://cdn.example.com/bria.png" }] } };
+        return { data: { image: { url: "https://cdn.example.com/bria.png" } } };
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
@@ -225,7 +225,7 @@ describe("pipeline (integration)", () => {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
       if (ep === "fal-ai/bria/background/remove") {
-        return { data: { images: [{ url: "https://cdn.example.com/bria.png" }] } };
+        return { data: { image: { url: "https://cdn.example.com/bria.png" } } };
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });

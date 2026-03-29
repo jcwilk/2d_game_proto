@@ -1,9 +1,9 @@
 {
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
-  "recipeId": "sprite-gen-dpad_four_way-mock-v2-frames",
-  "createdAt": "2026-03-29T03:31:45.481Z",
-  "workflow": "mock (triangles)",
+  "recipeId": "sprite-gen-dpad_four_way-sheet-v15-bria-sheet-rgba",
+  "createdAt": "2026-03-29T03:38:22.983Z",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 400×100px, txt2img → crop)",
   "specs": {
     "tileSize": {
       "width": 100,
@@ -27,25 +27,63 @@
         "outSubdir": "right"
       }
     ],
-    "imageSize": "100x100",
-    "naming": "dpad.png per frame folder (outSubdir)"
+    "sheetSize": {
+      "width": 400,
+      "height": 100
+    },
+    "sheetCropMap": {
+      "up": {
+        "x": 0,
+        "y": 0
+      },
+      "down": {
+        "x": 100,
+        "y": 0
+      },
+      "left": {
+        "x": 200,
+        "y": 0
+      },
+      "right": {
+        "x": 300,
+        "y": 0
+      }
+    },
+    "imageSize": "400x100",
+    "naming": "dpad.png per frame folder (outSubdir)",
+    "strategy": "sheet",
+    "chroma": {
+      "keyHex": "#FF00FF",
+      "keyRgb": {
+        "r": 255,
+        "g": 0,
+        "b": 255
+      },
+      "tolerance": 72,
+      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
+    },
+    "seedPolicyPerTile": null
   },
   "generationRecipe": {
-    "mode": "mock",
-    "endpoint": null,
-    "seedRequested": null,
+    "mode": "generate",
+    "endpoint": "fal-ai/nano-banana-2",
+    "seedRequested": 42,
     "falExtrasPerTile": null,
-    "falExtrasSheet": null,
-    "note": "Mock: geometry from pngjs triangles, not T2I."
+    "falExtrasSheet": {
+      "aspect_ratio": "4:1",
+      "resolution": "1K"
+    },
+    "note": "Real: one fal sheet job at 400x100, crop to 100px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
   },
   "frames": [
     {
       "id": "up",
       "outSubdir": "up",
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "0,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
@@ -53,10 +91,11 @@
     {
       "id": "down",
       "outSubdir": "down",
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "100,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
@@ -64,10 +103,11 @@
     {
       "id": "left",
       "outSubdir": "left",
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "200,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
@@ -75,10 +115,11 @@
     {
       "id": "right",
       "outSubdir": "right",
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "300,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
@@ -90,46 +131,51 @@
   },
   "generationResults": {
     "up": {
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "0,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
     },
     "down": {
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "100,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
     },
     "left": {
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "200,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
     },
     "right": {
-      "wallMs": 41,
-      "seedRequested": null,
+      "seedRequested": 42,
+      "wallMs": 51886,
       "fromSheet": true,
       "cropOrigin": "300,0",
+      "alphaSource": "bria",
       "chromaApplied": false,
       "chromaKeySource": null,
       "notes": []
     },
     "_sheet": {
-      "wallMs": 41,
+      "wallMs": 51886,
       "strategy": "sheet",
-      "mode": "mock",
-      "alphaSource": "none"
+      "alphaSource": "bria",
+      "t2iWallMs": 48904,
+      "briaWallMs": 2982
     }
   }
 }

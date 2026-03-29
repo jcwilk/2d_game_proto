@@ -195,7 +195,7 @@ export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
 export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
 
 /**
- * BRIA background removal — one HTTPS `image_url` in, PNG with alpha out (`data.images[0].url`).
+ * BRIA background removal — one HTTPS `image_url` in, PNG with alpha out (`data.image.url` per fal OpenAPI).
  * Uses **`fal.subscribe`** (queued) like other fal image models; **`fal.run`** is a shorter synchronous
  * alternative in fal docs — we keep **subscribe** for consistent queue/logging with T2I (**Phase C** plan).
  */
@@ -287,6 +287,30 @@ export function parseFalImageSubscribeResult(data) {
     throw new Error("fal image[0] missing url");
   }
   return { url, seed: d.seed, image0: row };
+}
+
+/**
+ * Parse **`fal-ai/bria/background/remove`** subscribe result — output is **`{ image: { url, width, ... } }`**, not **`images[]`**.
+ *
+ * @param {unknown} data  `result.data` from fal.subscribe
+ * @returns {{ url: string; seed?: number; image0: Record<string, unknown> }}
+ * @see https://fal.ai/models/fal-ai/bria/background/remove/api (Output schema)
+ */
+export function parseFalBriaBackgroundRemoveResult(data) {
+  if (!data || typeof data !== "object") {
+    throw new Error("fal returned empty or invalid response data");
+  }
+  const d = /** @type {{ image?: { url?: string; width?: number; height?: number } }} */ (data);
+  const img = d.image;
+  if (!img || typeof img !== "object") {
+    throw new Error("fal bria/background/remove returned no image in response data");
+  }
+  const row = /** @type {Record<string, unknown>} */ (img);
+  const url = img.url;
+  if (typeof url !== "string") {
+    throw new Error("fal bria/background/remove image missing url");
+  }
+  return { url, seed: undefined, image0: row };
 }
 
 /**
@@ -605,6 +629,7 @@ export async function falSubscribeBriaBackgroundRemoveToBuffer(params) {
     log,
     falSubscribe,
     fetch: fetchImpl,
+    parseResult: parseFalBriaBackgroundRemoveResult,
     doneLogExtras: { briaMatting: true },
   });
 }

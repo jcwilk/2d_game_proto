@@ -60,11 +60,11 @@ export const TILE_SIZE = 64;
  * Default Euclidean RGB distance for the main chroma pass (per-tile strategy only). Higher keys more near-magenta pixels but can eat
  * costume pinks/purples; override with **`tools/character-workflow.mjs --chroma-tolerance`**.
  */
-export const CHARACTER_CHROMA_TOLERANCE_DEFAULT = 120;
+export const CHROMA_TOLERANCE_DEFAULT = 120;
 
 /**
  * Looser Euclidean distance **only** on pixels that border transparency (after main chroma). Keep this
- * moderately above **`CHARACTER_CHROMA_TOLERANCE_DEFAULT`**; too high keys pinks/purples in the figure.
+ * moderately above **`CHROMA_TOLERANCE_DEFAULT`**; too high keys pinks/purples in the figure.
  */
 export const CHARACTER_CHROMA_FRINGE_EDGE_DIST = 165;
 

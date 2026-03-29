@@ -36,8 +36,8 @@ function loadRepoDotenv() {
   }
 }
 
-/** Default chroma tolerance when not preset-specific (dpad inline matches dpad-workflow). */
-const DPAD_CHROMA_TOLERANCE = 72;
+/** Fallback when a preset module omits `CHROMA_TOLERANCE_DEFAULT` (matches dpad-workflow default). */
+const FALLBACK_CHROMA_TOLERANCE = 72;
 
 /**
  * Map CLI `--mode mock|live` to `runPipeline` mode. **`live` → `generate`** (single place).
@@ -129,9 +129,9 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
   });
 
   const chromaTolerance =
-    "CHARACTER_CHROMA_TOLERANCE_DEFAULT" in mod
-      ? /** @type {number} */ (mod.CHARACTER_CHROMA_TOLERANCE_DEFAULT)
-      : DPAD_CHROMA_TOLERANCE;
+    "CHROMA_TOLERANCE_DEFAULT" in mod
+      ? /** @type {number} */ (mod.CHROMA_TOLERANCE_DEFAULT)
+      : FALLBACK_CHROMA_TOLERANCE;
 
   const baseOpts = {
     mode: pipelineMode,
@@ -143,25 +143,14 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
     chromaTolerance,
   };
 
-  if (assetId === "avatar-character") {
-    await runPipeline(preset, {
-      ...baseOpts,
-      endpoint: mod.DEFAULT_FAL_ENDPOINT,
-      imageSize: `${mod.TILE_SIZE}x${mod.TILE_SIZE}`,
-      keepSheet: true,
-      savePreChroma: false,
-      sheetRewrite: undefined,
-    });
-  } else {
-    await runPipeline(preset, {
-      ...baseOpts,
-      endpoint: mod.DEFAULT_FAL_ENDPOINT,
-      imageSize: `${mod.TILE_SIZE}x${mod.TILE_SIZE}`,
-      keepSheet: false,
-      savePreChroma: false,
-      sheetRewrite: undefined,
-    });
-  }
+  await runPipeline(preset, {
+    ...baseOpts,
+    endpoint: mod.DEFAULT_FAL_ENDPOINT,
+    imageSize: `${mod.TILE_SIZE}x${mod.TILE_SIZE}`,
+    keepSheet: Boolean(preset.sheetOnlyOutput),
+    savePreChroma: false,
+    sheetRewrite: undefined,
+  });
 }
 
 function printHelpGeneral() {
@@ -176,9 +165,9 @@ Commands:
   help     Show help (try: help run)
 
 Examples:
-  node tools/generate-spritesheet.mjs run --asset dpad --mode mock
-  node tools/generate-spritesheet.mjs run --asset avatar-character --mode live
-  node tools/generate-spritesheet.mjs info --asset dpad
+  node tools/generate-spritesheet.mjs run --asset <id> --mode mock
+  node tools/generate-spritesheet.mjs run --asset <id> --mode live
+  node tools/generate-spritesheet.mjs info --asset <id>
 
 If .env exists at the repo root, it is loaded automatically (FAL_KEY, etc.). Existing
 environment variables are not overwritten. You can still use node --env-file=... if needed.
@@ -189,7 +178,7 @@ function printHelpRun() {
   console.log(`Usage: node tools/generate-spritesheet.mjs run --asset <id> --mode mock|live [options]
 
 Required:
-  --asset <id>           Asset id from the registry (e.g. dpad, avatar-character)
+  --asset <id>           Asset id from the registry (see: list)
   --mode mock|live       mock = local deterministic; live = fal pipeline (maps to internal generate)
 
 Optional:

@@ -16,7 +16,7 @@ import { log } from "./sprite-generation/logging.mjs";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
 import {
-  CHARACTER_CHROMA_TOLERANCE_DEFAULT,
+  CHROMA_TOLERANCE_DEFAULT,
   createPreset,
   DEFAULT_FAL_ENDPOINT,
   SHEET_HEIGHT,
@@ -27,7 +27,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_BASE = join(__dirname, "..", "public", "art", "avatar-character");
 
-const DEFAULT_CHROMA_TOLERANCE = CHARACTER_CHROMA_TOLERANCE_DEFAULT;
+const DEFAULT_CHROMA_TOLERANCE = CHROMA_TOLERANCE_DEFAULT;
 
 function parseHexRgb(hex) {
   const s = String(hex).trim();

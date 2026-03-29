@@ -1,6 +1,6 @@
 ---
 id: 2gp-vplr
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T03:23:16Z
@@ -30,3 +30,9 @@ Canonical plan: tools/sprite-generation/FALSPRITE_INTEGRATION_PLAN.md (phases A�
 - Evidence: tools/sprite-generation/README.md runbook commands succeed where network keys apply; npm run mock:dpad-workflow passes for CI path; cite plan sections “Milestone 1” and “Runbook.”
 - Epic completion (rollup): all child tickets for phases A–D are closed and M1.1–M1.5 are verifiable together on the branch; end-to-end proof may overlap Phase D acceptance (runbook + manifest) — epic AC is integration DoD, not duplicate ownership of every implementation detail.
 
+
+## Notes
+
+**2026-03-29T03:31:40Z**
+
+Epic rollup: Children 2gp-j6so (Phase A), 2gp-xkds (Phase B), 2gp-zzl6 (Phase C), 2gp-a14f (Phase D) are closed. M1.1–M1.5 verified against tools/sprite-generation/FALSPRITE_INTEGRATION_PLAN.md Milestone 1: fal-ai/nano-banana-2 sheet with aspect_ratio 4:1; style from prompt.mjs + preset; four crops per SHEET_CROPS; alpha via BRIA or chroma with manifest alphaSource; manifest records endpoint and timings. Automated evidence: npm test (110 tests), npm run mock:dpad-workflow exit 0.

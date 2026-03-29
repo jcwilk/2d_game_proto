@@ -10,7 +10,6 @@ import { buildDpadGridSpritePrompt } from "./prompt.mjs";
 import { hashPromptForLog } from "./generators/fal.mjs";
 import { RECIPE_VERSION_MOCK } from "./manifest.mjs";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
-import { createPreset as createCharacterPreset } from "./presets/avatar-character/avatar-character.mjs";
 import { createPreset } from "./presets/dpad/dpad.mjs";
 import { runPipeline } from "./pipeline.mjs";
 
@@ -120,12 +119,8 @@ describe("pipeline (integration)", () => {
     vi.stubEnv("FAL_KEY", "test-key");
     dir = join(tmpdir(), `pipe-native-raster-${process.pid}-${Date.now()}`);
     await mkdir(dir, { recursive: true });
-    const preset = createCharacterPreset({
-      outBase: dir,
-      artUrlPrefix: "art/pipeline-test-character",
-      provenanceTool: "tools/sprite-generation/pipeline.test.mjs",
-      provenanceVersion: 1,
-    });
+    // D-pad preset: sheetNativeRaster + 2×2 grid (same raster behavior as avatar-character; no avatar import).
+    const preset = dpadLikePreset(dir);
     expect(preset.sheetNativeRaster).toBe(true);
 
     const nativeW = 512;

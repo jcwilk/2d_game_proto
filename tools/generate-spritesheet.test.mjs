@@ -10,8 +10,11 @@ import {
   mapCliModeToPipelineMode,
   parseRunArgs,
 } from "./generate-spritesheet.mjs";
+import { PRESETS } from "./sprite-generation/presets/registry.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+/** First registry key (sorted slugs) — avoids pinning CLI smoke tests to one production asset. */
+const FIRST_PRESET = Object.keys(PRESETS)[0];
 const cliPath = join(repoRoot, "tools/generate-spritesheet.mjs");
 
 function runCli(args) {
@@ -58,7 +61,7 @@ describe("generate-spritesheet CLI", () => {
   });
 
   it("run without --mode exits non-zero", () => {
-    const r = runCliStatus(["run", "--asset", "dpad"]);
+    const r = runCliStatus(["run", "--asset", FIRST_PRESET]);
     expect(r.code).not.toBe(0);
     expect(r.stderr).toMatch(/mode/i);
   });
@@ -79,32 +82,33 @@ describe("generate-spritesheet CLI", () => {
     expect(runCliStatus(["status"]).code).toBe(0);
   });
 
-  it("info --asset dpad exits 0 with expected sections", () => {
-    const r = runCliStatus(["info", "--asset", "dpad"]);
+  it("info --asset <first registry preset> exits 0 with expected sections", () => {
+    const r = runCliStatus(["info", "--asset", FIRST_PRESET]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(/^asset: dpad/m);
+    expect(r.stdout).toMatch(new RegExp(`^asset: ${FIRST_PRESET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m"));
     expect(r.stdout).toContain("## Git-tracked files");
     expect(r.stdout).toContain("## manifest.json (summary)");
     expect(r.stdout).toContain("## Preset (loaded via createPreset)");
   });
 
-  it("rename --dry-run --from dpad --to hud_dpad exits 0 with plan shape", () => {
-    const r = runCliStatus(["rename", "--dry-run", "--from", "dpad", "--to", "hud_dpad"]);
+  it("rename --dry-run --from <first preset> exits 0 with plan shape", () => {
+    const toSlug = `hud_${FIRST_PRESET}`;
+    const r = runCliStatus(["rename", "--dry-run", "--from", FIRST_PRESET, "--to", toSlug]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(/^rename dry-run: dpad -> hud_dpad/m);
+    expect(r.stdout).toMatch(new RegExp(`^rename dry-run: ${FIRST_PRESET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> ${toSlug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m"));
     expect(r.stdout).toContain("registry.mjs");
     expect(r.stdout).toContain("Candidate references");
     expect(r.stdout).toContain("--apply is not available");
   });
 
   it("rename --dry-run with blocklisted --to exits non-zero", () => {
-    const r = runCliStatus(["rename", "--dry-run", "--from", "dpad", "--to", "art"]);
+    const r = runCliStatus(["rename", "--dry-run", "--from", FIRST_PRESET, "--to", "art"]);
     expect(r.code).not.toBe(0);
     expect(r.stderr).toMatch(/blocklist/i);
   });
 
   it("rename without --dry-run exits non-zero", () => {
-    const r = runCliStatus(["rename", "--from", "dpad", "--to", "hud_dpad"]);
+    const r = runCliStatus(["rename", "--from", FIRST_PRESET, "--to", `hud_${FIRST_PRESET}`]);
     expect(r.code).not.toBe(0);
     expect(r.stderr).toMatch(/dry-run/i);
   });
@@ -126,7 +130,7 @@ describe("generate-spritesheet CLI", () => {
   it("mock run with --out-base temp dir succeeds", async () => {
     tmpDir = join(tmpdir(), `gs-mock-${process.pid}-${Date.now()}`);
     await mkdir(tmpDir, { recursive: true });
-    const r = runCliStatus(["run", "--asset", "dpad", "--mode", "mock", "--out-base", tmpDir]);
+    const r = runCliStatus(["run", "--asset", FIRST_PRESET, "--mode", "mock", "--out-base", tmpDir]);
     expect(r.code).toBe(0);
   });
 });

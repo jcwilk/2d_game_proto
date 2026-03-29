@@ -1,6 +1,6 @@
 ---
 id: 2gp-2oym
-status: open
+status: closed
 deps: [2gp-j9ls, 2gp-g3ii, 2gp-qv9k]
 links: []
 created: 2026-03-29T18:48:11Z

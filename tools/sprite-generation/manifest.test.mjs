@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { DPAD_FAL_CONTROL_EXTRA_INPUT } from "./presets/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,
@@ -243,16 +244,19 @@ describe("manifest builder", () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const sample = JSON.parse(await readFile(join(__dirname, "../../public/art/dpad/manifest.json"), "utf8"));
 
-    const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "mock" });
+    /** Matches `runPipeline` + dpad preset for **generate / sheet / control-canny** (checked-in `public/art/dpad/manifest.json`). */
+    const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const built = buildInitialManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
       createdAt: CREATED_AT,
       frames: DPAD_FRAMES_FIXTURE,
-      mode: "mock",
-      endpoint: null,
-      imageSize: "100x100",
+      mode: "generate",
+      strategy: "sheet",
+      controlCanny: true,
+      endpoint: "fal-ai/flux-control-lora-canny",
+      imageSize: "400x100",
       tileSize: 100,
       sheetSize: 400,
       sheetWidth: 400,
@@ -260,9 +264,9 @@ describe("manifest builder", () => {
       sheetCropMap: SHEET_CROPS_FIXTURE,
       chromaKeyHex: "#FF00FF",
       chromaTolerance: 72,
-      keyRgbForManifest: null,
-      falExtrasPerTile: FAL_EXTRAS_TILE,
-      falExtrasSheet: FAL_EXTRAS_TILE,
+      keyRgbForManifest: KEY_RGB,
+      falExtrasPerTile: null,
+      falExtrasSheet: DPAD_FAL_CONTROL_EXTRA_INPUT,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 4 },
       pngBasename: "dpad.png",

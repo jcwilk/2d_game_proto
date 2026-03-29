@@ -1,6 +1,6 @@
 ---
 id: 2gp-sni8
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T17:54:34Z

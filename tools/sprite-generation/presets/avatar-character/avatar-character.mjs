@@ -47,6 +47,9 @@ export const CHARACTER_PRESET_ID = MANIFEST_PRESET_ID;
 /** Manifest `kind` for the walk sprite set. */
 export const KIND = "character_walk_sprite";
 
+/** Default CLI `--strategy` for registry / tooling. */
+export const DEFAULT_STRATEGY = "sheet";
+
 /** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
 export const CHARACTER_KIND = KIND;
 

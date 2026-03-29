@@ -36,7 +36,7 @@ export const RENAME_TO_BLOCKLIST = new Set([
   "static",
 ]);
 
-const SLUG_RE = /^[a-z][a-z0-9_]*$/;
+const SLUG_RE = /^[a-z][a-z0-9_-]*[a-z0-9]$/;
 
 /**
  * @param {string} s
@@ -93,13 +93,13 @@ export function validateRenameSlugs(from, to, registryAssetIds) {
   if (!isValidSlugShape(from)) {
     return {
       ok: false,
-      reason: `--from must match /^[a-z][a-z0-9_]*$/ (got ${JSON.stringify(from)})`,
+      reason: `--from must match /^[a-z][a-z0-9_-]*[a-z0-9]$/ (got ${JSON.stringify(from)})`,
     };
   }
   if (!isValidSlugShape(to)) {
     return {
       ok: false,
-      reason: `--to must match /^[a-z][a-z0-9_]*$/ (got ${JSON.stringify(to)})`,
+      reason: `--to must match /^[a-z][a-z0-9_-]*[a-z0-9]$/ (got ${JSON.stringify(to)})`,
     };
   }
   if (!registryAssetIds.includes(from)) {

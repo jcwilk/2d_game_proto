@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildRenameDryRunPlan,
   formatRenameDryRunPlan,
+  isValidSlugShape,
   RENAME_TO_BLOCKLIST,
   validateRenameSlugs,
 } from "./rename-dry-run.mjs";
@@ -34,6 +35,10 @@ describe("rename-dry-run", () => {
     const r = validateRenameSlugs("nope", "foo_bar", ["dpad", "avatar-character"]);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toMatch(/unknown/i);
+  });
+
+  it("hyphenated slug shape is accepted by SLUG_RE (via isValidSlugShape)", () => {
+    expect(isValidSlugShape("hud-dpad")).toBe(true);
   });
 
   it("buildRenameDryRunPlan succeeds for dpad -> hud_dpad with expected shape", () => {

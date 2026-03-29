@@ -14,7 +14,10 @@ describe("presets/registry.mjs", () => {
 
   it("PRESETS entries use absolute file: URLs under resolved repo root", () => {
     const repoRoot = resolveRepoRoot();
-    for (const id of /** @type {const} */ (["dpad", "avatar-character"])) {
+    const ids = Object.keys(PRESETS).sort((a, b) => a.localeCompare(b));
+    expect(ids).toContain("dpad");
+    expect(ids).toContain("avatar-character");
+    for (const id of ids) {
       const href = PRESETS[id].presetModuleHref;
       expect(href.startsWith("file:")).toBe(true);
       const fsPath = fileURLToPath(href);
@@ -25,7 +28,7 @@ describe("presets/registry.mjs", () => {
   });
 
   it("dynamic import succeeds for each preset module (CI)", async () => {
-    for (const id of /** @type {const} */ (["dpad", "avatar-character"])) {
+    for (const id of Object.keys(PRESETS)) {
       const mod = await import(PRESETS[id].presetModuleHref);
       expect(mod.ASSET_ID).toBe(id);
       expect(mod.createPreset).toBeTypeOf("function");

@@ -58,6 +58,9 @@ export const DPAD_PRESET_ID = MANIFEST_PRESET_ID;
 /** Manifest `kind` for the four-way HUD tile set. */
 export const KIND = "dpad_tile_set";
 
+/** Default CLI `--strategy` for registry / tooling. */
+export const DEFAULT_STRATEGY = "sheet";
+
 /** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
 export const DPAD_KIND = KIND;
 

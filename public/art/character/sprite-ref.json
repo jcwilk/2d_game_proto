@@ -1,34 +1,27 @@
 {
+  "grid": {
+    "rows": 2,
+    "columns": 2,
+    "spriteWidth": 64,
+    "spriteHeight": 64
+  },
   "frames": {
     "walk_0": {
-      "x": 0,
-      "y": 0,
-      "width": 64,
-      "height": 64
+      "column": 0,
+      "row": 0
     },
     "walk_1": {
-      "x": 0,
-      "y": 0,
-      "width": 64,
-      "height": 64
+      "column": 1,
+      "row": 0
     },
     "walk_2": {
-      "x": 0,
-      "y": 0,
-      "width": 64,
-      "height": 64
+      "column": 0,
+      "row": 1
     },
     "walk_3": {
-      "x": 0,
-      "y": 0,
-      "width": 64,
-      "height": 64
+      "column": 1,
+      "row": 1
     }
   },
-  "images": {
-    "walk_0": "art/character/walk_0/character.png",
-    "walk_1": "art/character/walk_1/character.png",
-    "walk_2": "art/character/walk_2/character.png",
-    "walk_3": "art/character/walk_3/character.png"
-  }
+  "image": "art/character/sheet.png"
 }

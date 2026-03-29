@@ -45,7 +45,13 @@ import {
 import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
 import { log } from "./logging.mjs";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
-import { buildPrompt, buildSheetPrompt, DEFAULT_CHROMA_KEY_HEX, DPAD_FRAME_PROMPT_SUFFIX } from "./prompt.mjs";
+import {
+  buildFalspriteStyleSpritePrompt,
+  buildPrompt,
+  buildSheetPrompt,
+  DEFAULT_CHROMA_KEY_HEX,
+  DPAD_FRAME_PROMPT_SUFFIX,
+} from "./prompt.mjs";
 import {
   applyPostprocessPipeline,
   resolveGeneratorConfig,
@@ -102,6 +108,45 @@ function maskSecret(s) {
   return `len=${t.length} suffix=...${t.slice(-4)}`;
 }
 
+/** @type {Record<number, string>} */
+const SHEET_GRID_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six" };
+
+/**
+ * @param {{ prompt: { sheetStyle: string; sheetComposition: string; sheetSubject: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string }) => string } }} preset
+ * @param {number} sheetW
+ * @param {number} sheetH
+ * @param {string} chromaKeyHex
+ */
+function resolveSheetPromptText(preset, sheetW, sheetH, chromaKeyHex) {
+  const p = preset.prompt;
+  if (typeof p?.sheetPromptBuilder === "function") {
+    return p.sheetPromptBuilder({ sheetWidth: sheetW, sheetHeight: sheetH, chromaKeyHex });
+  }
+  return buildSheetPrompt({
+    sheetWidth: sheetW,
+    sheetHeight: sheetH,
+    chromaKeyHex,
+    style: p.sheetStyle,
+    composition: p.sheetComposition,
+    subject: p.sheetSubject,
+  });
+}
+
+/**
+ * @param {{ prompt: { sheetRewriteUserPrompt?: string } }} preset
+ * @param {string} sheetPrompt
+ * @param {number} [sheetGridSize]
+ */
+function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
+  const seed = preset.prompt?.sheetRewriteUserPrompt;
+  if (typeof seed !== "string" || !seed.trim()) {
+    return sheetPrompt;
+  }
+  const gs = sheetGridSize ?? 4;
+  const gridWord = SHEET_GRID_WORDS[gs] ?? "four";
+  return `Design the character and choreograph a ${gridWord}-beat animation loop for: ${seed.trim()}`;
+}
+
 /**
  * @typedef {object} PipelineOpts
  * @property {'mock'|'generate'} mode
@@ -132,11 +177,14 @@ function maskSecret(s) {
  * @property {string} outBase  Absolute directory root for tiles + manifest + sprite-ref.
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
- * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string }} prompt
+ * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string }) => string; sheetRewriteUserPrompt?: string }} prompt
  * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; chromaFringeEdgeDist?: number; chromaSpillMaxDist?: number; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
- * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
+ * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef  Also **`gridFrameKeys`** variant (see **`sprite-ref.mjs`**).
+ * @property {boolean} [sheetOnlyOutput]  When true: write **`sheet.png`** only (no per-frame PNGs under frame dirs).
+ * @property {number} [sheetGridSize]  Falsprite N×N grid dimension (rewrite beat wording + prompt wrap).
+ * @property {Record<string, { column: number; row: number }>} [frameSheetCells]  Required for **`spriteRef.kind === 'gridFrameKeys'`** when writing sprite-ref.
  * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock: merged via **`resolveGeneratorConfig`** into **`generate`** / **`generateSheet`** (e.g. **`shapeForFrame`**, **`sheetLayout`**).
  * @property {string[]} [postprocessSteps]  Generate mode only: ordered ids from **`POSTPROCESS_REGISTRY`** in **`pipeline-stages.mjs`** (default **`['chromaKey']`**). Mock mode ignores this.
  * @property {string} [specsNaming]  Optional override for manifest **`specs.naming`** (else derived from resolved PNG basename).
@@ -162,6 +210,9 @@ export async function runPipeline(preset, opts) {
   const seed = opts.seed;
   const imageSize = opts.imageSize ?? `${preset.tileSize}x${preset.tileSize}`;
   const keepSheet = Boolean(opts.keepSheet);
+  /** @type {boolean} */
+  const sheetOnlyOutput = Boolean(preset.sheetOnlyOutput);
+  const keepSheetEffective = sheetOnlyOutput ? true : keepSheet;
   const savePreChroma = Boolean(opts.savePreChroma);
 
   const endpoint = opts.endpoint ?? preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
@@ -197,9 +248,13 @@ export async function runPipeline(preset, opts) {
 
   if (dryRun) {
     log("WARN", "dry-run", "no files, no API calls; listing planned actions only");
-    for (const frame of frames) {
-      const pngName = pngBasename(preset);
-      log("INFO", "dry-run", `would write ${join(preset.outBase, frame.outSubdir ?? frame.id, pngName)}`);
+    if (sheetOnlyOutput && strategy === "sheet") {
+      log("INFO", "dry-run", `would write ${join(preset.outBase, "sheet.png")} (sheetOnlyOutput)`);
+    } else {
+      for (const frame of frames) {
+        const pngName = pngBasename(preset);
+        log("INFO", "dry-run", `would write ${join(preset.outBase, frame.outSubdir ?? frame.id, pngName)}`);
+      }
     }
     if (mode === "generate") {
       if (strategy === "sheet" && preset.sheet) {
@@ -212,7 +267,7 @@ export async function runPipeline(preset, opts) {
           endpoint,
           imageSize: `${d.width}x${d.height}`,
           seed: seed ?? null,
-          keepSheet,
+          keepSheet: keepSheetEffective,
         });
         log("INFO", "dry-run", "sheet prompt rewrite (openrouter)", {
           skipped: !sheetRewriteEnabled,
@@ -273,7 +328,7 @@ export async function runPipeline(preset, opts) {
       timings,
       seed,
       quiet,
-      keepSheet,
+      keepSheet: keepSheetEffective,
     });
   } else if (mode === "mock") {
     await runMockPerTilePath({
@@ -306,7 +361,7 @@ export async function runPipeline(preset, opts) {
       seed,
       endpoint,
       quiet,
-      keepSheet,
+      keepSheet: keepSheetEffective,
       falExtras: falExtrasSheetRun,
       falSubscribe: opts.falSubscribe,
       fetch: opts.fetch,
@@ -340,24 +395,28 @@ export async function runPipeline(preset, opts) {
   }
 
   if (!skipQa) {
-    const pngName = pngBasename(preset);
-    const sw = preset.qa.spriteWidth;
-    const sh = preset.qa.spriteHeight;
-    for (const frame of frames) {
-      if (generationResultsById[frame.id]?.error) continue;
-      const absPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);
-      const jsonPath = join(preset.outBase, frame.outSubdir ?? frame.id, "png-analyze.json");
-      log("INFO", "qa:png-analyze", "running", { png: absPng, sprite: `${sw}x${sh}` });
-      const t0 = Date.now();
-      try {
-        runPngAnalyzeBridge(absPng, jsonPath, sw, sh);
-      } catch (e) {
-        log("ERROR", `qa:${frame.id}`, "png-analyze failed", { error: e instanceof Error ? e.message : String(e) });
-        throw e;
-      }
-      timings[`qa:${frame.id}`] = Date.now() - t0;
-      if (!quiet) {
-        log("DEBUG", "qa:png-analyze", "full JSON written to sidecar file");
+    if (sheetOnlyOutput && strategy === "sheet") {
+      log("INFO", "qa", "skipped per-frame png-analyze (sheetOnlyOutput)");
+    } else {
+      const pngName = pngBasename(preset);
+      const sw = preset.qa.spriteWidth;
+      const sh = preset.qa.spriteHeight;
+      for (const frame of frames) {
+        if (generationResultsById[frame.id]?.error) continue;
+        const absPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);
+        const jsonPath = join(preset.outBase, frame.outSubdir ?? frame.id, "png-analyze.json");
+        log("INFO", "qa:png-analyze", "running", { png: absPng, sprite: `${sw}x${sh}` });
+        const t0 = Date.now();
+        try {
+          runPngAnalyzeBridge(absPng, jsonPath, sw, sh);
+        } catch (e) {
+          log("ERROR", `qa:${frame.id}`, "png-analyze failed", { error: e instanceof Error ? e.message : String(e) });
+          throw e;
+        }
+        timings[`qa:${frame.id}`] = Date.now() - t0;
+        if (!quiet) {
+          log("DEBUG", "qa:png-analyze", "full JSON written to sidecar file");
+        }
       }
     }
   } else {
@@ -413,6 +472,9 @@ export async function runPipeline(preset, opts) {
       tileSize: preset.tileSize,
       frames,
       spriteRef: preset.spriteRef,
+      ...(preset.spriteRef?.kind === "gridFrameKeys"
+        ? { sheet: preset.sheet, frameSheetCells: preset.frameSheetCells }
+        : {}),
     },
     preset.outBase
   );
@@ -501,28 +563,24 @@ async function runMockPerTilePath({ preset, generationResultsById, timings, seed
  * @param {boolean} p.keepSheet
  */
 async function runMockSheetPath({ preset, generationResultsById, timings, seed, quiet, keepSheet }) {
+  const sheetOnlyOutput = Boolean(preset.sheetOnlyOutput);
   const sheet = /** @type {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} */ (
     preset.sheet
   );
   const { width: sheetW, height: sheetH } = resolveSheetPixelDimensions(sheet);
   const pngName = pngBasename(preset);
-  const { prompt, tileSize, frames } = preset;
-  for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
+  const { tileSize, frames } = preset;
+  if (!sheetOnlyOutput) {
+    for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
+  }
 
-  const sheetPrompt = buildSheetPrompt({
-    sheetWidth: sheetW,
-    sheetHeight: sheetH,
-    chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
-    style: prompt.sheetStyle,
-    composition: prompt.sheetComposition,
-    subject: prompt.sheetSubject,
-  });
+  const sheetPrompt = resolveSheetPromptText(preset, sheetW, sheetH, DEFAULT_CHROMA_KEY_HEX);
   if (!quiet) {
     log("DEBUG", "prompt", "sheet preview", { text: sheetPrompt.slice(0, 200) + "…" });
   }
   log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length });
 
-  log("INFO", "sheet", "mock generateSheet + crop", { sheetPx: `${sheetW}x${sheetH}` });
+  log("INFO", "sheet", "mock generateSheet + crop", { sheetPx: `${sheetW}x${sheetH}`, sheetOnlyOutput });
   const t0 = Date.now();
   // Pixel crop top-left → mock compositor cells: same grid as extractPngRegion (origins ÷ tileSize).
   const sheetLayout = preset.generatorConfig?.sheetLayout ?? sheetLayoutFromCrops(sheet.crops, tileSize);
@@ -536,6 +594,25 @@ async function runMockSheetPath({ preset, generationResultsById, timings, seed, 
   const png = PNG.sync.read(buffer);
   if (png.width !== sheetW || png.height !== sheetH) {
     throw new Error(`mock sheet expected ${sheetW}x${sheetH}, got ${png.width}x${png.height}`);
+  }
+  if (sheetOnlyOutput) {
+    for (const frame of frames) {
+      const { x, y } = sheet.crops[frame.id];
+      generationResultsById[frame.id] = {
+        wallMs: timings.mockSheet,
+        seed: undefined,
+        seedRequested: null,
+        fromSheet: true,
+        sheetOnly: true,
+        cropOrigin: `${x},${y}`,
+        chromaApplied: false,
+        chromaKeySource: null,
+        notes: [],
+      };
+      log("INFO", `tile:${frame.id}`, "sheet-only mock: metadata only", { cropOrigin: `${x},${y}` });
+    }
+    generationResultsById._sheet = { wallMs: timings.mockSheet, strategy: "sheet", mode: "mock", alphaSource: "none" };
+    return;
   }
   for (const frame of frames) {
     const { x, y } = sheet.crops[frame.id];
@@ -716,27 +793,25 @@ async function runGenerateSheetPath({
     fal: { ...(preset.fal ?? {}), chromaAfterBria },
   };
   const postSteps = resolveSheetTilePostprocessSteps(presetForTilePost, "generate", sheetAlphaSource);
-  const { prompt, tileSize, frames } = preset;
+  const { tileSize, frames } = preset;
+  const sheetOnlyOutput = Boolean(preset.sheetOnlyOutput);
+  const sheetGridSize = preset.sheetGridSize ?? 4;
+  const hasFalspriteBuilder = typeof preset.prompt?.sheetPromptBuilder === "function";
 
-  for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
+  if (!sheetOnlyOutput) {
+    for (const f of frames) await mkdir(join(preset.outBase, f.outSubdir ?? f.id), { recursive: true });
+  }
 
-  const sheetPrompt = buildSheetPrompt({
-    sheetWidth: sheetW,
-    sheetHeight: sheetH,
-    chromaKeyHex,
-    style: prompt.sheetStyle,
-    composition: prompt.sheetComposition,
-    subject: prompt.sheetSubject,
-  });
-  log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length, sha256Hex16: hashPromptForLog(sheetPrompt) });
+  const sheetPrompt = resolveSheetPromptText(preset, sheetW, sheetH, chromaKeyHex);
 
   /** @type {string} */
   let promptForT2i = sheetPrompt;
   /** @type {number | undefined} */
   let rewriteWallMs;
   if (sheetRewriteEnabled) {
+    const rewriteUser = resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize);
     const rw = await rewritePromptViaOpenRouter({
-      userPrompt: sheetPrompt,
+      userPrompt: rewriteUser,
       systemPrompt: sheetRewriteSystemPrompt,
       model: sheetRewriteModel,
       temperature: sheetRewriteTemperature,
@@ -745,18 +820,26 @@ async function runGenerateSheetPath({
       log,
       falSubscribe,
     });
-    promptForT2i = rw.text;
+    promptForT2i = hasFalspriteBuilder
+      ? buildFalspriteStyleSpritePrompt(rw.text.trim(), sheetGridSize)
+      : rw.text;
     rewriteWallMs = rw.wallMs;
     timings.rewritePrompt = rewriteWallMs;
   } else {
     log("INFO", "sheet", "prompt rewrite (openrouter) skipped", { reason: "disabled" });
   }
 
+  log("INFO", "prompt", "sheet prompt for T2I", {
+    chars: promptForT2i.length,
+    sha256Hex16: hashPromptForLog(promptForT2i),
+  });
+
   const imageSizeStr = `${sheetW}x${sheetH}`;
   log("INFO", "sheet", useBria ? "T2I → BRIA matting → normalize → RGBA tile crops" : "single fal job + crop + chroma", {
     sheetPx: imageSizeStr,
     sheetMatting: useBria ? "bria" : "none",
     chromaAfterBria: useBria ? chromaAfterBria : null,
+    sheetOnlyOutput,
   });
 
   const imageStrategy = getFalImageEndpointStrategy(endpoint);
@@ -831,33 +914,52 @@ async function runGenerateSheetPath({
     await writeFile(join(preset.outBase, "sheet.png"), buffer);
     log("INFO", "sheet", "wrote sheet.png (keepSheet, same grid as tile crops)", { postMatting: useBria ? "bria" : "raw-t2i" });
   }
-  for (const frame of frames) {
-    const { x, y } = sheet.crops[frame.id];
-    const tileBufRaw = extractPngRegion(png, x, y, tileSize, tileSize);
-    const { buffer: tileBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(tileBufRaw, postSteps, {
-      keyRgb,
-      chromaTolerance,
-      chromaFringeEdgeDist,
-      chromaSpillMaxDist,
-      log,
-    });
-    const outPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);
-    await writeFile(outPng, tileBuf);
-    generationResultsById[frame.id] = {
-      seed: outSeed,
-      seedRequested: seed ?? null,
-      wallMs: totalWallMs,
-      fromSheet: true,
-      cropOrigin: `${x},${y}`,
-      alphaSource: sheetAlphaSource,
-      chromaApplied,
-      chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
-      notes: [],
-    };
-    log("INFO", `tile:${frame.id}`, useBria ? "cropped from matted sheet" : "cropped from sheet + chroma", {
-      cropOrigin: `${x},${y}`,
-      bytes: tileBuf.length,
-    });
+  if (sheetOnlyOutput) {
+    for (const frame of frames) {
+      const { x, y } = sheet.crops[frame.id];
+      generationResultsById[frame.id] = {
+        seed: outSeed,
+        seedRequested: seed ?? null,
+        wallMs: totalWallMs,
+        fromSheet: true,
+        sheetOnly: true,
+        cropOrigin: `${x},${y}`,
+        alphaSource: sheetAlphaSource,
+        chromaApplied: false,
+        chromaKeySource: null,
+        notes: [],
+      };
+      log("INFO", `tile:${frame.id}`, "sheet-only: metadata (no tile PNG)", { cropOrigin: `${x},${y}` });
+    }
+  } else {
+    for (const frame of frames) {
+      const { x, y } = sheet.crops[frame.id];
+      const tileBufRaw = extractPngRegion(png, x, y, tileSize, tileSize);
+      const { buffer: tileBuf, chromaApplied, chromaKeySource } = applyPostprocessPipeline(tileBufRaw, postSteps, {
+        keyRgb,
+        chromaTolerance,
+        chromaFringeEdgeDist,
+        chromaSpillMaxDist,
+        log,
+      });
+      const outPng = join(preset.outBase, frame.outSubdir ?? frame.id, pngName);
+      await writeFile(outPng, tileBuf);
+      generationResultsById[frame.id] = {
+        seed: outSeed,
+        seedRequested: seed ?? null,
+        wallMs: totalWallMs,
+        fromSheet: true,
+        cropOrigin: `${x},${y}`,
+        alphaSource: sheetAlphaSource,
+        chromaApplied,
+        chromaKeySource: chromaApplied && chromaKeySource ? chromaKeySource : null,
+        notes: [],
+      };
+      log("INFO", `tile:${frame.id}`, useBria ? "cropped from matted sheet" : "cropped from sheet + chroma", {
+        cropOrigin: `${x},${y}`,
+        bytes: tileBuf.length,
+      });
+    }
   }
   /** @type {Record<string, unknown>} */
   const sheetMeta = {

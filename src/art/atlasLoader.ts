@@ -8,15 +8,11 @@ import { DefaultLoader, ImageFiltering, ImageSource, Resource } from 'excalibur'
 /** Sprite-ref JSON for the character walk preset (`tools/sprite-generation/presets/character.mjs`). */
 export const CHARACTER_SPRITE_REF_JSON = 'art/character/sprite-ref.json';
 
-/** Basename of per-frame PNGs; must match preset `pngFilename` / pipeline output. */
-export const CHARACTER_PNG_BASENAME = 'character.png';
+/** Single spritesheet raster (must match `sprite-ref.json` `image` from pipeline `gridFrameKeys`). */
+export const CHARACTER_WALK_SHEET_IMAGE = 'art/character/sheet.png';
 
 /** Frame keys and load order — keep in sync with `CHARACTER_WALK_FRAMES` in `tools/sprite-generation/presets/character.mjs`. */
 export const CHARACTER_WALK_FRAME_IDS = ['walk_0', 'walk_1', 'walk_2', 'walk_3'] as const;
-
-export function characterWalkFrameImagePath(frameId: string): string {
-  return `art/character/${frameId}/${CHARACTER_PNG_BASENAME}`;
-}
 
 export const SAMPLE_PACKED_ATLAS_JSON = 'art/sample-atlas.json';
 
@@ -51,22 +47,19 @@ export function createSampleAtlasLoader(): {
 }
 
 /**
- * Preloads `sprite-ref.json` plus each walk frame PNG for the character preset (frameKeyRect + per-frame files).
+ * Preloads `sprite-ref.json` (`gridFrameKeys`) plus the walk-cycle **`sheet.png`** for uniform-grid slicing.
  */
 export function createCharacterWalkLoader(): {
   loader: DefaultLoader;
   spriteRefResource: Resource<unknown>;
-  imageSources: ImageSource[];
+  sheetImageSource: ImageSource;
 } {
   const spriteRefResource = new Resource<unknown>(publicArtUrl(CHARACTER_SPRITE_REF_JSON), 'json');
-  const imageSources = CHARACTER_WALK_FRAME_IDS.map(
-    (id) =>
-      new ImageSource(publicArtUrl(characterWalkFrameImagePath(id)), {
-        filtering: ImageFiltering.Pixel,
-      }),
-  );
-  const loader = new DefaultLoader({
-    loadables: [spriteRefResource, ...imageSources],
+  const sheetImageSource = new ImageSource(publicArtUrl(CHARACTER_WALK_SHEET_IMAGE), {
+    filtering: ImageFiltering.Pixel,
   });
-  return { loader, spriteRefResource, imageSources };
+  const loader = new DefaultLoader({
+    loadables: [spriteRefResource, sheetImageSource],
+  });
+  return { loader, spriteRefResource, sheetImageSource };
 }

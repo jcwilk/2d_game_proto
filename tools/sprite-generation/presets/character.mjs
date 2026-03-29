@@ -1,12 +1,15 @@
 /**
  * Character walk-cycle preset — **single source of truth** for frame list, sheet layout,
- * fal tuning, QA grid, and **`frameKeyRect`** sprite-ref under `public/art/character/`.
+ * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/character/`.
  *
  * Contract matches **`presets/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../pipeline.mjs`**).
  * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/character-workflow.mjs --no-rewrite`**.
- * **Transparency:** **BRIA** is the primary alpha path; **`fal.chromaAfterBria`** defaults to **on** so each tile runs **`chromaKey`** after crops and catches residual off-magenta (BRIA/halos/scaling). Tune **`CHARACTER_CHROMA_TOLERANCE_DEFAULT`** or **`--chroma-tolerance`**. Disable with **`--no-chroma-after-bria`** for a FalSprite-style BRIA-only path.
  *
- * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`aspect_ratio`** + **`resolution`** (**`CHARACTER_FAL_EXTRAS_SHEET`**: **4:1**, **`0.5K`**) so fal’s native pixels are closer to **`SHEET_WIDTH`×`SHEET_HEIGHT`** than **1K** (less harsh downscale / fringe after BRIA).
+ * **Transparency:** **BRIA** is the alpha path; **`fal.chromaAfterBria`** defaults to **off** (FalSprite-style BRIA-only; no per-tile chroma).
+ *
+ * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`CHARACTER_FAL_EXTRAS_SHEET`** (**1:1**, **2K**, **`expand_prompt`**, **`safety_tolerance`**) aligned with [falsprite](https://github.com/lovisdotio/falsprite). Prompt text follows **`buildFalspriteStyleSpritePrompt`** + **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** (see **`../prompt.mjs`**).
+ *
+ * **Output:** **`sheetOnlyOutput`** — one **`sheet.png`** + **`sprite-ref.json`** (`gridFrameKeys`); no **`walk_*`** tile PNGs.
  *
  * @see `../README.md`
  * @see `../pipeline.mjs`
@@ -14,16 +17,15 @@
  */
 
 import {
-  NANO_BANANA2_DEFAULT_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
-  NANO_BANANA2_LOW_RESOLUTION,
+  NANO_BANANA2_HIGH_RESOLUTION,
+  NANO_BANANA2_SQUARE_ASPECT_RATIO,
 } from "../generators/fal.mjs";
 import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
 import { buildRecipeId } from "../manifest.mjs";
-import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
-import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 import {
-  CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT,
+  buildFalspriteStyleSpritePrompt,
+  CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
   CHARACTER_WALK_FRAME_COMPOSITION,
   CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
   CHARACTER_WALK_FRAME_STYLE,
@@ -31,6 +33,7 @@ import {
   CHARACTER_WALK_SHEET_STYLE,
   CHARACTER_WALK_SHEET_SUBJECT,
 } from "../prompt.mjs";
+import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
 
 /** Manifest `preset` field and `buildRecipeId` segment. */
 export const CHARACTER_PRESET_ID = "character_walk";
@@ -42,7 +45,7 @@ export const CHARACTER_KIND = "character_walk_sprite";
 export const TILE_SIZE = 64;
 
 /**
- * Default Euclidean RGB distance for the main chroma pass. Higher keys more near-magenta pixels but can eat
+ * Default Euclidean RGB distance for the main chroma pass (per-tile strategy only). Higher keys more near-magenta pixels but can eat
  * costume pinks/purples; override with **`tools/character-workflow.mjs --chroma-tolerance`**.
  */
 export const CHARACTER_CHROMA_TOLERANCE_DEFAULT = 120;
@@ -59,26 +62,31 @@ export const CHARACTER_CHROMA_FRINGE_EDGE_DIST = 165;
  */
 export const CHARACTER_CHROMA_SPILL_MAX_DIST = 205;
 
-/** Single sheet: **1×4** horizontal strip (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**. */
-export const SHEET_WIDTH = TILE_SIZE * 4;
-export const SHEET_HEIGHT = TILE_SIZE;
+/** Single sheet: **2×2** grid (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**. */
+export const SHEET_WIDTH = TILE_SIZE * 2;
+export const SHEET_HEIGHT = TILE_SIZE * 2;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
 /**
- * Nano-banana sheet inputs: **4:1** matches the 1×4 strip; **`0.5K`** asks for a smaller native sheet so
- * **`normalizeDecodedSheetToPreset`** does not downscale as far as with **1K** (often ~1032×256 vs ~2064×512).
+ * Nano-banana sheet inputs: **1:1** + **2K** + falsprite extras — matches upstream `api/generate.mjs` text-only path.
  */
 export const CHARACTER_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_DEFAULT_ASPECT_RATIO,
-  resolution: NANO_BANANA2_LOW_RESOLUTION,
+  aspect_ratio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
+  resolution: NANO_BANANA2_HIGH_RESOLUTION,
+  expand_prompt: true,
+  safety_tolerance: 2,
 };
 
 export const CHARACTER_FAL_EXTRAS_PER_TILE = {
   aspect_ratio: "1:1",
   resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
 };
+
+/** Short seed for OpenRouter (falsprite-style user message); not the full T2I block. */
+export const CHARACTER_WALK_SHEET_REWRITE_USER_SEED =
+  "Stylized 2D side-view game character walk cycle — four frames in reading order: contact left, passing, contact right, passing — single consistent identity and outfit.";
 
 /** png-analyze cell size (4×4 grid on 64²). */
 export const QA_SPRITE_W = 16;
@@ -117,15 +125,27 @@ export const CHARACTER_WALK_FRAMES = Object.freeze([
 ]);
 
 /**
- * Top-left origins in the 256×64 sheet (1×4 row: walk_0 → walk_3).
+ * Top-left origins in the 128×128 sheet (row-major: walk_0 walk_1 / walk_2 walk_3).
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
 export const SHEET_CROPS = Object.freeze({
   walk_0: { x: 0, y: 0 },
   walk_1: { x: TILE_SIZE, y: 0 },
-  walk_2: { x: TILE_SIZE * 2, y: 0 },
-  walk_3: { x: TILE_SIZE * 3, y: 0 },
+  walk_2: { x: 0, y: TILE_SIZE },
+  walk_3: { x: TILE_SIZE, y: TILE_SIZE },
+});
+
+/**
+ * Logical frame → grid cell (**column**, **row**) for **`sprite-ref.json`** (`gridFrameKeys`).
+ *
+ * @type {Readonly<Record<string, { column: number; row: number }>>}
+ */
+export const CHARACTER_FRAME_SHEET_CELLS = Object.freeze({
+  walk_0: { column: 0, row: 0 },
+  walk_1: { column: 1, row: 0 },
+  walk_2: { column: 0, row: 1 },
+  walk_3: { column: 1, row: 1 },
 });
 
 /**
@@ -188,10 +208,19 @@ export function createPreset(opts) {
     frames: CHARACTER_WALK_FRAMES,
     outBase,
     tileSize: TILE_SIZE,
+    /** N×N falsprite grid for **`buildFalspriteStyleSpritePrompt`** / rewrite beat count. */
+    sheetGridSize: 2,
+    sheetOnlyOutput: true,
+    frameSheetCells: { ...CHARACTER_FRAME_SHEET_CELLS },
+    specsNaming: "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame walk_* tiles",
     sheet: {
       width: SHEET_WIDTH,
       height: SHEET_HEIGHT,
       crops: { ...SHEET_CROPS },
+      rows: 2,
+      columns: 2,
+      spriteWidth: TILE_SIZE,
+      spriteHeight: TILE_SIZE,
     },
     prompt: {
       frameStyle: CHARACTER_WALK_FRAME_STYLE,
@@ -199,19 +228,20 @@ export function createPreset(opts) {
       sheetStyle: CHARACTER_WALK_SHEET_STYLE,
       sheetComposition: CHARACTER_WALK_SHEET_COMPOSITION,
       sheetSubject: CHARACTER_WALK_SHEET_SUBJECT,
+      sheetRewriteUserPrompt: CHARACTER_WALK_SHEET_REWRITE_USER_SEED,
+      sheetPromptBuilder: () => buildFalspriteStyleSpritePrompt(CHARACTER_WALK_SHEET_SUBJECT, 2),
       framePromptSuffix: CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
     },
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
       falExtrasPerTile: { ...CHARACTER_FAL_EXTRAS_PER_TILE },
       falExtrasSheet: { ...CHARACTER_FAL_EXTRAS_SHEET },
-      /** Per-tile chroma after BRIA (default on — fringe / off-magenta cleanup); **`--no-chroma-after-bria`** to skip. */
-      chromaAfterBria: true,
+      chromaAfterBria: false,
       chromaFringeEdgeDist: CHARACTER_CHROMA_FRINGE_EDGE_DIST,
       chromaSpillMaxDist: CHARACTER_CHROMA_SPILL_MAX_DIST,
       sheetRewrite: {
         enabled: true,
-        systemPrompt: CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT,
+        systemPrompt: CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
       },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
@@ -220,12 +250,11 @@ export function createPreset(opts) {
       tileBufferForFrame: (frame, ctx) => renderCharacterWalkMockTileBuffer(frame, ctx.tileSize),
       sheetLayout: CHARACTER_SHEET_LAYOUT,
     },
-    postprocessSteps: [...DEFAULT_POSTPROCESS_STEPS_GENERATE],
+    postprocessSteps: [],
     spriteRef: {
-      kind: "frameKeyRect",
+      kind: "gridFrameKeys",
       jsonRelativePath: spriteRefJsonRelativePath,
-      artUrlPrefix: artUrlPrefix.replace(/\/$/, ""),
-      pngFilename,
+      sheetImageRelativePath: `${artUrlPrefix.replace(/\/$/, "")}/sheet.png`,
     },
   };
 }

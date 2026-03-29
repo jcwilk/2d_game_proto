@@ -1,12 +1,13 @@
 import './styles.css';
 
-import { Actor, Animation, AnimationStrategy, Color, Scene, Sprite, vec } from 'excalibur';
+import { Actor, Animation, AnimationStrategy, Color, Scene, vec } from 'excalibur';
 
 import {
   CHARACTER_WALK_FRAME_IDS,
   createCharacterWalkLoader,
 } from './art/atlasLoader';
-import { parseFrameKeyRectManifestJson } from './art/atlasTypes';
+import { parseGridFrameKeysManifestJson } from './art/atlasTypes';
+import { spriteSheetFromGridImageSource } from './art/gridSpriteSheet';
 import { CHROME_MOVE_SPEED, VIEWPORT_SIZE, createEngine } from './engine';
 import { attachDirectionalChrome, chromeMoveVelocityFromActiveDirections } from './input/directionalChrome';
 
@@ -25,7 +26,7 @@ mainScene.backgroundColor = Color.fromHex('#1a1a2e');
 
 engine.addScene('main', mainScene);
 
-const { loader, spriteRefResource, imageSources } = createCharacterWalkLoader();
+const { loader, spriteRefResource, sheetImageSource } = createCharacterWalkLoader();
 
 void engine
   .start('main', { loader })
@@ -34,33 +35,17 @@ void engine
     if (raw == null) {
       throw new Error('Expected sprite-ref JSON after preload');
     }
-    const ref = parseFrameKeyRectManifestJson(raw);
-    for (let i = 0; i < imageSources.length; i++) {
-      const src = imageSources[i];
-      if (!src) {
-        throw new Error(`Missing character ImageSource at index ${i}`);
-      }
-      if (!src.isLoaded()) {
-        throw new Error(`Expected character frame ImageSource loaded after preload (index ${i})`);
-      }
+    const gridManifest = parseGridFrameKeysManifestJson(raw);
+    if (!sheetImageSource.isLoaded()) {
+      throw new Error('Expected character sheet ImageSource loaded after preload');
     }
-    const firstKey = CHARACTER_WALK_FRAME_IDS[0];
-    const firstRect = ref.frames[firstKey];
-    if (!firstRect) {
-      throw new Error(`Expected sprite-ref frames[${JSON.stringify(firstKey)}]`);
-    }
-    const displaySize = firstRect.width;
-    const sprites = CHARACTER_WALK_FRAME_IDS.map((id, i) => {
-      if (!ref.frames[id]) {
+    const spriteSheet = spriteSheetFromGridImageSource(sheetImageSource, gridManifest);
+    const sprites = CHARACTER_WALK_FRAME_IDS.map((id) => {
+      const cell = gridManifest.frames[id];
+      if (!cell) {
         throw new Error(`Missing sprite-ref frame ${JSON.stringify(id)}`);
       }
-      const src = imageSources[i];
-      if (!src) {
-        throw new Error(`Missing character ImageSource at index ${i}`);
-      }
-      return Sprite.from(src, {
-        destSize: { width: displaySize, height: displaySize },
-      });
+      return spriteSheet.getSprite(cell.column, cell.row);
     });
     const walkAnim = new Animation({
       frames: sprites.map((graphic) => ({ graphic })),

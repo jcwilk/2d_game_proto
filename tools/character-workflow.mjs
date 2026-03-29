@@ -44,7 +44,7 @@ function parseArgs(argv) {
     strategy: "sheet",
     endpoint: DEFAULT_FAL_ENDPOINT,
     imageSize: `${TILE_SIZE}x${TILE_SIZE}`,
-    keepSheet: false,
+    keepSheet: true,
     savePreChroma: false,
     skipQa: false,
     dryRun: false,
@@ -87,6 +87,9 @@ function parseArgs(argv) {
         break;
       case "--keep-sheet":
         opts.keepSheet = true;
+        break;
+      case "--no-keep-sheet":
+        opts.keepSheet = false;
         break;
       case "--save-pre-chroma":
         opts.savePreChroma = true;
@@ -160,12 +163,13 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage: node tools/character-workflow.mjs [options]
 
-Character walk-cycle preset: manifest + four frames + png-analyze QA.
+Character walk-cycle preset: manifest + **sheet.png** + **sprite-ref.json** (grid); no per-frame walk_* tiles.
 
 Options:
   --mode mock|generate   mock = deterministic walk figures (default, no API).
-  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop.
-  --keep-sheet           With --strategy sheet: also write public/art/character/sheet.png for debugging.
+  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 2×2 grid.
+  --keep-sheet           With --strategy sheet: write public/art/character/sheet.png (default **on**).
+  --no-keep-sheet        Skip writing sheet.png (unusual; sheet-only preset expects sheet.png for the game).
   --save-pre-chroma      With --mode generate --strategy per-tile: write pre-chroma PNG per frame.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT}).
   --image-size <WxH>     per-tile size (default: ${TILE_SIZE}x${TILE_SIZE}).
@@ -176,15 +180,15 @@ Options:
   --dry-run
   --rewrite              Sheet: force OpenRouter prompt rewrite before T2I (needs FAL_KEY).
   --no-rewrite           Sheet: skip rewrite (preset defaults to rewrite ON for generate).
-  --chroma-after-bria    Sheet: run per-tile chroma after BRIA (fringe cleanup; default on for character preset).
-  --no-chroma-after-bria Sheet: skip per-tile chroma after BRIA (BRIA alpha only).
+  --chroma-after-bria    Sheet: run per-tile chroma after BRIA (fringe cleanup).
+  --no-chroma-after-bria Sheet: skip per-tile chroma after BRIA (default for character: BRIA-only).
   --chroma-fringe-edge-dist <0-400>  After chroma: peel near-key pixels on the silhouette (default from preset; 0 = off).
   --quiet, -q
   --help, -h
 
 Examples:
   node tools/character-workflow.mjs --mode mock
-  FAL_KEY=… npm run character-workflow -- --mode generate --strategy sheet --keep-sheet
+  FAL_KEY=… npm run character-workflow -- --mode generate --strategy sheet
 `);
 }
 

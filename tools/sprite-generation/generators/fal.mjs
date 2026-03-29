@@ -193,6 +193,9 @@ export async function downloadToFile(url, destPath, fetchImpl = globalThis.fetch
 /** @see tools/sprite-generation/FALSPRITE_INTEGRATION_PLAN.md — nano-banana-2 resolution enum (verify on fal OpenAPI when changing). */
 export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
 export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
+/** Square sheet (e.g. 2×2 walk grid); matches [falsprite](https://github.com/lovisdotio/falsprite) `api/generate.mjs` text-only path. */
+export const NANO_BANANA2_SQUARE_ASPECT_RATIO = "1:1";
+export const NANO_BANANA2_HIGH_RESOLUTION = "2K";
 /**
  * Smallest **documented** fal enum for nano-banana-2 (`ResolutionEnum`: **`0.5K`**, **`1K`**, **`2K`**, **`4K`** only).
  * There is no **`0.125K`** (or similar) — use this + **`normalizeDecodedSheetToPreset`** to reach game pixel size.

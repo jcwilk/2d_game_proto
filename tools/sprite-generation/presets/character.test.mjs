@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
 import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
-import { DEFAULT_POSTPROCESS_STEPS_GENERATE } from "../pipeline-stages.mjs";
 import {
-  CHARACTER_CHROMA_FRINGE_EDGE_DIST,
-  CHARACTER_CHROMA_SPILL_MAX_DIST,
+  CHARACTER_FRAME_SHEET_CELLS,
   CHARACTER_KIND,
   CHARACTER_PRESET_ID,
   CHARACTER_SHEET_LAYOUT,
@@ -19,7 +17,7 @@ import {
 } from "./character.mjs";
 
 describe("presets/character", () => {
-  it("createPreset builds a runPipeline-ready object with frameKeyRect spriteRef for art/character", () => {
+  it("createPreset builds a runPipeline-ready object with gridFrameKeys sprite-ref for art/character", () => {
     const p = createPreset({ outBase: "/tmp/character-out" });
     expect(p.presetId).toBe(CHARACTER_PRESET_ID);
     expect(p.kind).toBe(CHARACTER_KIND);
@@ -27,24 +25,30 @@ describe("presets/character", () => {
     expect(p.tileSize).toBe(TILE_SIZE);
     expect(p.sheet?.width).toBe(SHEET_WIDTH);
     expect(p.sheet?.height).toBe(SHEET_HEIGHT);
+    expect(p.sheet?.rows).toBe(2);
+    expect(p.sheet?.columns).toBe(2);
     expect(p.sheet?.crops?.walk_0).toEqual({ x: 0, y: 0 });
-    expect(p.spriteRef.kind).toBe("frameKeyRect");
-    expect(p.spriteRef.artUrlPrefix).toBe("art/character");
-    expect(p.spriteRef.pngFilename).toBe("character.png");
+    expect(p.sheet?.crops?.walk_3).toEqual({ x: TILE_SIZE, y: TILE_SIZE });
+    expect(p.frameSheetCells).toEqual({ ...CHARACTER_FRAME_SHEET_CELLS });
+    expect(p.spriteRef.kind).toBe("gridFrameKeys");
+    expect(p.spriteRef.sheetImageRelativePath).toBe("art/character/sheet.png");
     expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
-    expect(p.spriteRef.artUrlPrefix).not.toMatch(/\/$/);
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
-    expect(p.fal?.falExtrasSheet).toMatchObject({ aspect_ratio: "4:1", resolution: "0.5K" });
+    expect(p.fal?.falExtrasSheet).toMatchObject({
+      aspect_ratio: "1:1",
+      resolution: "2K",
+      expand_prompt: true,
+      safety_tolerance: 2,
+    });
     expect(p.fal?.sheetRewrite?.enabled).toBe(true);
     expect(typeof p.fal?.sheetRewrite?.systemPrompt).toBe("string");
-    expect(p.fal?.chromaAfterBria).toBe(true);
-    expect(p.fal?.chromaFringeEdgeDist).toBe(CHARACTER_CHROMA_FRINGE_EDGE_DIST);
-    expect(p.fal?.chromaSpillMaxDist).toBe(CHARACTER_CHROMA_SPILL_MAX_DIST);
+    expect(p.fal?.chromaAfterBria).toBe(false);
+    expect(p.sheetOnlyOutput).toBe(true);
     expect(p.qa.spriteWidth).toBe(16);
     expect(p.qa.spriteHeight).toBe(16);
     expect(p.generatorConfig?.tileBufferForFrame).toBeDefined();
     expect(p.generatorConfig?.sheetLayout).toEqual(CHARACTER_SHEET_LAYOUT);
-    expect(p.postprocessSteps).toEqual([...DEFAULT_POSTPROCESS_STEPS_GENERATE]);
+    expect(p.postprocessSteps).toEqual([]);
     const buf = p.generatorConfig.tileBufferForFrame(
       { id: "walk_0", outSubdir: "walk_0", promptVariant: "" },
       { tileSize: TILE_SIZE },
@@ -69,10 +73,10 @@ describe("presets/character", () => {
     );
   });
 
-  it("optional chroma-after-BRIA can be disabled on the preset object (BRIA-only tiles)", () => {
+  it("optional chroma-after-BRIA can be enabled on the preset object", () => {
     const p = createPreset({ outBase: "/tmp/character-out" });
-    const briaOnly = { ...p, fal: { ...p.fal, chromaAfterBria: false } };
-    expect(briaOnly.fal?.chromaAfterBria).toBe(false);
+    const withChroma = { ...p, fal: { ...p.fal, chromaAfterBria: true } };
+    expect(withChroma.fal?.chromaAfterBria).toBe(true);
   });
 
   it("throws without outBase", () => {

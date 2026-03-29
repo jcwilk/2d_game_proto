@@ -1,9 +1,9 @@
 {
   "kind": "character_walk_sprite",
   "preset": "character_walk",
-  "recipeId": "sprite-gen-character_walk-sheet-v15-bria-sheet-rgba",
-  "createdAt": "2026-03-29T06:29:30.880Z",
-  "workflow": "fal sheet (fal-ai/nano-banana-2, 256×64px, txt2img → crop)",
+  "recipeId": "sprite-gen-character_walk-mock-v2-frames",
+  "createdAt": "2026-03-29T15:16:11.171Z",
+  "workflow": "mock (triangles)",
   "specs": {
     "tileSize": {
       "width": 64,
@@ -27,101 +27,64 @@
         "outSubdir": "walk_3"
       }
     ],
-    "sheetSize": {
-      "width": 256,
-      "height": 64
-    },
-    "sheetCropMap": {
-      "walk_0": {
-        "x": 0,
-        "y": 0
-      },
-      "walk_1": {
-        "x": 64,
-        "y": 0
-      },
-      "walk_2": {
-        "x": 128,
-        "y": 0
-      },
-      "walk_3": {
-        "x": 192,
-        "y": 0
-      }
-    },
-    "imageSize": "256x64",
-    "naming": "character.png per frame folder (outSubdir)",
-    "strategy": "sheet",
-    "chroma": {
-      "keyHex": "#FF00FF",
-      "keyRgb": {
-        "r": 255,
-        "g": 0,
-        "b": 255
-      },
-      "tolerance": 120,
-      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
-    },
-    "seedPolicyPerTile": null
+    "imageSize": "64x64",
+    "naming": "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame walk_* tiles"
   },
   "generationRecipe": {
-    "mode": "generate",
-    "endpoint": "fal-ai/nano-banana-2",
+    "mode": "mock",
+    "endpoint": null,
     "seedRequested": null,
     "falExtrasPerTile": null,
-    "falExtrasSheet": {
-      "aspect_ratio": "4:1",
-      "resolution": "0.5K"
-    },
-    "note": "Real: one fal sheet job at 256x64, crop to 64px; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
+    "falExtrasSheet": null,
+    "note": "Mock: geometry from pngjs triangles, not T2I."
   },
   "frames": [
     {
       "id": "walk_0",
       "outSubdir": "walk_0",
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
+      "sheetOnly": true,
       "cropOrigin": "0,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "walk_1",
       "outSubdir": "walk_1",
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
+      "sheetOnly": true,
       "cropOrigin": "64,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "walk_2",
       "outSubdir": "walk_2",
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
-      "cropOrigin": "128,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "sheetOnly": true,
+      "cropOrigin": "0,64",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     {
       "id": "walk_3",
       "outSubdir": "walk_3",
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
-      "cropOrigin": "192,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "sheetOnly": true,
+      "cropOrigin": "64,64",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     }
   ],
@@ -131,51 +94,50 @@
   },
   "generationResults": {
     "walk_0": {
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
+      "sheetOnly": true,
       "cropOrigin": "0,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "walk_1": {
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
+      "sheetOnly": true,
       "cropOrigin": "64,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "walk_2": {
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
-      "cropOrigin": "128,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "sheetOnly": true,
+      "cropOrigin": "0,64",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "walk_3": {
+      "wallMs": 17,
       "seedRequested": null,
-      "wallMs": 29036,
       "fromSheet": true,
-      "cropOrigin": "192,0",
-      "alphaSource": "bria",
-      "chromaApplied": true,
-      "chromaKeySource": "prompt-hex",
+      "sheetOnly": true,
+      "cropOrigin": "64,64",
+      "chromaApplied": false,
+      "chromaKeySource": null,
       "notes": []
     },
     "_sheet": {
-      "wallMs": 29036,
+      "wallMs": 17,
       "strategy": "sheet",
-      "alphaSource": "bria",
-      "t2iWallMs": 26070,
-      "briaWallMs": 2966
+      "mode": "mock",
+      "alphaSource": "none"
     }
   }
 }

@@ -85,13 +85,99 @@ export const CHARACTER_WALK_SHEET_SUBJECT =
   `Panel order left to right: walk cycle frames (1) contact left, (2) passing, (3) contact right, (4) passing — one pose per panel, consistent design.`;
 
 /**
- * OpenRouter sheet rewrite (**`preset.fal.sheetRewrite`**) — character strip: encourage variety while keeping layout + chroma constraints.
+ * OpenRouter sheet rewrite — **legacy 1×4 chroma strip** (D-pad / older character docs).
+ * @deprecated For character walk sheet T2I, use {@link CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT} (matches [falsprite](https://github.com/lovisdotio/falsprite) `buildRewriteSystemPrompt`).
  */
 export const CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for ONE horizontal 1×4 sprite sheet (four equal panels, left to right walk cycle). " +
   "Preserve: exact panel grid, dimensions, chroma key background color, four distinct walk phases in order, single consistent character. " +
   "Improve: vivid but coherent clothing and skin tones, material read, subtle personality, and clear readable poses — still a 2D game sprite, not a full illustration or photoreal render. " +
   "Output only the improved prompt text, no preamble.";
+
+const FALSPRITE_NUM_WORDS = /** @type {Record<number, string>} */ ({
+  2: "two",
+  3: "three",
+  4: "four",
+  5: "five",
+  6: "six",
+});
+
+/**
+ * Mirrors [falsprite `buildSpritePrompt`](https://github.com/lovisdotio/falsprite/blob/main/lib/fal.mjs): technical grid + motion block, then **`basePrompt`** as "CHARACTER AND ANIMATION DIRECTION".
+ * **`gridSize`** is **N** for an **N×N** cell grid (e.g. **2** → 2×2 sheet). No chroma hex — background is "plain solid flat-color" only.
+ *
+ * @param {string} basePrompt  Rewritten or static choreography / subject (single block, no surrounding newlines).
+ * @param {number} [gridSize=4]  Clamped implicitly to supported map keys; unknown → `"four"`.
+ * @returns {string}
+ */
+export function buildFalspriteStyleSpritePrompt(basePrompt, gridSize = 4) {
+  const w = FALSPRITE_NUM_WORDS[gridSize] ?? "four";
+  return [
+    "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
+    "",
+    `FORMAT: A single image containing a ${w}-by-${w} grid of equally sized cells.`,
+    "Every cell must be the exact same dimensions, perfectly aligned, with no gaps or overlap.",
+    "",
+    "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
+    "no watermarks, no signatures, no UI elements anywhere in the image. The image must",
+    "contain ONLY the character illustrations in the grid cells and nothing else.",
+    "",
+    "CONSISTENCY: The exact same single character must appear in every cell.",
+    "Same proportions, same art style, same level of detail, same camera angle throughout.",
+    "Isometric three-quarter view. Full body visible head to toe in every cell.",
+    "Strong clean silhouette against a plain solid flat-color background.",
+    "",
+    "ANIMATION FLOW: The cells read left-to-right, top-to-bottom, like reading a page.",
+    "This is one continuous motion sequence. Each cell shows the next moment in the movement.",
+    "The transition between the last cell of one row and the first cell of the next row",
+    "must be just as smooth as transitions within a row — no jumps, no resets.",
+    `Each row contains ${w} phases of the motion. The very last cell loops back seamlessly`,
+    "to the very first cell.",
+    "",
+    "MOTION QUALITY: Show real weight and physics. Bodies shift weight between feet.",
+    "Arms counterbalance legs. Torsos rotate into actions. Follow-through on every movement.",
+    "No stiff poses — every cell must feel like a freeze-frame of fluid motion.",
+    "For locomotion (walk/run): strictly alternate left and right legs — one leg extends forward",
+    "while the other pushes behind. Each frame must show a clearly different leg position.",
+    "Never repeat the same pose twice in a row.",
+    "",
+    "CHARACTER AND ANIMATION DIRECTION:",
+    basePrompt,
+  ].join("\n");
+}
+
+/**
+ * Mirrors [falsprite `buildRewriteSystemPrompt`](https://github.com/lovisdotio/falsprite/blob/main/lib/fal.mjs) for OpenRouter before T2I.
+ *
+ * @param {number} [gridSize=4]  Beat count / grid dimension (same as **`buildFalspriteStyleSpritePrompt`**).
+ * @returns {string}
+ */
+export function buildFalspriteSheetRewriteSystemPrompt(gridSize = 4) {
+  const w = FALSPRITE_NUM_WORDS[gridSize] ?? "four";
+  return [
+    "You are an animation director and character designer for a sprite sheet pipeline.",
+    "Given a character concept, you MUST return exactly two sections, nothing else:",
+    "",
+    "CHARACTER: A vivid description of the character's appearance — body type, armor, weapons, colors, silhouette, art style. Be extremely specific and visual.",
+    "",
+    `CHOREOGRAPHY: A ${w}-beat continuous animation loop that showcases this specific character's personality and abilities. Each beat is one row of the sheet. The last beat must transition seamlessly back into the first.`,
+    "For each beat, describe the body position, weight distribution, limb placement, and motion arc in one sentence.",
+    "The choreography must feel natural and unique to THIS character — a mage animates differently than a knight, a dancer differently than a berserker.",
+    "",
+    "RULES:",
+    "- Never use numbers or digits anywhere.",
+    "- Never mention grids, pixels, frames, cells, or image generation.",
+    "- Never mention sprite sheets or technical terms.",
+    "- Write as if directing a real actor through a motion capture session.",
+    `- The ${w} beats must form one fluid, looping performance.`,
+    "- For locomotion (walk/run): strictly alternate left and right legs in each beat.",
+    " Describe exact limb positions — which leg is forward, which is pushing off,",
+    " which arm is swinging forward. Every beat must show a distinctly different leg configuration.",
+  ].join("\n");
+}
+
+/** Character walk (2×2 grid): OpenRouter system prompt aligned with falsprite. */
+export const CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT = buildFalspriteSheetRewriteSystemPrompt(2);
 
 /**
  * Replace `{tileSize}`, `{sheetSize}`, `{sheetWidth}`, `{sheetHeight}`, `{chromaKeyHex}` in a template string.

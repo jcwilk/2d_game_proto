@@ -40,7 +40,7 @@ function parseHexRgb(hex) {
 }
 
 function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number }} */
+  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number; sheetRewrite: boolean }} */
   const opts = {
     mode: "mock",
     strategy: "sheet",
@@ -54,6 +54,7 @@ function parseArgs(argv) {
     help: false,
     chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
     chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
+    sheetRewrite: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -96,6 +97,9 @@ function parseArgs(argv) {
         break;
       case "--dry-run":
         opts.dryRun = true;
+        break;
+      case "--rewrite":
+        opts.sheetRewrite = true;
         break;
       case "--quiet":
       case "-q":
@@ -147,6 +151,7 @@ Options:
   --skip-qa              Skip png-analyze step.
   --dry-run              Print planned actions only; no writes, no API calls.
                          For --mode generate, does NOT require FAL_KEY (planning only).
+  --rewrite              With --strategy sheet: run optional openrouter/router prompt rewrite before T2I (extra fal call; needs FAL_KEY).
   --quiet, -q            Less STDOUT (errors still print).
   --help, -h             This message.
 
@@ -203,6 +208,7 @@ async function main() {
       imageSize: opts.imageSize,
       keepSheet: opts.keepSheet,
       savePreChroma: opts.savePreChroma,
+      sheetRewrite: opts.sheetRewrite ? true : undefined,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

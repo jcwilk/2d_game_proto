@@ -17,10 +17,13 @@ import {
   isNanoBanana2Endpoint,
   sameImageEndpointFamily,
   parseFalImageSubscribeResult,
+  OPENROUTER_ROUTER_ENDPOINT,
   parseImageSize,
+  parseOpenRouterRouterOutput,
   readPngBufferDimensions,
   redactFalInputForLog,
   resolveFalCredentials,
+  rewritePromptViaOpenRouter,
   shouldUseBriaSheetMatting,
   NANO_BANANA2_DEFAULT_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
@@ -62,6 +65,32 @@ describe("sprite-generation fal helpers (no network)", () => {
     );
   });
 
+  it("parseOpenRouterRouterOutput reads output text and surfaces error field", () => {
+    expect(parseOpenRouterRouterOutput({ output: "  hello  " })).toBe("hello");
+    expect(() => parseOpenRouterRouterOutput({})).toThrow("no output");
+    expect(() => parseOpenRouterRouterOutput({ error: "bad" })).toThrow("bad");
+  });
+
+  it("rewritePromptViaOpenRouter calls openrouter/router and returns trimmed text", async () => {
+    const subscribe = vi.fn(async () => ({
+      data: { output: "  rewritten prompt  " },
+    }));
+    const r = await rewritePromptViaOpenRouter({
+      userPrompt: "user",
+      systemPrompt: "sys",
+      model: "openai/gpt-4o-mini",
+      falSubscribe: subscribe,
+      quiet: true,
+    });
+    expect(r.text).toBe("rewritten prompt");
+    expect(subscribe).toHaveBeenCalledWith(
+      OPENROUTER_ROUTER_ENDPOINT,
+      expect.objectContaining({
+        input: expect.objectContaining({ prompt: "user", system_prompt: "sys", model: "openai/gpt-4o-mini" }),
+      }),
+    );
+  });
+
   it("parseFalImageSubscribeResult reads images[0].url from fixture-shaped data", () => {
     const fixture = {
       images: [{ url: "https://cdn.example.com/n.png", width: 400, height: 100 }],
@@ -76,11 +105,13 @@ describe("sprite-generation fal helpers (no network)", () => {
   it("redactFalInputForLog hides data URIs and prompt body", () => {
     const r = redactFalInputForLog({
       prompt: "secret phrase",
+      system_prompt: "system hidden",
       image_size: { width: 400, height: 100 },
       control_lora_image_url: "data:image/png;base64,AAAA",
       api_token: "x",
     });
     expect(r.prompt).toEqual({ length: 13, sha256Hex16: hashPromptForLog("secret phrase") });
+    expect(r.system_prompt).toEqual({ length: 13, sha256Hex16: hashPromptForLog("system hidden") });
     expect(String(r.control_lora_image_url)).toContain("data-uri");
     expect(String(r.control_lora_image_url)).toContain("payloadChars=");
     expect(r.api_token).toBe("<redacted>");

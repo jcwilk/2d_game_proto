@@ -30,11 +30,15 @@ import { PNG } from "pngjs";
 
 import {
   assertPngBufferDimensions,
+  DEFAULT_SHEET_REWRITE_MODEL,
+  DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT,
   falSubscribeBriaBackgroundRemoveToBuffer,
   falSubscribeImageToUrlResult,
   falSubscribeToBuffer,
   getFalImageEndpointStrategy,
+  hashPromptForLog,
   resolveFalCredentials,
+  rewritePromptViaOpenRouter,
   sameImageEndpointFamily,
   shouldUseBriaSheetMatting,
 } from "./generators/fal.mjs";
@@ -114,6 +118,7 @@ function maskSecret(s) {
  * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
  * @property {import('@fal-ai/client').FalClient['subscribe']} [falSubscribe]  Test injection: mock **`fal.subscribe`** (sheet path T2I + BRIA chain).
  * @property {typeof fetch} [fetch]  Test injection for image downloads.
+ * @property {boolean} [sheetRewrite]  When set, overrides **`preset.fal.sheetRewrite?.enabled`** for sheet strategy (optional OpenRouter rewrite before T2I).
  */
 
 /**
@@ -125,7 +130,7 @@ function maskSecret(s) {
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**).
  * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string }} prompt
- * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean }} fal
+ * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
  * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef
@@ -192,11 +197,18 @@ export async function runPipeline(preset, opts) {
     if (mode === "generate") {
       if (strategy === "sheet" && preset.sheet) {
         const d = resolveSheetPixelDimensions(preset.sheet);
+        const sheetRewriteEnabled =
+          opts.sheetRewrite !== undefined
+            ? Boolean(opts.sheetRewrite)
+            : Boolean(preset.fal?.sheetRewrite?.enabled);
         log("INFO", "dry-run", "would call fal.subscribe ONCE", {
           endpoint,
           imageSize: `${d.width}x${d.height}`,
           seed: seed ?? null,
           keepSheet,
+        });
+        log("INFO", "dry-run", "sheet prompt rewrite (openrouter)", {
+          skipped: !sheetRewriteEnabled,
         });
       } else {
         log("INFO", "dry-run", "would call fal.subscribe once per frame (per-tile)", {
@@ -264,6 +276,11 @@ export async function runPipeline(preset, opts) {
     const falExtrasSheetRun = sameImageEndpointFamily(endpoint, presetDefaultEp)
       ? preset.fal?.falExtrasSheet ?? undefined
       : undefined;
+    const sheetRewriteEnabled =
+      opts.sheetRewrite !== undefined
+        ? Boolean(opts.sheetRewrite)
+        : Boolean(preset.fal?.sheetRewrite?.enabled);
+    const sr = preset.fal?.sheetRewrite;
     await runGenerateSheetPath({
       preset,
       generationResultsById,
@@ -277,6 +294,11 @@ export async function runPipeline(preset, opts) {
       falExtras: falExtrasSheetRun,
       falSubscribe: opts.falSubscribe,
       fetch: opts.fetch,
+      sheetRewriteEnabled,
+      sheetRewriteModel: sr?.model ?? DEFAULT_SHEET_REWRITE_MODEL,
+      sheetRewriteSystemPrompt: sr?.systemPrompt ?? DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT,
+      sheetRewriteTemperature: sr?.temperature,
+      sheetRewriteMaxTokens: sr?.maxTokens,
     });
   } else {
     const presetDefaultEp = preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT;
@@ -623,6 +645,11 @@ async function runGeneratePerTilePath({
  * @param {Record<string, unknown>} [p.falExtras]
  * @param {import('@fal-ai/client').FalClient['subscribe']} [p.falSubscribe]
  * @param {typeof fetch} [p.fetch]
+ * @param {boolean} [p.sheetRewriteEnabled]
+ * @param {string} [p.sheetRewriteModel]
+ * @param {string} [p.sheetRewriteSystemPrompt]
+ * @param {number} [p.sheetRewriteTemperature]
+ * @param {number} [p.sheetRewriteMaxTokens]
  */
 async function runGenerateSheetPath({
   preset,
@@ -637,6 +664,11 @@ async function runGenerateSheetPath({
   falExtras,
   falSubscribe,
   fetch: fetchImpl,
+  sheetRewriteEnabled = false,
+  sheetRewriteModel = DEFAULT_SHEET_REWRITE_MODEL,
+  sheetRewriteSystemPrompt = DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT,
+  sheetRewriteTemperature,
+  sheetRewriteMaxTokens,
 }) {
   const sheet = /** @type {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }> }} */ (
     preset.sheet
@@ -660,7 +692,29 @@ async function runGenerateSheetPath({
     composition: prompt.sheetComposition,
     subject: prompt.sheetSubject,
   });
-  log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length });
+  log("INFO", "prompt", "built sheet prompt", { chars: sheetPrompt.length, sha256Hex16: hashPromptForLog(sheetPrompt) });
+
+  /** @type {string} */
+  let promptForT2i = sheetPrompt;
+  /** @type {number | undefined} */
+  let rewriteWallMs;
+  if (sheetRewriteEnabled) {
+    const rw = await rewritePromptViaOpenRouter({
+      userPrompt: sheetPrompt,
+      systemPrompt: sheetRewriteSystemPrompt,
+      model: sheetRewriteModel,
+      temperature: sheetRewriteTemperature,
+      maxTokens: sheetRewriteMaxTokens,
+      quiet,
+      log,
+      falSubscribe,
+    });
+    promptForT2i = rw.text;
+    rewriteWallMs = rw.wallMs;
+    timings.rewritePrompt = rewriteWallMs;
+  } else {
+    log("INFO", "sheet", "prompt rewrite (openrouter) skipped", { reason: "disabled" });
+  }
 
   const imageSizeStr = `${sheetW}x${sheetH}`;
   log("INFO", "sheet", useBria ? "T2I → BRIA matting → normalize → RGBA tile crops" : "single fal job + crop + chroma", {
@@ -670,7 +724,7 @@ async function runGenerateSheetPath({
 
   const imageStrategy = getFalImageEndpointStrategy(endpoint);
   const t2iInput = imageStrategy.buildInput({
-    prompt: sheetPrompt,
+    prompt: promptForT2i,
     imageSize: imageSizeStr,
     seed,
     falExtraInput: falExtras,
@@ -708,7 +762,7 @@ async function runGenerateSheetPath({
   } else {
     const gen = await falSubscribeToBuffer({
       endpoint,
-      prompt: sheetPrompt,
+      prompt: promptForT2i,
       imageSize: imageSizeStr,
       seed,
       quiet,
@@ -776,6 +830,13 @@ async function runGenerateSheetPath({
   if (useBria) {
     sheetMeta.t2iWallMs = t2iWallMs;
     sheetMeta.briaWallMs = briaWallMs;
+  }
+  if (sheetRewriteEnabled) {
+    sheetMeta.rewriteModel = sheetRewriteModel;
+    sheetMeta.rewrittenPromptFingerprint = hashPromptForLog(promptForT2i);
+    if (rewriteWallMs !== undefined) {
+      sheetMeta.rewriteWallMs = rewriteWallMs;
+    }
   }
   generationResultsById._sheet = sheetMeta;
 }

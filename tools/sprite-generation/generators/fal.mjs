@@ -29,7 +29,7 @@ export function hashPromptForLog(prompt) {
  * Redacts large data URIs and prompt text for safe structured logging. Policy:
  * - **String keys ending with `_url`** (incl. **`control_lora_image_url`** and other fal file inputs): if
  *   `data:` URI, replace with length + media prefix only; HTTPS URLs keep host + truncated path (no query secrets).
- * - **`prompt`**: replaced with `{ length, sha256Hex16 }` (see `hashPromptForLog`).
+ * - **`prompt`** / **`system_prompt`**: replaced with `{ length, sha256Hex16 }` (see `hashPromptForLog`).
  * - Keys matching obvious secret names: value replaced with `"<redacted>"`.
  *
  * @param {Record<string, unknown>} input  Full fal `subscribe` input object (already merged).
@@ -59,7 +59,7 @@ export function redactFalInputForLog(input) {
       out[k] = redactUrlLikeString(v);
       continue;
     }
-    if (k === "prompt" && typeof v === "string") {
+    if ((k === "prompt" || k === "system_prompt") && typeof v === "string") {
       out[k] = { length: v.length, sha256Hex16: hashPromptForLog(v) };
       continue;
     }
@@ -201,6 +201,20 @@ export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
  */
 export const BRIA_BACKGROUND_REMOVE_ENDPOINT = "fal-ai/bria/background/remove";
 
+/** fal queue id for OpenRouter-backed chat completions (one **`FAL_KEY`**). */
+export const OPENROUTER_ROUTER_ENDPOINT = "openrouter/router";
+
+/** Default LLM id for optional sheet prompt rewrite (**`rewritePromptViaOpenRouter`**). */
+export const DEFAULT_SHEET_REWRITE_MODEL = "openai/gpt-4o-mini";
+
+/**
+ * Default system instructions for sheet prompt rewrite — HUD glyph / strip layout consistency.
+ * Presets may override via **`preset.fal.sheetRewrite.systemPrompt`**.
+ */
+export const DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for a single horizontal UI sprite sheet. " +
+  "Keep the user's layout constraints (grid, chroma key, dimensions). Output only the improved prompt text, no preamble.";
+
 /**
  * True for `fal-ai/nano-banana-2` and ids that share the same family prefix (version suffixes).
  *
@@ -273,6 +287,88 @@ export function parseFalImageSubscribeResult(data) {
     throw new Error("fal image[0] missing url");
   }
   return { url, seed: d.seed, image0: row };
+}
+
+/**
+ * @param {unknown} data  `result.data` from **`openrouter/router`**
+ * @returns {string} Trimmed completion text
+ */
+export function parseOpenRouterRouterOutput(data) {
+  if (!data || typeof data !== "object") {
+    throw new Error("openrouter/router returned empty or invalid response data");
+  }
+  const d = /** @type {{ output?: unknown; error?: unknown }} */ (data);
+  if (typeof d.error === "string" && d.error.trim()) {
+    throw new Error(`openrouter/router: ${d.error.trim()}`);
+  }
+  if (typeof d.output !== "string" || !d.output.trim()) {
+    throw new Error("openrouter/router returned no output text");
+  }
+  return d.output.trim();
+}
+
+/**
+ * Optional LLM rewrite via **`fal.subscribe("openrouter/router", { input })`** — same **`FAL_KEY`** as T2I.
+ * Never logs full prompt text at INFO (**`redactFalInputForLog`**).
+ *
+ * @param {object} params
+ * @param {string} params.userPrompt
+ * @param {string} [params.systemPrompt]
+ * @param {string} params.model
+ * @param {number} [params.temperature]
+ * @param {number} [params.maxTokens]
+ * @param {boolean} [params.quiet]
+ * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
+ * @returns {Promise<{ text: string; wallMs: number }>}
+ */
+export async function rewritePromptViaOpenRouter(params) {
+  const { userPrompt, systemPrompt, model, temperature, maxTokens, quiet, falSubscribe } = params;
+  const log = params.log ?? defaultLog;
+  const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
+
+  /** @type {Record<string, unknown>} */
+  const input = {
+    prompt: userPrompt,
+    model,
+  };
+  if (systemPrompt !== undefined && systemPrompt !== "") {
+    input.system_prompt = systemPrompt;
+  }
+  if (temperature !== undefined) {
+    input.temperature = temperature;
+  }
+  if (maxTokens !== undefined) {
+    input.max_tokens = maxTokens;
+  }
+
+  log("INFO", `fal:${OPENROUTER_ROUTER_ENDPOINT}`, "subscribe() request input (redacted)", redactFalInputForLog(input));
+  if (!quiet) {
+    log("DEBUG", "fal:rewrite-prompt", "full user prompt follows", {});
+    console.log(userPrompt);
+    if (systemPrompt) {
+      log("DEBUG", "fal:rewrite-system", "full system prompt follows", {});
+      console.log(systemPrompt);
+    }
+  }
+
+  const t0 = Date.now();
+  const result = await subscribe(OPENROUTER_ROUTER_ENDPOINT, {
+    input,
+    logs: true,
+    onQueueUpdate: (status) => {
+      const s = status && typeof status === "object" && "status" in status ? String(status.status) : "?";
+      log("DEBUG", "fal:queue", `openrouter status=${s}`, {});
+    },
+  });
+  const wallMs = Date.now() - t0;
+  const text = parseOpenRouterRouterOutput(result.data);
+  log("INFO", `fal:${OPENROUTER_ROUTER_ENDPOINT}`, "subscribe() done", {
+    wallMs,
+    outputChars: text.length,
+    outputSha256Hex16: hashPromptForLog(text),
+  });
+  return { text, wallMs };
 }
 
 /**

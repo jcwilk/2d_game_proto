@@ -14,7 +14,7 @@ The **primary** local command for the four-direction D-pad layout is **`npm run 
 | **Pipeline** (`runPipeline`, generators, postprocess, manifest / sprite-ref, QA loop) | **`pipeline.mjs`** |
 | **QA bridge** (spawn **`tools/png-analyze.mjs`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.mjs`** |
 
-**CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, etc.).
+**CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, optional **`--rewrite`** for sheet OpenRouter prompt rewrite before T2I, etc.).
 
 ### Optional live generation (`--mode generate`)
 

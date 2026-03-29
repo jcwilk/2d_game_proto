@@ -33,6 +33,10 @@ import {
   CHARACTER_WALK_SHEET_COMPOSITION,
   CHARACTER_WALK_SHEET_STYLE,
 } from "../../prompt.mjs";
+import {
+  CHARACTER_WALK_FRAME_PX,
+  CHARACTER_WALK_SHEET_PX,
+} from "../../gameDimensions.mjs";
 import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
@@ -53,8 +57,11 @@ export const DEFAULT_STRATEGY = "sheet";
 /** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
 export const CHARACTER_KIND = KIND;
 
-/** Square tile edge (px) per walk frame. */
-export const TILE_SIZE = 64;
+/**
+ * Square walk-frame edge (px). One frame is **¼** of the full-height iso cell sheet — see **`src/dimensions.ts`**
+ * / **`CHARACTER_WALK_FRAME_PX`** in **`gameDimensions.mjs`**.
+ */
+export const TILE_SIZE = CHARACTER_WALK_FRAME_PX;
 
 /**
  * Default Euclidean RGB distance for the main chroma pass (per-tile strategy only). Higher keys more near-magenta pixels but can eat
@@ -74,9 +81,9 @@ export const CHARACTER_CHROMA_FRINGE_EDGE_DIST = 165;
  */
 export const CHARACTER_CHROMA_SPILL_MAX_DIST = 205;
 
-/** Single sheet: **2×2** grid (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**. */
-export const SHEET_WIDTH = TILE_SIZE * 2;
-export const SHEET_HEIGHT = TILE_SIZE * 2;
+/** Single sheet: **2×2** grid filling a full-height iso cell. Must match **`SHEET_CROPS`**. */
+export const SHEET_WIDTH = CHARACTER_WALK_SHEET_PX;
+export const SHEET_HEIGHT = CHARACTER_WALK_SHEET_PX;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
@@ -116,9 +123,9 @@ export const CHARACTER_FALSPRITE_SHEET_SUBJECT =
 export const CHARACTER_WALK_SHEET_REWRITE_USER_SEED =
   "Illustrated 2D side-view game character (painterly or cel-shaded, not pixel art): first beat is idle standing; then a three-step walk loop (contact left, passing, contact right) — single consistent identity and outfit.";
 
-/** png-analyze cell size (4×4 grid on 64²). */
-export const QA_SPRITE_W = 16;
-export const QA_SPRITE_H = 16;
+/** png-analyze cell size (~4×4 grid on each walk frame). */
+export const QA_SPRITE_W = Math.max(16, Math.round(TILE_SIZE / 4));
+export const QA_SPRITE_H = QA_SPRITE_W;
 
 /**
  * Ordered frames: **idle** (sheet cell 1) then three walk phases. **Per-tile** prompts only matter for `--strategy per-tile`.

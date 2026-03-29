@@ -2,26 +2,26 @@
   "grid": {
     "rows": 2,
     "columns": 2,
-    "spriteWidth": 80,
-    "spriteHeight": 80
+    "spriteWidth": 64,
+    "spriteHeight": 64
   },
   "frames": {
-    "walk_0": {
+    "floor_0": {
       "column": 0,
       "row": 0
     },
-    "walk_1": {
+    "floor_1": {
       "column": 1,
       "row": 0
     },
-    "walk_2": {
+    "floor_2": {
       "column": 0,
       "row": 1
     },
-    "walk_3": {
+    "floor_3": {
       "column": 1,
       "row": 1
     }
   },
-  "image": "art/avatar-character/sheet.png"
+  "image": "art/isometric-open-floor/sheet.png"
 }

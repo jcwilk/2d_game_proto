@@ -54,3 +54,16 @@ export function createGridSheetLoader(artDir: string): {
   });
   return { loader, spriteRefResource, sheetImageSource };
 }
+
+/**
+ * Single loader that preloads several `sprite-ref.json` + `sheet.png` pairs (e.g. character + terrain).
+ */
+export function mergeGridSheetLoaders(
+  ...sheets: ReturnType<typeof createGridSheetLoader>[]
+): DefaultLoader {
+  const merged = new DefaultLoader();
+  for (const s of sheets) {
+    merged.addResources([s.spriteRefResource, s.sheetImageSource]);
+  }
+  return merged;
+}

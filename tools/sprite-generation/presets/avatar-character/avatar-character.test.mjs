@@ -48,8 +48,8 @@ describe("presets/avatar-character", () => {
     expect(p.fal?.chromaAfterBria).toBe(false);
     expect(p.sheetOnlyOutput).toBe(true);
     expect(p.sheetNativeRaster).toBe(true);
-    expect(p.qa.spriteWidth).toBe(16);
-    expect(p.qa.spriteHeight).toBe(16);
+    expect(p.qa.spriteWidth).toBe(Math.max(16, Math.round(TILE_SIZE / 4)));
+    expect(p.qa.spriteHeight).toBe(p.qa.spriteWidth);
     expect(p.generatorConfig?.tileBufferForFrame).toBeDefined();
     expect(p.generatorConfig?.sheetLayout).toEqual(CHARACTER_SHEET_LAYOUT);
     expect(p.postprocessSteps).toEqual([]);
@@ -93,8 +93,8 @@ describe("presets/avatar-character", () => {
   });
 
   it("renderCharacterWalkMockTileBuffer produces distinct phases (idle vs stride)", () => {
-    const idle = renderCharacterWalkMockTileBuffer({ id: "walk_0", outSubdir: "walk_0", promptVariant: "" }, 64);
-    const stride = renderCharacterWalkMockTileBuffer({ id: "walk_1", outSubdir: "walk_1", promptVariant: "" }, 64);
+    const idle = renderCharacterWalkMockTileBuffer({ id: "walk_0", outSubdir: "walk_0", promptVariant: "" }, TILE_SIZE);
+    const stride = renderCharacterWalkMockTileBuffer({ id: "walk_1", outSubdir: "walk_1", promptVariant: "" }, TILE_SIZE);
     expect(idle.equals(stride)).toBe(false);
   });
 });

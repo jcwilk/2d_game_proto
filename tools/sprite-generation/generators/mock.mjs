@@ -5,12 +5,107 @@
 
 import { PNG } from "pngjs";
 
+import {
+  CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX,
+  CHARACTER_WALK_FRAME_PX,
+} from "../gameDimensions.mjs";
+
+/**
+ * Foreshortened isometric floor rhombus in a square cell (drawn in **texture space**, not via engine scale):
+ * left/right at the midpoints of the vertical edges; top/bottom on the vertical centerline **inset** so the
+ * rhombus is about **twice as wide as tall** (~45° ground-plane read, Diablo-style).
+ *
+ * @param {number} tileSize
+ * @returns {{ top: { x: number; y: number }; right: { x: number; y: number }; bottom: { x: number; y: number }; left: { x: number; y: number } }}
+ */
+export function isoFloorRhombusVertices(tileSize) {
+  if (tileSize < 4) {
+    throw new Error(`isoFloorRhombusVertices: tileSize must be >= 4, got ${tileSize}`);
+  }
+  const cx = (tileSize / 2) | 0;
+  const cy = (tileSize / 2) | 0;
+  const max = tileSize - 1;
+  const halfSpanY = Math.max(1, (tileSize / 4) | 0);
+  return {
+    top: { x: cx, y: Math.max(0, cy - halfSpanY) },
+    right: { x: max, y: cy },
+    bottom: { x: cx, y: Math.min(max, cy + halfSpanY) },
+    left: { x: 0, y: cy },
+  };
+}
+
 /**
  * @param {{ x: number; y: number }} p
- * @param {{ x: number; y: number }} a
- * @param {{ x: number; y: number }} b
- * @param {{ x: number; y: number }} c
+ * @param {number} tileSize
  */
+export function pointInIsoFloorRhombus(p, tileSize) {
+  const { top: t, right: r, bottom: b, left: l } = isoFloorRhombusVertices(tileSize);
+  return pointInTriangle(p, t, r, b) || pointInTriangle(p, t, l, b);
+}
+
+/**
+ * Mock isometric open-floor tile: transparent outside rhombus, stone fill inside (foreshortened rhombus in pixels), variant from frame id `floor_0`…`floor_3`.
+ *
+ * @param {import('./types.mjs').GeneratorFrame} frame
+ * @param {number} tileSize
+ * @returns {import('node:buffer').Buffer}
+ */
+export function renderIsometricFloorMockTileBuffer(frame, tileSize) {
+  const m = /^floor_(\d)$/.exec(frame.id);
+  if (!m) {
+    throw new Error(`mock isometric floor: frame id must be floor_0..floor_3, got ${JSON.stringify(frame.id)}`);
+  }
+  const variant = Number(m[1]);
+  if (variant < 0 || variant > 3 || !Number.isInteger(variant)) {
+    throw new Error(`mock isometric floor: invalid variant in ${JSON.stringify(frame.id)}`);
+  }
+
+  /** @type {readonly { r: number; g: number; b: number }[]} */
+  const bases = [
+    { r: 0x6a, g: 0x5c, b: 0x4e },
+    { r: 0x5e, g: 0x52, b: 0x46 },
+    { r: 0x62, g: 0x56, b: 0x4a },
+    { r: 0x58, g: 0x4e, b: 0x44 },
+  ];
+  const base = bases[variant];
+
+  const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
+  png.data.fill(0);
+
+  for (let y = 0; y < tileSize; y++) {
+    for (let x = 0; x < tileSize; x++) {
+      const i = (tileSize * y + x) << 2;
+      const p = { x, y };
+      if (!pointInIsoFloorRhombus(p, tileSize)) {
+        continue;
+      }
+      const n = ((x * 17 + y * 31 + variant * 97) & 0xff) - 128;
+      const shade = Math.max(-18, Math.min(18, n >> 3));
+      png.data[i] = Math.max(0, Math.min(255, base.r + shade));
+      png.data[i + 1] = Math.max(0, Math.min(255, base.g + shade));
+      png.data[i + 2] = Math.max(0, Math.min(255, base.b + shade));
+      png.data[i + 3] = 0xff;
+      if (variant === 1 && ((x + y + variant) & 0x1f) === 0) {
+        png.data[i] = Math.max(0, png.data[i] - 22);
+        png.data[i + 1] = Math.max(0, png.data[i + 1] - 18);
+        png.data[i + 2] = Math.max(0, png.data[i + 2] - 14);
+      }
+      if (variant === 2 && ((x * y + variant * 13) & 0x3f) < 4) {
+        png.data[i] = Math.min(255, png.data[i] + 12);
+        png.data[i + 1] = Math.min(255, png.data[i + 1] + 10);
+        png.data[i + 2] = Math.min(255, png.data[i + 2] + 8);
+      }
+      if (variant === 3 && y > (tileSize * 2) / 3 && ((x + variant) & 7) < 3) {
+        png.data[i] = Math.max(0, png.data[i] - 14);
+        png.data[i + 1] = Math.max(0, png.data[i + 1] - 12);
+        png.data[i + 2] = Math.max(0, png.data[i + 2] - 10);
+      }
+    }
+  }
+
+  return PNG.sync.write(png);
+}
+
 export function pointInTriangle(p, a, b, c) {
   const sign = (p1, p2, p3) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
   const d1 = sign(p, a, b);
@@ -177,16 +272,26 @@ export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
   png.data.fill(0);
 
   const cx = (tileSize / 2) | 0;
+  /** Same **W/4** stand offset as `dimensions.ts`, scaled if `tileSize` ≠ preset walk frame (tests). */
+  const feetInset = Math.max(
+    4,
+    Math.round((CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX * tileSize) / CHARACTER_WALK_FRAME_PX),
+  );
+
   const head = Math.max(4, Math.round((tileSize * 10) / 64));
   const hx0 = cx - (head / 2) | 0;
-  const hy0 = Math.max(2, Math.round(tileSize * 0.08));
+  const hy0 = Math.max(2, Math.round(tileSize * 0.1));
   const bw = Math.max(6, Math.round((tileSize * 12) / 64));
   const bh = Math.round(tileSize * 0.28);
   const bx0 = cx - (bw / 2) | 0;
   const by0 = hy0 + head + 2;
   const legW = Math.max(4, Math.round((tileSize * 5) / 64));
-  const legH = Math.min(Math.round(tileSize * 0.34), tileSize - by0 - bh - 4);
-  const footY = tileSize - legH - 2;
+  const maxLegTop = tileSize - feetInset;
+  const legH = Math.min(
+    Math.round(tileSize * 0.32),
+    Math.max(4, maxLegTop - by0 - bh - 2),
+  );
+  const footY = tileSize - legH - feetInset;
   const leftLegX = bx0 - 2 + ld;
   const rightLegX = bx0 + bw - legW + 2 + rd;
 

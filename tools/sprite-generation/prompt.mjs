@@ -67,9 +67,9 @@ export const DPAD_SHEET_REWRITE_SYSTEM_PROMPT =
   "Improve: tasteful material (soft plastic, brushed metal, stone, or paper UI), cohesive muted palette, subtle depth or bevel language — still flat 2D game UI glyphs, not photoreal objects or 3D extruded buttons. " +
   "Output only the improved prompt text, no preamble.";
 
-/** Suffix for character walk frames: centered figure, chroma-friendly edges. */
+/** Suffix for character walk frames: feet inset from bottom (matches `CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX` / **W/4** in `src/dimensions.ts`). */
 export const CHARACTER_WALK_FRAME_PROMPT_SUFFIX =
-  ` The character is optically centered in the square (roughly equal empty margin on all four sides). ` +
+  ` Do **not** place the soles flush with the bottom edge of the {tileSize}px square: leave roughly **one quarter of the frame height** as empty space below the feet so the figure sits in the cell volume (isometric stand-point alignment). ` +
   `Readable silhouette; light cel-shading or soft ambient occlusion is OK; avoid heavy motion blur. ` +
   `No halo or color bleed from the background into the figure; minimize pink or magenta fringing on the outline. ` +
   `No text, no watermark, no duplicate characters, no extra limbs, no grid lines.`;
@@ -132,6 +132,78 @@ const FALSPRITE_NUM_WORDS = /** @type {Record<number, string>} */ ({
  * @param {number} [gridSize=2]  N for an N×N cell grid (D-pad uses **2**).
  * @returns {string}
  */
+/** Suffix for isometric floor frames: geometric anchoring for seamless tiling. */
+export const ISO_FLOOR_FRAME_PROMPT_SUFFIX =
+  ` The floor tile must be drawn as a foreshortened isometric rhombus in the image (do not rely on post-scale): ` +
+  `left vertex at the midpoint of the left edge, right vertex at the midpoint of the right edge, ` +
+  `top and bottom vertices on the vertical centerline **inset** so the rhombus is about **twice as wide as tall** in pixel space (classic Diablo-style ground diamond), not a tall 45°-rotated square. ` +
+  `Readable surface detail inside the rhombus only; outside stays flat key color. ` +
+  `No halo or color bleed from the background into the tile; crisp boundary at the rhombus. ` +
+  `No text, no watermark, no second tile, no perspective cube — flat ground plane only.`;
+
+/** Per-tile style line. Placeholders: `{tileSize}`. */
+export const ISO_FLOOR_FRAME_STYLE =
+  `Illustrated {tileSize}px square 2D isometric game terrain tile — painterly or soft cel-shaded, readable at small scale, not pixel art, not photoreal. `;
+
+/**
+ * Chroma backdrop + geometrically locked rhombus. Placeholders: `{chromaKeyHex}`.
+ */
+export const ISO_FLOOR_FRAME_COMPOSITION =
+  `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
+  `Exactly one walkable ground tile per image: a **foreshortened** isometric floor rhombus drawn in correct perspective in the pixels — ` +
+  `left and right corners at the midpoints of the left and right edges of the square; top and bottom corners on the vertical centerline, ` +
+  `inset from the top and bottom edges so the rhombus is roughly **2:1 width to height** (wide and low), not a square-on diamond. ` +
+  `That geometry must be baked into the artwork (same outline in every variation for seamless horizontal tiling of left/right vertices). ` +
+  `Inside the rhombus only: open floor (packed earth, cut stone, or worn flagstones) with subtle variation; no walls, no props. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the floor surface (reserved for the keyable background). `;
+
+/** Base subject for falsprite-style sheet T2I + rewrite seed context. */
+export const ISO_FLOOR_FALSPRITE_SHEET_SUBJECT =
+  `Illustrated isometric open-floor tiles (not pixel art). ` +
+  `Panel order left to right, top row then bottom (2×2 grid): four cosmetic variations of the same walkable floor — ` +
+  `(1) clean with faint grain; (2) light cracks; (3) small scattered grit; (4) slightly darker worn patch — ` +
+  `same foreshortened rhombus footprint in every cell (~2:1 width:height, left/right at side midpoints, top/bottom inset on centerline), not a tall symmetric diamond.`;
+
+export const ISO_FLOOR_SHEET_REWRITE_USER_SEED =
+  "Isometric foreshortened floor rhombus tiles (~2:1 width-to-height in the image): four subtle surface variations, identical wide-low diamond geometry for tiling.";
+
+/** OpenRouter sheet rewrite for 2×2 isometric floor grid. */
+export const ISO_FLOOR_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE 2×2 isometric floor sprite sheet (four equal square cells, row-major). " +
+  "Preserve: exact 2×2 grid; each cell one foreshortened ground rhombus drawn in-pixel (~2:1 width to height — left/right at side edge midpoints, top/bottom on vertical centerline inset from top/bottom); same geometry in all four cells; flat key-colored backdrop outside each rhombus; no props or walls; do not describe scaling or post-processing to fake perspective. " +
+  "Improve: cohesive dark-fantasy ground read, subtle wear and micro-detail differences between cells only — still clean 2D game tiles, not photoreal cobblestones or 3D extrusion. " +
+  "Output only the improved prompt text, no preamble.";
+
+/**
+ * Isometric floor sheet T2I: same grid discipline as {@link buildDpadGridSpritePrompt}, for terrain diamonds.
+ *
+ * @param {string} basePrompt  Subject / material block (single paragraph).
+ * @param {number} [gridSize=2]  N for an N×N cell grid.
+ * @returns {string}
+ */
+export function buildIsometricFloorGridSpritePrompt(basePrompt, gridSize = 2) {
+  const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
+  return [
+    "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
+    "",
+    `FORMAT: A single image containing a ${w}-by-${w} grid of equally sized cells.`,
+    "Every cell must be the exact same dimensions, perfectly aligned, with no gaps or overlap.",
+    "",
+    "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
+    "no watermarks, no signatures, no UI chrome.",
+    "",
+    "CONSISTENCY: The same isometric floor art style and foreshortened rhombus footprint in every cell — only subtle surface details differ.",
+    "Each cell contains exactly ONE ground rhombus drawn with perspective in the pixels: left and right vertices at the midpoints of the left and right edges;",
+    "top and bottom vertices on the vertical centerline, inset so the shape is about twice as wide as tall (wide, low Diablo-style floor diamond), not a square rotated 45°.",
+    "Walkable surface only inside the rhombus; strong silhouette against a plain solid flat-color background outside it.",
+    "",
+    "PANEL FLOW: Cells read left-to-right, top-to-bottom. Four distinct cosmetic variations of open walkable floor.",
+    "",
+    "ISOMETRIC FLOOR DIRECTION:",
+    basePrompt,
+  ].join("\n");
+}
+
 export function buildDpadGridSpritePrompt(basePrompt, gridSize = 2) {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
   return [

@@ -1,6 +1,6 @@
 ---
 id: 2gp-zxol
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T18:47:57Z

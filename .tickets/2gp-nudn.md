@@ -1,6 +1,6 @@
 ---
 id: 2gp-nudn
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T18:48:10Z

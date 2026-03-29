@@ -2,10 +2,7 @@ import './styles.css';
 
 import { Actor, Animation, AnimationStrategy, Color, Scene, vec } from 'excalibur';
 
-import {
-  CHARACTER_WALK_FRAME_IDS,
-  createCharacterWalkLoader,
-} from './art/atlasLoader';
+import { createGridSheetLoader } from './art/atlasLoader';
 import { parseGridFrameKeysManifestJson } from './art/atlasTypes';
 import { spriteSheetFromGridImageSource } from './art/gridSpriteSheet';
 import { CHROME_MOVE_SPEED, VIEWPORT_SIZE, createEngine } from './engine';
@@ -26,7 +23,7 @@ mainScene.backgroundColor = Color.fromHex('#1a1a2e');
 
 engine.addScene('main', mainScene);
 
-const { loader, spriteRefResource, sheetImageSource } = createCharacterWalkLoader();
+const { loader, spriteRefResource, sheetImageSource } = createGridSheetLoader('art/avatar-character');
 
 void engine
   .start('main', { loader })
@@ -40,8 +37,9 @@ void engine
       throw new Error('Expected character sheet ImageSource loaded after preload');
     }
     const spriteSheet = spriteSheetFromGridImageSource(sheetImageSource, gridManifest);
-    /** Sheet order: `walk_0` = idle (top-left), then walk phases — see `CHARACTER_FALSPRITE_SHEET_SUBJECT` in `presets/avatar-character/avatar-character.mjs`. */
-    const sprites = CHARACTER_WALK_FRAME_IDS.map((id) => {
+    /** Walk cycle frame keys in sheet order: first frame is idle, then walk phases. */
+    const walkFrameIds = ['walk_0', 'walk_1', 'walk_2', 'walk_3'] as const;
+    const sprites = walkFrameIds.map((id) => {
       const cell = gridManifest.frames[id];
       if (!cell) {
         throw new Error(`Missing sprite-ref frame ${JSON.stringify(id)}`);

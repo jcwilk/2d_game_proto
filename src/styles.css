@@ -11,19 +11,120 @@ body {
   flex-direction: column;
 }
 
+/*
+ * Responsive shell (common web game pattern):
+ * — Portrait: square playfield on top; controls in a horizontal strip at the bottom.
+ * — Landscape: square playfield on the left; controls in a vertical strip on the right.
+ * The playfield square uses the smaller of the stage’s width/height (container query)
+ * so it shrinks when the window is nearly square, leaving room for the control strip.
+ */
+
 #game-root {
   touch-action: none; /* .cursor/plans/project-implementation-deep-dive.md §D.2 */
   user-select: none;
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  display: flex;
+  width: 100%;
 }
 
-.game-chrome-spacer {
+/* Default: portrait — stack: stage (flex) then controls (fixed min strip) */
+#game-root {
+  flex-direction: column;
+}
+
+@media (orientation: landscape) {
+  #game-root {
+    flex-direction: row;
+  }
+}
+
+#game-stage {
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: min(0.5rem, 2vw);
+  box-sizing: border-box;
+  /* Largest square that fits inside this region shrinks when controls eat space */
+  container-type: size;
+  container-name: game-stage;
+}
+
+/*
+ * Square canvas area: side length = min(stage width, stage height).
+ * When the viewport is almost square, the stage is smaller → the square shrinks and the strip stays usable.
+ */
+#game-canvas-wrap {
+  position: relative;
+  box-sizing: border-box;
+  aspect-ratio: 1 / 1;
+  width: min(100cqw, 100cqh);
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#game-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 0.35rem;
+  box-sizing: border-box;
+  padding: 0.4rem;
+  touch-action: none;
+}
+
+/* Portrait: horizontal bar at bottom */
+@media (orientation: portrait) {
+  #game-controls {
+    flex-direction: row;
+    min-height: min(22vh, 6.5rem);
+    max-height: 8rem;
+    align-self: stretch;
+  }
+
+  /* Left → right: ← ↑ ↓ → */
+  .game-chrome[data-dir='left'] {
+    order: 1;
+  }
+  .game-chrome[data-dir='up'] {
+    order: 2;
+  }
+  .game-chrome[data-dir='down'] {
+    order: 3;
+  }
+  .game-chrome[data-dir='right'] {
+    order: 4;
+  }
+}
+
+/* Landscape: vertical bar on the right */
+@media (orientation: landscape) {
+  #game-controls {
+    flex-direction: column;
+    min-width: min(26vw, 7rem);
+    max-width: 9rem;
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  /* Top → bottom: ↑ ← → ↓ */
+  .game-chrome[data-dir='up'] {
+    order: 1;
+  }
+  .game-chrome[data-dir='left'] {
+    order: 2;
+  }
+  .game-chrome[data-dir='right'] {
+    order: 3;
+  }
+  .game-chrome[data-dir='down'] {
+    order: 4;
+  }
 }
 
 .game-chrome {
@@ -31,10 +132,23 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 3rem;
-  min-width: 3rem;
   box-sizing: border-box;
-  padding: 0.25rem;
+  padding: 0.2rem;
+  flex: 1 1 0;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+@media (orientation: landscape) {
+  .game-chrome {
+    min-width: 0;
+  }
+}
+
+@media (orientation: portrait) {
+  .game-chrome {
+    min-height: 0;
+  }
 }
 
 .game-chrome-img {
@@ -44,11 +158,4 @@ body {
   height: auto;
   object-fit: contain;
   pointer-events: none;
-}
-
-#game-canvas-wrap {
-  min-width: 0;
-  min-height: 0;
-  aspect-ratio: 1 / 1;
-  position: relative;
 }

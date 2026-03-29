@@ -1,6 +1,6 @@
 ---
 id: 2gp-vk43
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-03-29T02:43:56Z
@@ -25,3 +25,9 @@ Reconcile **tools/README.md** with this README if the top-level tools doc still 
 
 README (or agreed doc path under tools/sprite-generation/) merged on current branch. Document states strategy choice, topology/game contract, alpha config surface (including how it maps to `postprocessSteps` / preset fields today), and at least one fal endpoint id per chosen path with fal.ai doc URL and **verification date** (ISO). **tools/README.md** does not contradict the canonical dpad/sheet topology documented here (edit or cross-link). Blocks implementation children until closed. Evidence: `./tk show` closure note lists doc paths + fal URLs and verification dates used.
 
+
+## Notes
+
+**2026-03-29T02:45:48Z**
+
+Docs: tools/sprite-generation/README.md (ADR: strategy, 1×4 topology, postprocessSteps/chromaKey vs briaAlpha placeholder, resolveGeneratorConfig). tools/README.md reconciled dpad paragraph. Verified fal endpoints 2026-03-28: fal-ai/flux/dev https://fal.ai/models/fal-ai/flux/dev/api ; fal-ai/flux-control-lora-canny https://fal.ai/models/fal-ai/flux-control-lora-canny/api ; general https://docs.fal.ai/model-apis

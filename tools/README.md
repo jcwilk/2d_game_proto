@@ -24,7 +24,7 @@ Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-
 - **`npm run mock:dpad-workflow`** — `node tools/dpad-workflow.mjs --mode mock` (explicit mock entry point).
 - **`tools/mock-dpad-workflow.mjs`** — thin shim that spawns `dpad-workflow.mjs --mode mock`; prefer the npm scripts above.
 
-**`--mode generate`** defaults to **`--strategy sheet`**: one **512×512** fal image, then **deterministic 2×2 crops** to 256² tiles (**shared style**, not guaranteed directional semantics or transparency—see `.cursor/plans/fal-precision-assets.md` §4.1). **`--strategy per-tile`**: legacy four API calls. See `--help`.
+**`--mode generate`** defaults to **`--strategy sheet`**: one fal image at **`preset.sheet`** size for the D-pad preset (**1×4** horizontal strip: **400×100** px with current `TILE_SIZE`, not 512² 2×2), then **deterministic crops** per **`presets/dpad.mjs`** → chroma-key → four tiles under `public/art/dpad/`. **`--strategy per-tile`**: four fal calls. Canonical geometry, alpha pipeline, and verified fal endpoint ids are documented in **[`sprite-generation/README.md`](sprite-generation/README.md)** (Strategy, scope, and fal endpoints). See `--help`.
 
 ## `tools/sprite-generation/` (sprite generation pipeline library)
 

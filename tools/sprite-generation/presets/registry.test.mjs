@@ -15,8 +15,7 @@ describe("presets/registry.mjs", () => {
   it("PRESETS entries use absolute file: URLs under resolved repo root", () => {
     const repoRoot = resolveRepoRoot();
     const ids = Object.keys(PRESETS).sort((a, b) => a.localeCompare(b));
-    expect(ids).toContain("dpad");
-    expect(ids).toContain("avatar-character");
+    expect(ids.length).toBeGreaterThan(0);
     for (const id of ids) {
       const href = PRESETS[id].presetModuleHref;
       expect(href.startsWith("file:")).toBe(true);

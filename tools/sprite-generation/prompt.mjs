@@ -54,7 +54,7 @@ export const DPAD_FALSPRITE_SHEET_SUBJECT =
 export const DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for ONE 2×2 HUD sprite sheet (four equal cells in row-major order: up, down, left, right). " +
   "Preserve: exact 2×2 grid, four single triangles in those orientations only, one uniform flat-color background, no extra arrows. " +
-  "Improve: tasteful material (soft plastic, brushed metal, stone, or paper UI), cohesive muted palette, subtle depth or bevel language — still flat 2D game UI glyphs, not photoreal objects or 3D extruded buttons. " +
+  "Improve: prefer subtle rough stone texture for the triangle fills (matte, lightly granular, soft weathered edges, not glossy); cohesive muted earthy palette; subtle depth or bevel language — still flat 2D game UI glyphs, not photoreal rocks or 3D extruded buttons. " +
   "Output only the improved prompt text, no preamble.";
 
 /**

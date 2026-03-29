@@ -18,6 +18,12 @@
  *
  * **Transparency:** **BRIA** sheet matting; **`postprocessSteps`** **`[]`** (no per-tile chroma). **`sheetOnlyOutput`** — no per-frame PNGs.
  *
+ * ## Art direction (HUD triangles)
+ *
+ * Default look: **subtle rough stone** — matte, lightly granular fill, soft weathered edges, not glossy
+ * (see **`DPAD_SHEET_MATERIAL_GUIDANCE`** and per-tile **`DPAD_TILE_MATERIAL_HINT`**). The sheet T2I block
+ * and OpenRouter rewrite system prompt are aligned so **`--rewrite`** stays on-brand.
+ *
  * @see `../README.md`
  * @see `../pipeline.mjs`
  * @see `../manifest.mjs` — `buildRecipeId`
@@ -81,6 +87,20 @@ export const QA_SPRITE_W = 20;
 export const QA_SPRITE_H = 20;
 
 /**
+ * Sheet T2I / `HUD GLYPH AND DIRECTION` — appended to {@link DPAD_FALSPRITE_SHEET_SUBJECT} for the default
+ * prompt (and unless OpenRouter returns a full replacement `rewrittenBase`).
+ */
+export const DPAD_SHEET_MATERIAL_GUIDANCE =
+  "Material for the triangle glyphs: subtle rough stone — matte, lightly granular micro-texture, soft weathered edges, " +
+  "not glossy, not harsh noise; keep silhouettes crisp and readable at small UI size.";
+
+/**
+ * Shared fragment for **`--strategy per-tile`** prompts so tile jobs match sheet art direction.
+ */
+export const DPAD_TILE_MATERIAL_HINT =
+  "Triangle fill: subtle rough stone (matte, lightly granular), readable at small size.";
+
+/**
  * D-pad preset: ordered frames (up → down → left → right in list; 2×2 row-major sheet cells).
  *
  * @type {readonly import('../generators/types.mjs').GeneratorFrame[]}
@@ -92,7 +112,8 @@ export const DPAD_FRAMES = Object.freeze([
     promptVariant:
       `Orientation NORTH (up): one isosceles triangle only, pointing straight up. ` +
       `Apex sits on the top edge at horizontal center; the base is a horizontal segment below the apex, parallel to the bottom edge. ` +
-      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair.`,
+      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair. ` +
+      DPAD_TILE_MATERIAL_HINT,
   },
   {
     id: "down",
@@ -100,7 +121,8 @@ export const DPAD_FRAMES = Object.freeze([
     promptVariant:
       `Orientation SOUTH (down): one isosceles triangle only, pointing straight down. ` +
       `Apex sits on the bottom edge at horizontal center; the base is a horizontal segment above the apex. ` +
-      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair.`,
+      `One clear triangle; subtle shading or bevel for material read OK — no extruded 3D blocks, no chevron pair. ` +
+      DPAD_TILE_MATERIAL_HINT,
   },
   {
     id: "left",
@@ -110,7 +132,8 @@ export const DPAD_FRAMES = Object.freeze([
       `The tip touches the left edge at vertical midline; the base is a vertical segment on the right half of the tile. ` +
       `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
       `Do not draw an upward or downward arrow; this is a horizontal-left control glyph. ` +
-      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks.`,
+      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks. ` +
+      DPAD_TILE_MATERIAL_HINT,
   },
   {
     id: "right",
@@ -120,7 +143,8 @@ export const DPAD_FRAMES = Object.freeze([
       `The tip touches the right edge at vertical midline; the base is a vertical segment on the left half of the tile. ` +
       `The triangle must be wider than tall (landscape), not a tall vertical sliver. ` +
       `Do not draw an upward, downward, or leftward arrow. ` +
-      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks.`,
+      `One clear triangle; subtle shading or bevel OK — no extruded 3D blocks. ` +
+      DPAD_TILE_MATERIAL_HINT,
   },
 ]);
 
@@ -224,9 +248,12 @@ export function createPreset(opts) {
     prompt: {
       frameStyle: DPAD_FRAME_STYLE,
       frameComposition: DPAD_FRAME_COMPOSITION,
-      sheetSubject: DPAD_FALSPRITE_SHEET_SUBJECT,
+      sheetSubject: `${DPAD_FALSPRITE_SHEET_SUBJECT} ${DPAD_SHEET_MATERIAL_GUIDANCE}`,
       sheetPromptBuilder: (ctx) =>
-        buildDpadGridSpritePrompt(ctx.rewrittenBase ?? DPAD_FALSPRITE_SHEET_SUBJECT, 2),
+        buildDpadGridSpritePrompt(
+          ctx.rewrittenBase ?? `${DPAD_FALSPRITE_SHEET_SUBJECT} ${DPAD_SHEET_MATERIAL_GUIDANCE}`,
+          2,
+        ),
       framePromptSuffix: DPAD_FRAME_PROMPT_SUFFIX,
     },
     fal: {

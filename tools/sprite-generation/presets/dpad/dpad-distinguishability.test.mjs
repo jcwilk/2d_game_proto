@@ -1,7 +1,7 @@
 /**
  * Regression QA: four D-pad directions stay visually distinguishable in **deterministic** stages.
  *
- * Does **not** assert on fal T2I or chroma-key pixels (stochastic); see `../README.md`.
+ * Does **not** assert on fal T2I or chroma-key pixels (stochastic); see `../../README.md`.
  * Covers mock raster triangles + white-on-black silhouette masks aligned with `triangleForDirection` / `defaultDpadShapeForFrame`.
  */
 
@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { generate, renderTriangleSilhouetteTileBuffer, triangleForDirection } from "../generators/mock.mjs";
+import { generate, renderTriangleSilhouetteTileBuffer, triangleForDirection } from "../../generators/mock.mjs";
 import { DPAD_FRAMES, TILE_SIZE } from "./dpad.mjs";
 
 /** @param {Buffer} buf */

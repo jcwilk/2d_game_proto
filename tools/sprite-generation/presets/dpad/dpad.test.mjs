@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
-import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
-import { DPAD_FRAME_PROMPT_SUFFIX } from "../prompt.mjs";
+import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../../manifest.mjs";
+import { defaultDpadShapeForFrame } from "../../generators/mock.mjs";
+import { DPAD_FRAME_PROMPT_SUFFIX } from "../../prompt.mjs";
 import {
   createPreset,
   DPAD_FAL_EXTRAS_SHEET,
@@ -10,7 +10,8 @@ import {
   DPAD_KIND,
   DPAD_PRESET_ID,
   DPAD_SHEET_LAYOUT,
-  recipeIdForDpad,
+  MANIFEST_PRESET_ID,
+  recipeId,
   SHEET_CROPS,
   SHEET_HEIGHT,
   SHEET_WIDTH,
@@ -20,6 +21,7 @@ import {
 describe("presets/dpad", () => {
   it("createPreset builds a runPipeline-ready object with gridFrameKeys spriteRef for art/dpad", () => {
     const p = createPreset({ outBase: "/tmp/dpad-out" });
+    expect(p.presetId).toBe(MANIFEST_PRESET_ID);
     expect(p.presetId).toBe(DPAD_PRESET_ID);
     expect(p.kind).toBe(DPAD_KIND);
     expect(p.frames).toBe(DPAD_FRAMES);
@@ -53,12 +55,12 @@ describe("presets/dpad", () => {
     }
   });
 
-  it("recipeIdForDpad matches manifest RECIPE_VERSION slugs", () => {
-    expect(recipeIdForDpad("mock")).toBe(`sprite-gen-${DPAD_PRESET_ID}-mock-${RECIPE_VERSION_MOCK}`);
-    expect(recipeIdForDpad("generate", "per-tile")).toBe(
-      `sprite-gen-${DPAD_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE}`,
+  it("recipeId matches manifest RECIPE_VERSION slugs", () => {
+    expect(recipeId("mock")).toBe(`sprite-gen-${MANIFEST_PRESET_ID}-mock-${RECIPE_VERSION_MOCK}`);
+    expect(recipeId("generate", "per-tile")).toBe(
+      `sprite-gen-${MANIFEST_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE}`,
     );
-    expect(recipeIdForDpad("generate", "sheet")).toBe(`sprite-gen-${DPAD_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`);
+    expect(recipeId("generate", "sheet")).toBe(`sprite-gen-${MANIFEST_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`);
   });
 
   it("throws without outBase", () => {

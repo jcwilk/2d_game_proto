@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { DPAD_FAL_EXTRAS_SHEET } from "./presets/dpad.mjs";
+import { DPAD_FAL_EXTRAS_SHEET } from "./presets/dpad/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,

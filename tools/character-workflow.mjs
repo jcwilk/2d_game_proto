@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Character walk-cycle workflow CLI — **`createPreset`** (`presets/character.mjs`) +
+ * Character walk-cycle workflow CLI — **`createPreset`** (`presets/character/character.mjs`) +
  * **`runPipeline`** (`sprite-generation/pipeline.mjs`).
  *
- * @see tools/sprite-generation/presets/character.mjs
+ * @see tools/sprite-generation/presets/character/character.mjs
  * @see tools/sprite-generation/pipeline.mjs
  */
 
@@ -22,7 +22,7 @@ import {
   SHEET_HEIGHT,
   SHEET_WIDTH,
   TILE_SIZE,
-} from "./sprite-generation/presets/character.mjs";
+} from "./sprite-generation/presets/character/character.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_BASE = join(__dirname, "..", "public", "art", "character");

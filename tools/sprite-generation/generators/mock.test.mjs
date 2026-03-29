@@ -1,7 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { DPAD_SHEET_LAYOUT } from "../presets/dpad.mjs";
+import { DPAD_SHEET_LAYOUT } from "../presets/dpad/dpad.mjs";
 import {
   defaultDpadShapeForFrame,
   generate,

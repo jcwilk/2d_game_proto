@@ -74,7 +74,7 @@ export const CHARACTER_WALK_FRAME_PROMPT_SUFFIX =
   `No halo or color bleed from the background into the figure; minimize pink or magenta fringing on the outline. ` +
   `No text, no watermark, no duplicate characters, no extra limbs, no grid lines.`;
 
-/** Per-frame walk **`frameStyle`** line lives in **`presets/character.mjs`** (`CHARACTER_WALK_FRAME_STYLE`). */
+/** Per-frame walk **`frameStyle`** line lives in **`presets/character/character.mjs`** (`CHARACTER_WALK_FRAME_STYLE`). */
 
 /**
  * Shared background + single-character rules. Placeholders: `{chromaKeyHex}`.
@@ -96,7 +96,7 @@ export const CHARACTER_WALK_SHEET_COMPOSITION =
   `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the character or cast shadows. ` +
   `Figures small, optically centered, generous margin; four sequential walk-cycle poses left-to-right; no text, no duplicate rows. `;
 
-/** Sheet subject line for falsprite T2I lives in **`presets/character.mjs`** (`CHARACTER_FALSPRITE_SHEET_SUBJECT`). */
+/** Sheet subject line for falsprite T2I lives in **`presets/character/character.mjs`** (`CHARACTER_FALSPRITE_SHEET_SUBJECT`). */
 
 /**
  * OpenRouter sheet rewrite — **legacy 1×4 chroma strip** (D-pad / older character docs).

@@ -10,8 +10,8 @@ import { buildDpadGridSpritePrompt } from "./prompt.mjs";
 import { hashPromptForLog } from "./generators/fal.mjs";
 import { RECIPE_VERSION_MOCK } from "./manifest.mjs";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
-import { createPreset as createCharacterPreset } from "./presets/character.mjs";
-import { createPreset } from "./presets/dpad.mjs";
+import { createPreset as createCharacterPreset } from "./presets/character/character.mjs";
+import { createPreset } from "./presets/dpad/dpad.mjs";
 import { runPipeline } from "./pipeline.mjs";
 
 /** @param {string} outBase */

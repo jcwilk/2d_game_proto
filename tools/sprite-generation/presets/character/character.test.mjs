@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../manifest.mjs";
-import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
+import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../../manifest.mjs";
+import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.mjs";
 import {
   CHARACTER_FALSPRITE_SHEET_SUBJECT,
   CHARACTER_FRAME_SHEET_CELLS,
@@ -10,7 +10,8 @@ import {
   CHARACTER_SHEET_LAYOUT,
   CHARACTER_WALK_FRAMES,
   createPreset,
-  recipeIdForCharacter,
+  MANIFEST_PRESET_ID,
+  recipeId,
   SHEET_CROPS,
   SHEET_HEIGHT,
   SHEET_WIDTH,
@@ -20,6 +21,7 @@ import {
 describe("presets/character", () => {
   it("createPreset builds a runPipeline-ready object with gridFrameKeys sprite-ref for art/character", () => {
     const p = createPreset({ outBase: "/tmp/character-out" });
+    expect(p.presetId).toBe(MANIFEST_PRESET_ID);
     expect(p.presetId).toBe(CHARACTER_PRESET_ID);
     expect(p.kind).toBe(CHARACTER_KIND);
     expect(p.frames).toBe(CHARACTER_WALK_FRAMES);
@@ -70,13 +72,13 @@ describe("presets/character", () => {
     }
   });
 
-  it("recipeIdForCharacter matches manifest RECIPE_VERSION slugs", () => {
-    expect(recipeIdForCharacter("mock")).toBe(`sprite-gen-${CHARACTER_PRESET_ID}-mock-${RECIPE_VERSION_MOCK}`);
-    expect(recipeIdForCharacter("generate", "per-tile")).toBe(
-      `sprite-gen-${CHARACTER_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE}`,
+  it("recipeId matches manifest RECIPE_VERSION slugs", () => {
+    expect(recipeId("mock")).toBe(`sprite-gen-${MANIFEST_PRESET_ID}-mock-${RECIPE_VERSION_MOCK}`);
+    expect(recipeId("generate", "per-tile")).toBe(
+      `sprite-gen-${MANIFEST_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE}`,
     );
-    expect(recipeIdForCharacter("generate", "sheet")).toBe(
-      `sprite-gen-${CHARACTER_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`,
+    expect(recipeId("generate", "sheet")).toBe(
+      `sprite-gen-${MANIFEST_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`,
     );
   });
 

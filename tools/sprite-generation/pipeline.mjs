@@ -14,7 +14,7 @@
  * @see `pipeline-stages.mjs` — `applyPostprocessPipeline`, chroma and other postprocess steps
  * @see `qa/analyze-bridge.mjs` — QA png-analyze bridge (`runPngAnalyzeBridge`)
  * @see `generators/types.mjs` — generator contracts
- * @see `presets/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
+ * @see `presets/dpad/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  *
  * ## Raster WxH (**2gp-6iay**, normalization **2gp-r67u** in **`postprocess/png-region.mjs`**)
  *
@@ -171,7 +171,11 @@ function maskSecret(s) {
 const SHEET_GRID_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six" };
 
 /**
- * @param {{ prompt: { sheetStyle: string; sheetComposition: string; sheetSubject: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string }) => string } }} preset
+ * Resolves the sheet T2I prompt: if **`prompt.sheetPromptBuilder`** is set, calls it with raster size and chroma key
+ * (same ctx shape as the post-rewrite path, minus **`rewrittenBase`**). Otherwise **`buildSheetPrompt`** uses
+ * **`sheetStyle`**, **`sheetComposition`**, and **`sheetSubject`** (required on that fallback path).
+ *
+ * @param {{ prompt: { sheetStyle?: string; sheetComposition?: string; sheetSubject: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string; rewrittenBase?: string }) => string } }} preset
  * @param {number} sheetW
  * @param {number} sheetH
  * @param {string} chromaKeyHex
@@ -185,8 +189,8 @@ function resolveSheetPromptText(preset, sheetW, sheetH, chromaKeyHex) {
     sheetWidth: sheetW,
     sheetHeight: sheetH,
     chromaKeyHex,
-    style: p.sheetStyle,
-    composition: p.sheetComposition,
+    style: /** @type {string} */ (p.sheetStyle),
+    composition: /** @type {string} */ (p.sheetComposition),
     subject: p.sheetSubject,
   });
 }
@@ -236,7 +240,7 @@ function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
  * @property {string} outBase  Absolute directory root for tiles + manifest + sprite-ref.
  * @property {number} tileSize
  * @property {{ width?: number; height?: number; size?: number; crops: Record<string, { x: number; y: number }>; rows?: number; columns?: number; spriteWidth?: number; spriteHeight?: number }} [sheet]  Required when `strategy === 'sheet'` (use **`width`+`height`** or legacy square **`size`**). **`rows`** / **`columns`** / **`spriteWidth`** / **`spriteHeight`** optional unless **`sheetNativeRaster`** or **`gridFrameKeys`** sprite-ref.
- * @property {{ frameStyle: string; frameComposition: string; sheetStyle: string; sheetComposition: string; sheetSubject: string; framePromptSuffix?: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string }) => string; sheetRewriteUserPrompt?: string }} prompt
+ * @property {{ frameStyle: string; frameComposition: string; sheetStyle?: string; sheetComposition?: string; sheetSubject: string; framePromptSuffix?: string; sheetPromptBuilder?: (ctx: { sheetWidth: number; sheetHeight: number; chromaKeyHex: string; rewrittenBase?: string }) => string; sheetRewriteUserPrompt?: string }} prompt  Per-tile: **`frameStyle`** / **`frameComposition`**. Sheet: **`sheetPromptBuilder`** drives **`resolveSheetPromptText`** and, after OpenRouter rewrite on the generate-sheet path, is called again with **`rewrittenBase`**; without a builder, **`buildSheetPrompt`** needs **`sheetStyle`**, **`sheetComposition`**, **`sheetSubject`**.
  * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; chromaFringeEdgeDist?: number; chromaSpillMaxDist?: number; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance

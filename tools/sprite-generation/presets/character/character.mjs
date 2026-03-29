@@ -2,29 +2,29 @@
  * Character walk-cycle preset — **single source of truth** for frame list, sheet layout,
  * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/character/`.
  *
- * Contract matches **`presets/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../pipeline.mjs`**).
+ * Contract matches **`presets/dpad/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../../pipeline.mjs`**).
  * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); override with **`tools/character-workflow.mjs --no-rewrite`**.
  *
  * **Transparency:** **BRIA** is the alpha path; **`fal.chromaAfterBria`** defaults to **off** (FalSprite-style BRIA-only; no per-tile chroma).
  *
- * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`CHARACTER_FAL_EXTRAS_SHEET`** (**1:1**, **`0.5K`**, **`expand_prompt`**, **`safety_tolerance`**) — cheaper tier. **`sheetNativeRaster`** is **on**: fal/BRIA output is **not** nearest-neighbor downscaled to **`SHEET_WIDTH`×`SHEET_HEIGHT`** before **`sheet.png`**; **`sprite-ref.json`** uses the derived cell size so the game draws at native texture resolution. Art direction: **illustrated / painterly 2D**, not pixel art (see **`CHARACTER_WALK_FRAME_STYLE`**). Prompt text follows **`buildFalspriteStyleSpritePrompt`** + **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** (see **`../prompt.mjs`**).
+ * **T2I:** Sheet jobs use **`fal-ai/nano-banana-2`** with **`CHARACTER_FAL_EXTRAS_SHEET`** (**1:1**, **`0.5K`**, **`expand_prompt`**, **`safety_tolerance`**) — cheaper tier. **`sheetNativeRaster`** is **on**: fal/BRIA output is **not** nearest-neighbor downscaled to **`SHEET_WIDTH`×`SHEET_HEIGHT`** before **`sheet.png`**; **`sprite-ref.json`** uses the derived cell size so the game draws at native texture resolution. Art direction: **illustrated / painterly 2D**, not pixel art (see **`CHARACTER_WALK_FRAME_STYLE`**). Prompt text follows **`buildFalspriteStyleSpritePrompt`** + **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** (see **`../../prompt.mjs`**).
  *
  * **Output:** **`sheetOnlyOutput`** — one **`sheet.png`** + **`sprite-ref.json`** (`gridFrameKeys`); no **`walk_*`** tile PNGs.
  *
  * **Frames (row-major 2×2):** **`walk_0`** is **idle standing** (top-left); **`walk_1`–`walk_3`** are walk phases. **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** drives the falsprite T2I block.
  *
- * @see `../README.md`
- * @see `../pipeline.mjs`
- * @see `../manifest.mjs` — `buildRecipeId`
+ * @see `../../README.md`
+ * @see `../../pipeline.mjs`
+ * @see `../../manifest.mjs` — `buildRecipeId`
  */
 
 import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_LOW_RESOLUTION,
   NANO_BANANA2_SQUARE_ASPECT_RATIO,
-} from "../generators/fal.mjs";
-import { renderCharacterWalkMockTileBuffer } from "../generators/mock.mjs";
-import { buildRecipeId } from "../manifest.mjs";
+} from "../../generators/fal.mjs";
+import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.mjs";
+import { buildRecipeId } from "../../manifest.mjs";
 import {
   buildFalspriteStyleSpritePrompt,
   CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
@@ -32,14 +32,23 @@ import {
   CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
   CHARACTER_WALK_SHEET_COMPOSITION,
   CHARACTER_WALK_SHEET_STYLE,
-} from "../prompt.mjs";
-import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
+} from "../../prompt.mjs";
+import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
+
+/** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
+export const ASSET_ID = "character";
 
 /** Manifest `preset` field and `buildRecipeId` segment. */
-export const CHARACTER_PRESET_ID = "character_walk";
+export const MANIFEST_PRESET_ID = "character_walk";
+
+/** @type {typeof MANIFEST_PRESET_ID} Stable alias — same string as {@link MANIFEST_PRESET_ID}. */
+export const CHARACTER_PRESET_ID = MANIFEST_PRESET_ID;
 
 /** Manifest `kind` for the walk sprite set. */
-export const CHARACTER_KIND = "character_walk_sprite";
+export const KIND = "character_walk_sprite";
+
+/** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
+export const CHARACTER_KIND = KIND;
 
 /** Square tile edge (px) per walk frame. */
 export const TILE_SIZE = 64;
@@ -111,7 +120,7 @@ export const QA_SPRITE_H = 16;
 /**
  * Ordered frames: **idle** (sheet cell 1) then three walk phases. **Per-tile** prompts only matter for `--strategy per-tile`.
  *
- * @type {readonly import('../generators/types.mjs').GeneratorFrame[]}
+ * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
  */
 export const CHARACTER_WALK_FRAMES = Object.freeze([
   {
@@ -177,13 +186,16 @@ export const CHARACTER_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_C
  * @param {'mock'|'generate'} mode
  * @param {'per-tile'|'sheet'} [strategy] Required when `mode === 'generate'`.
  */
-export function recipeIdForCharacter(mode, strategy) {
+export function recipeId(mode, strategy) {
   return buildRecipeId({
-    preset: CHARACTER_PRESET_ID,
+    preset: MANIFEST_PRESET_ID,
     mode,
     ...(mode === "generate" ? { strategy } : {}),
   });
 }
+
+/** @deprecated Prefer {@link recipeId}. */
+export const recipeIdForCharacter = recipeId;
 
 /**
  * @typedef {object} CreateCharacterPresetOpts
@@ -191,7 +203,7 @@ export function recipeIdForCharacter(mode, strategy) {
  * @property {string} [artUrlPrefix='art/character'] Site-root-relative prefix for sprite-ref `images`.
  * @property {string} [pngFilename='character.png'] Basename in each frame folder.
  * @property {string} [spriteRefJsonRelativePath='sprite-ref.json'] Written under `outBase`.
- * @property {string} [provenanceTool='tools/sprite-generation/presets/character.mjs']
+ * @property {string} [provenanceTool='tools/sprite-generation/presets/character/character.mjs']
  * @property {number} [provenanceVersion=1]
  */
 
@@ -209,7 +221,7 @@ export function createPreset(opts) {
   const artUrlPrefix = opts.artUrlPrefix ?? "art/character";
   const pngFilename = opts.pngFilename ?? "character.png";
   const spriteRefJsonRelativePath = opts.spriteRefJsonRelativePath ?? "sprite-ref.json";
-  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/character.mjs";
+  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/character/character.mjs";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
   for (const f of CHARACTER_WALK_FRAMES) {
@@ -219,8 +231,8 @@ export function createPreset(opts) {
   }
 
   return {
-    presetId: CHARACTER_PRESET_ID,
-    kind: CHARACTER_KIND,
+    presetId: MANIFEST_PRESET_ID,
+    kind: KIND,
     frames: CHARACTER_WALK_FRAMES,
     outBase,
     tileSize: TILE_SIZE,

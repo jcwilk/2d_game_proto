@@ -2,7 +2,7 @@
  * D-pad four-way tile preset — **single source of truth** for frame list, sheet layout,
  * fal tuning, QA grid size, and **`gridFrameKeys`** sprite-ref under `public/`.
  *
- * ## Preset contract (`runPipeline` from **`../pipeline.mjs`**)
+ * ## Preset contract (`runPipeline` from **`../../pipeline.mjs`**)
  *
  * **`createPreset(opts)`** returns an object matching **`PipelinePreset`**:
  *
@@ -24,18 +24,18 @@
  * (see **`DPAD_SHEET_MATERIAL_GUIDANCE`** and per-tile **`DPAD_TILE_MATERIAL_HINT`**). The sheet T2I block
  * and OpenRouter rewrite system prompt are aligned so **`--rewrite`** stays on-brand.
  *
- * @see `../README.md`
- * @see `../pipeline.mjs`
- * @see `../manifest.mjs` — `buildRecipeId`
+ * @see `../../README.md`
+ * @see `../../pipeline.mjs`
+ * @see `../../manifest.mjs` — `buildRecipeId`
  */
 
 import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_LOW_RESOLUTION,
   NANO_BANANA2_SQUARE_ASPECT_RATIO,
-} from "../generators/fal.mjs";
-import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
-import { buildRecipeId } from "../manifest.mjs";
+} from "../../generators/fal.mjs";
+import { defaultDpadShapeForFrame } from "../../generators/mock.mjs";
+import { buildRecipeId } from "../../manifest.mjs";
 import {
   buildDpadGridSpritePrompt,
   DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
@@ -43,14 +43,23 @@ import {
   DPAD_FRAME_COMPOSITION,
   DPAD_FRAME_PROMPT_SUFFIX,
   DPAD_FRAME_STYLE,
-} from "../prompt.mjs";
-import { sheetLayoutFromCrops } from "../sheet-layout.mjs";
+} from "../../prompt.mjs";
+import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
+
+/** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
+export const ASSET_ID = "dpad";
 
 /** Manifest `preset` field and `buildRecipeId` segment. */
-export const DPAD_PRESET_ID = "dpad_four_way";
+export const MANIFEST_PRESET_ID = "dpad_four_way";
+
+/** @type {typeof MANIFEST_PRESET_ID} Stable alias — same string as {@link MANIFEST_PRESET_ID}. */
+export const DPAD_PRESET_ID = MANIFEST_PRESET_ID;
 
 /** Manifest `kind` for the four-way HUD tile set. */
-export const DPAD_KIND = "dpad_tile_set";
+export const KIND = "dpad_tile_set";
+
+/** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
+export const DPAD_KIND = KIND;
 
 /** Tile pixel size (width = height) for each d-pad direction cell (nominal; native fal/BRIA may differ when `sheetNativeRaster`). */
 export const TILE_SIZE = 100;
@@ -103,7 +112,7 @@ export const DPAD_TILE_MATERIAL_HINT =
 /**
  * D-pad preset: ordered frames (up → down → left → right in list; 2×2 row-major sheet cells).
  *
- * @type {readonly import('../generators/types.mjs').GeneratorFrame[]}
+ * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
  */
 export const DPAD_FRAMES = Object.freeze([
   {
@@ -174,7 +183,7 @@ export const DPAD_FRAME_SHEET_CELLS = Object.freeze({
 
 /**
  * Mock `generateSheet` cell layout — **not** independent of **`SHEET_CROPS`**; same mapping as
- * **`sheetLayoutFromCrops`** in **`../sheet-layout.mjs`** so compositor placement matches crop extraction.
+ * **`sheetLayoutFromCrops`** in **`../../sheet-layout.mjs`** so compositor placement matches crop extraction.
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
@@ -186,20 +195,23 @@ export const DPAD_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_CROPS,
  * @param {'mock'|'generate'} mode
  * @param {'per-tile'|'sheet'} [strategy] Required when `mode === 'generate'`.
  */
-export function recipeIdForDpad(mode, strategy) {
+export function recipeId(mode, strategy) {
   return buildRecipeId({
-    preset: DPAD_PRESET_ID,
+    preset: MANIFEST_PRESET_ID,
     mode,
     ...(mode === "generate" ? { strategy } : {}),
   });
 }
+
+/** @deprecated Prefer {@link recipeId}. */
+export const recipeIdForDpad = recipeId;
 
 /**
  * @typedef {object} CreateDpadPresetOpts
  * @property {string} outBase Absolute output root (e.g. `.../public/art/dpad`).
  * @property {string} [artUrlPrefix='art/dpad'] Site-root-relative prefix for sprite-ref `image` (no `public/`, no leading slash).
  * @property {string} [spriteRefJsonRelativePath='sprite-ref.json'] Written under `outBase`.
- * @property {string} [provenanceTool='tools/sprite-generation/presets/dpad.mjs']
+ * @property {string} [provenanceTool='tools/sprite-generation/presets/dpad/dpad.mjs']
  * @property {number} [provenanceVersion=1]
  */
 
@@ -216,7 +228,7 @@ export function createPreset(opts) {
 
   const artUrlPrefix = opts.artUrlPrefix ?? "art/dpad";
   const spriteRefJsonRelativePath = opts.spriteRefJsonRelativePath ?? "sprite-ref.json";
-  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/dpad.mjs";
+  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/dpad/dpad.mjs";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
   for (const f of DPAD_FRAMES) {
@@ -226,8 +238,8 @@ export function createPreset(opts) {
   }
 
   return {
-    presetId: DPAD_PRESET_ID,
-    kind: DPAD_KIND,
+    presetId: MANIFEST_PRESET_ID,
+    kind: KIND,
     frames: DPAD_FRAMES,
     outBase,
     tileSize: TILE_SIZE,

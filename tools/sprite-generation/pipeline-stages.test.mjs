@@ -10,7 +10,7 @@ import {
   resolveSheetTilePostprocessSteps,
   runChromaKeyStage,
 } from "./pipeline-stages.mjs";
-import { createPreset } from "./presets/dpad.mjs";
+import { createPreset } from "./presets/dpad/dpad.mjs";
 
 describe("pipeline-stages", () => {
   it("DEFAULT_POSTPROCESS_STEPS_GENERATE is the chroma-only default", () => {

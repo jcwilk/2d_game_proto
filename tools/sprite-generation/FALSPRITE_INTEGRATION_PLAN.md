@@ -13,7 +13,7 @@ This document is an implementation-ready plan to adopt the **same technology sta
 | Default T2I | `pipeline.mjs` `DEFAULT_FAL_ENDPOINT` | `fal-ai/flux/dev` |
 | Single subscribe + download | `generators/fal.mjs` `falSubscribeToBuffer` | Builds **Flux-shaped** input: `prompt`, `image_size` (string or WxH), `num_images`, `output_format`; expects `data.images[0].url` |
 | Sheet path | `pipeline.mjs` `runGenerateSheetPath` | One `falSubscribeToBuffer` per run, `buildSheetPrompt` from `prompt.mjs`, then `normalizeDecodedSheetToPreset` → crops → `applyPostprocessPipeline` |
-| Dpad preset | `presets/dpad.mjs` | `SHEET_WIDTH`/`HEIGHT` = 400×100 (1×4 × `TILE_SIZE` 100); `fal.falExtrasSheet` = Flux-only knobs (`num_inference_steps`, `guidance_scale`, …) |
+| Dpad preset | `presets/dpad/dpad.mjs` | `SHEET_WIDTH`/`HEIGHT` = 400×100 (1×4 × `TILE_SIZE` 100); `fal.falExtrasSheet` = Flux-only knobs (`num_inference_steps`, `guidance_scale`, …) |
 | Alpha | `pipeline-stages.mjs` | Only `chromaKey` in `POSTPROCESS_REGISTRY`; README already mentions future BRIA-class steps |
 
 **Pain driving this plan:** `flux/dev` + chroma produced weak visuals and fragile chroma (border fallback, magenta fringing called out in `prompt.mjs`).
@@ -92,7 +92,7 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 
 ### Phase D — Preset and CLI wiring
 
-**Goal:** `presets/dpad.mjs` (or adjacent **`dpad-falsprite-preset.mjs`**) sets:
+**Goal:** `presets/dpad/dpad.mjs` (or adjacent **`dpad-falsprite-preset.mjs`**) sets:
 
 - `fal.defaultEndpoint: "fal-ai/nano-banana-2"` for sheet strategy.
 - **`fal.falExtrasSheet`** replaced or augmented with **nano-banana** fields (`aspect_ratio`, `resolution`, …)—**remove** Flux-only keys when endpoint is nano-banana to avoid silent ignores.
@@ -117,7 +117,7 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 |---|-----------|
 | M1.1 | **Sheet strategy** generates **one** 400×100 (or configured) sheet via **`fal-ai/nano-banana-2`** with **`aspect_ratio: "4:1"`** (or equivalent that yields four equal columns after normalize). |
 | M1.2 | **Preset** supplies style/composition/subject via existing `prompt.mjs` builders **or** a **checked-in preset prompt module** (hardcoded acceptable). |
-| M1.3 | **Four crops** match `SHEET_CROPS` in `presets/dpad.mjs`; `assertPngBufferDimensions` passes after normalize. |
+| M1.3 | **Four crops** match `SHEET_CROPS` in `presets/dpad/dpad.mjs`; `assertPngBufferDimensions` passes after normalize. |
 | M1.4 | **Alpha:** BRIA path **or** documented chroma fallback with **tunable** tolerance; no silent corner-median unless logged. |
 | M1.5 | **Manifest** records endpoint, timings, and alpha source; **no** merge to `main` required for completion. |
 
@@ -159,4 +159,4 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 
 - FalSprite: https://github.com/lovisdotio/falsprite  
 - fal model docs: `fal-ai/nano-banana-2`, `fal-ai/bria/background/remove`, `openrouter/router` (verify inputs on fal.ai OpenAPI)  
-- Local: `generators/fal.mjs`, `pipeline.mjs`, `presets/dpad.mjs`, `prompt.mjs`, `pipeline-stages.mjs`
+- Local: `generators/fal.mjs`, `pipeline.mjs`, `presets/dpad/dpad.mjs`, `prompt.mjs`, `pipeline-stages.mjs`

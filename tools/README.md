@@ -18,13 +18,13 @@ Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-
 
 ### `dpad-workflow` and mock pipeline
 
-**`dpad-workflow.mjs`** is the CLI for the D-pad tile workflow. Implementation lives under **[`tools/sprite-generation/`](sprite-generation/)**: it delegates to **`runPipeline`** ([`pipeline.mjs`](sprite-generation/pipeline.mjs)) and the D-pad preset **[`presets/dpad.mjs`](sprite-generation/presets/dpad.mjs)** (`createPreset`). Manifest and outputs under `public/art/dpad/`, one PNG per direction, `png-analyze` QA via the sprite-generation stack, verbose STDOUT.
+**`dpad-workflow.mjs`** is the CLI for the D-pad tile workflow. Implementation lives under **[`tools/sprite-generation/`](sprite-generation/)**: it delegates to **`runPipeline`** ([`pipeline.mjs`](sprite-generation/pipeline.mjs)) and the D-pad preset **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** (`createPreset`). Manifest and outputs under `public/art/dpad/`, one PNG per direction, `png-analyze` QA via the sprite-generation stack, verbose STDOUT.
 
 - **`npm run dpad-workflow`** — `node tools/dpad-workflow.mjs` (default **`--mode mock`**).
 - **`npm run mock:dpad-workflow`** — `node tools/dpad-workflow.mjs --mode mock` (explicit mock entry point).
 - **`tools/mock-dpad-workflow.mjs`** — thin shim that spawns `dpad-workflow.mjs --mode mock`; prefer the npm scripts above.
 
-**`--mode generate`** defaults to **`--strategy sheet`**: one fal image at **`preset.sheet`** size for the D-pad preset (**1×4** horizontal strip: **400×100** px with current `TILE_SIZE`, not 512² 2×2), then **deterministic crops** per **`presets/dpad.mjs`** → **`postprocessSteps`** (default **`['chromaKey']`**, shared with **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** in **`pipeline-stages.mjs`**) → four RGBA tiles under `public/art/dpad/`. **`--strategy per-tile`**: four fal calls. Canonical geometry, alpha pipeline, default **`chromaKeyHex`**, and verified fal endpoint ids are documented in **[`sprite-generation/README.md`](sprite-generation/README.md)** (Strategy, scope, and fal endpoints). See `--help`.
+**`--mode generate`** defaults to **`--strategy sheet`**: one fal image at **`preset.sheet`** size for the D-pad preset (**1×4** horizontal strip: **400×100** px with current `TILE_SIZE`, not 512² 2×2), then **deterministic crops** per **`presets/dpad/dpad.mjs`** → **`postprocessSteps`** (default **`['chromaKey']`**, shared with **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** in **`pipeline-stages.mjs`**) → four RGBA tiles under `public/art/dpad/`. **`--strategy per-tile`**: four fal calls. Canonical geometry, alpha pipeline, default **`chromaKeyHex`**, and verified fal endpoint ids are documented in **[`sprite-generation/README.md`](sprite-generation/README.md)** (Strategy, scope, and fal endpoints). See `--help`.
 
 ## `tools/sprite-generation/` (sprite generation pipeline library)
 
@@ -39,7 +39,7 @@ sprite-generation/
   presets/             # workflow presets (e.g. dpad)
 ```
 
-Supporting modules at the library root include **`manifest.mjs`**, **`prompt.mjs`**, **`sprite-ref.mjs`**, and **`logging.mjs`**. The D-pad CLI wires these together; see **[`presets/dpad.mjs`](sprite-generation/presets/dpad.mjs)** for preset-specific defaults and **`dpad-workflow.mjs`** for the user-facing entry.
+Supporting modules at the library root include **`manifest.mjs`**, **`prompt.mjs`**, **`sprite-ref.mjs`**, and **`logging.mjs`**. The D-pad CLI wires these together; see **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** for preset-specific defaults and **`dpad-workflow.mjs`** for the user-facing entry.
 
 ### Vitest coverage (tools)
 

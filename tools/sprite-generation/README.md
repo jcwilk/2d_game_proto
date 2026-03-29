@@ -2,6 +2,30 @@
 
 Orchestration lives in **`pipeline.mjs`** (`runPipeline`): prompt → generator → postprocess → optional QA → manifest and sprite-ref.
 
+## Local harness: `npm run mock:dpad-workflow`
+
+The **primary** local command for the four-direction D-pad layout is **`npm run mock:dpad-workflow`**, which runs **`node tools/dpad-workflow.mjs --mode mock`**. It needs **no** `FAL_KEY` and **no** network; output is deterministic mock geometry suitable for CI and iteration.
+
+**On-disk layout** (Vite `public/`, game-visible URLs): **`public/art/dpad/<frame>/dpad.png`** for **`up`**, **`down`**, **`left`**, **`right`**, plus **`manifest.json`** and **`sprite-ref.json`** beside the frame dirs. Frame order and sheet crops are defined by the preset — see **`presets/dpad.mjs`** (`createPreset`, `outBase`, `frames`, `SHEET_CROPS`, `spriteRef`).
+
+| Concern | Where it lives |
+| --- | --- |
+| **Preset contract** (frames, sheet size, crops, `postprocessSteps`, QA grid, `fal` defaults) | **`presets/dpad.mjs`** |
+| **Pipeline** (`runPipeline`, generators, postprocess, manifest / sprite-ref, QA loop) | **`pipeline.mjs`** |
+| **QA bridge** (spawn **`tools/png-analyze.mjs`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.mjs`** |
+
+**CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, etc.).
+
+### Optional live generation (`--mode generate`)
+
+Run **`npm run dpad-workflow -- --mode generate`** (or `node tools/dpad-workflow.mjs --mode generate`). Set **`FAL_KEY`** in the environment ([fal.ai model APIs](https://docs.fal.ai/model-apis)).
+
+**Limitations of live runs:** They **bill** the fal account and add **latency**; **T2I** pixels are **stochastic** (even with `--seed`, chroma and model variance remain). They require **network** and a **valid key** — unsuitable as the default CI path. Use **`mock`** for repeatable, free local runs; use **`generate`** when you need real model output against the same **geometry and manifest contract** as mock.
+
+### Legacy: `flux-control-lora-canny`
+
+Default dpad generation uses **`fal-ai/flux/dev`** (`DEFAULT_FAL_ENDPOINT` in **`presets/dpad.mjs`**). Earlier **`fal-ai/flux-control-lora-canny`**-based dpad flows are **not** recommended or default; treat them as **historical** context only.
+
 ## Strategy, scope, and fal endpoints (ADR)
 
 This section is the **canonical** description of generation strategy, on-disk/game layout, alpha handling, and verified fal **endpoint id** strings. Other docs (e.g. **`../README.md`**) should **cross-link** here rather than duplicate conflicting sheet geometry.

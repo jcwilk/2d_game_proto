@@ -1,6 +1,6 @@
 ---
 id: 2gp-i75o
-status: open
+status: closed
 deps: [2gp-sxtu]
 links: []
 created: 2026-03-29T02:44:04Z

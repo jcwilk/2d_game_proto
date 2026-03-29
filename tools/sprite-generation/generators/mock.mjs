@@ -160,7 +160,7 @@ export function renderCharacterWalkMockTileBuffer(frame, tileSize) {
   const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
   const leftDx = [-4, 0, 4, 0];
   const rightDx = [4, 0, -4, 0];
-  /** `walk_0` = idle (symmetric feet); `walk_1`–`walk_3` map to three stride phases (see **`presets/avatar-character/avatar-character.mjs`**). */
+  /** `walk_0` = idle (symmetric feet); `walk_1`–`walk_3` map to three stride phases (see the walk cycle preset module). */
   let ld;
   let rd;
   if (frame.id === "walk_0") {

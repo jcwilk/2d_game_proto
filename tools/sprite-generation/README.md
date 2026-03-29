@@ -10,23 +10,23 @@ Orchestration lives in **`pipeline.mjs`** (`runPipeline`): prompt → generator 
 
 The **primary** local command for the four-direction D-pad layout is **`npm run mock:dpad-workflow`**, which runs **`node tools/dpad-workflow.mjs --mode mock`**. It needs **no** `FAL_KEY` and **no** network; output is deterministic mock geometry suitable for CI and iteration.
 
-**On-disk layout** (Vite `public/`, game-visible URLs): **`public/art/dpad/<frame>/dpad.png`** for **`up`**, **`down`**, **`left`**, **`right`**, plus **`manifest.json`** and **`sprite-ref.json`** beside the frame dirs. Frame order and sheet crops are defined by the preset — see **`presets/dpad/dpad.mjs`** (`createPreset`, `outBase`, `frames`, `SHEET_CROPS`, `spriteRef`).
+**On-disk layout** (Vite `public/`, game-visible URLs): **`public/art/<slug>/<frame>/<basename>.png`** (e.g. **`up`**, **`down`**, **`left`**, **`right`** for a four-way HUD), plus **`manifest.json`** and **`sprite-ref.json`** beside the frame dirs. Frame order and sheet crops are defined by the preset — see **`presets/<slug>/<slug>.mjs`** (`createPreset`, `outBase`, `frames`, `SHEET_CROPS`, `spriteRef`).
 
 | Concern | Where it lives |
 | --- | --- |
-| **Preset contract** (frames, sheet size, crops, `postprocessSteps`, QA grid, `fal` defaults) | **`presets/dpad/dpad.mjs`** |
+| **Preset contract** (frames, sheet size, crops, `postprocessSteps`, QA grid, `fal` defaults) | **`presets/<slug>/<slug>.mjs`** |
 | **Pipeline** (`runPipeline`, generators, postprocess, manifest / sprite-ref, QA loop) | **`pipeline.mjs`** |
 | **QA bridge** (spawn **`tools/png-analyze.mjs`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.mjs`** |
 
 **CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, optional **`--rewrite`** for sheet OpenRouter prompt rewrite before T2I, etc.).
 
-**Character walk** (four frames, **`public/art/avatar-character/`**): **`npm run generate:spritesheet -- run --asset avatar-character --mode mock|live`** (unified CLI, **`tools/generate-spritesheet.mjs`**) uses **`presets/avatar-character/avatar-character.mjs`**. The **first sheet cell** (top-left, **`walk_0`**) is **idle standing**; **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** in that preset defines the falsprite “CHARACTER AND ANIMATION DIRECTION” line (not shared defaults in **`prompt.mjs`**). Sheet T2I follows [falsprite](https://github.com/lovisdotio/falsprite)-style prompting (**`buildFalspriteStyleSpritePrompt`** + OpenRouter **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** in **`prompt.mjs`**) on a **2×2** grid ( **`SHEET_WIDTH`×`SHEET_HEIGHT`** = `2×TILE_SIZE` square). Nano-banana **`falExtrasSheet`** uses **`1:1`** + **`0.5K`** + **`expand_prompt`** + **`safety_tolerance`** (see preset); art direction is **illustrated / painterly 2D** (not pixel art), **`CHARACTER_WALK_FRAME_STYLE`** in the preset. Alpha is **BRIA** (`fal-ai/bria/background/remove`). **`chromaAfterBria`** defaults **off** (no per-tile chroma). Output is **sheet-only** (**`sheetOnlyOutput`**): **`sheet.png`** + **`sprite-ref.json`** with **`kind: 'gridFrameKeys'`** (no **`walk_*`** tile PNGs). **`sheetNativeRaster`** is **on**: the saved sheet matches fal/BRIA output size (no NN downscale to the nominal **`SHEET_WIDTH`×`SHEET_HEIGHT`**); **`sprite-ref.json`** **`grid.spriteWidth` / `spriteHeight`** follow the raster. Other presets still use **`normalizeDecodedSheetToPreset`** when model size ≠ preset.
+**Character walk** (four frames, art under **`public/art/<id>/`**): **`npm run generate:spritesheet -- run --asset <id> --mode mock|live`** (unified CLI, **`tools/generate-spritesheet.mjs`**) loads **`presets/<slug>/<slug>.mjs`** for the matching slug. Run **`list`** to see ids. The **first sheet cell** (top-left, **`walk_0`**) is **idle standing**; **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** in that preset defines the falsprite “CHARACTER AND ANIMATION DIRECTION” line (not shared defaults in **`prompt.mjs`**). Sheet T2I follows [falsprite](https://github.com/lovisdotio/falsprite)-style prompting (**`buildFalspriteStyleSpritePrompt`** + OpenRouter **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** in **`prompt.mjs`**) on a **2×2** grid ( **`SHEET_WIDTH`×`SHEET_HEIGHT`** = `2×TILE_SIZE` square). Nano-banana **`falExtrasSheet`** uses **`1:1`** + **`0.5K`** + **`expand_prompt`** + **`safety_tolerance`** (see preset); art direction is **illustrated / painterly 2D** (not pixel art), **`CHARACTER_WALK_FRAME_STYLE`** in the preset. Alpha is **BRIA** (`fal-ai/bria/background/remove`). **`chromaAfterBria`** defaults **off** (no per-tile chroma). Output is **sheet-only** (**`sheetOnlyOutput`**): **`sheet.png`** + **`sprite-ref.json`** with **`kind: 'gridFrameKeys'`** (no **`walk_*`** tile PNGs). **`sheetNativeRaster`** is **on**: the saved sheet matches fal/BRIA output size (no NN downscale to the nominal **`SHEET_WIDTH`×`SHEET_HEIGHT`**); **`sprite-ref.json`** **`grid.spriteWidth` / `spriteHeight`** follow the raster. Other presets still use **`normalizeDecodedSheetToPreset`** when model size ≠ preset.
 
 ### Optional live generation (`--mode generate`)
 
 Run **`npm run dpad-workflow -- --mode generate`** (or `node tools/dpad-workflow.mjs --mode generate`). Set **`FAL_KEY`** in the environment ([fal.ai model APIs](https://docs.fal.ai/model-apis)).
 
-**Default T2I** for the dpad preset is **`fal-ai/nano-banana-2`** (see **`presets/dpad/dpad.mjs`** `DEFAULT_FAL_ENDPOINT`). Sheet jobs use **`fal.falExtrasSheet`** (`aspect_ratio`, `resolution`, …). **`--endpoint`** overrides the model id; preset extras still merge when the override is in the **same endpoint family** as the preset default (nano-banana variants share one family; Flux `fal-ai/flux/*` share another) — implemented in **`pipeline.mjs`** via **`sameImageEndpointFamily`** in **`generators/fal.mjs`**.
+**Default T2I** for the directional HUD preset is **`fal-ai/nano-banana-2`** (see **`presets/<slug>/<slug>.mjs`** `DEFAULT_FAL_ENDPOINT`). Sheet jobs use **`fal.falExtrasSheet`** (`aspect_ratio`, `resolution`, …). **`--endpoint`** overrides the model id; preset extras still merge when the override is in the **same endpoint family** as the preset default (nano-banana variants share one family; Flux `fal-ai/flux/*` share another) — implemented in **`pipeline.mjs`** via **`sameImageEndpointFamily`** in **`generators/fal.mjs`**.
 
 **Example (real API, bills account):**
 
@@ -38,7 +38,7 @@ FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-she
 
 ### Legacy: `flux-control-lora-canny`
 
-Default dpad generation uses **`fal-ai/nano-banana-2`** (`DEFAULT_FAL_ENDPOINT` in **`presets/dpad/dpad.mjs`**). Use **`--endpoint fal-ai/flux/dev`** for Flux-shaped txt2img + chroma (no BRIA by default). Earlier **`fal-ai/flux-control-lora-canny`**-based dpad flows are **not** recommended or default; treat them as **historical** context only.
+Default generation for that HUD preset uses **`fal-ai/nano-banana-2`** (`DEFAULT_FAL_ENDPOINT` in **`presets/<slug>/<slug>.mjs`**). Use **`--endpoint fal-ai/flux/dev`** for Flux-shaped txt2img + chroma (no BRIA by default). Earlier **`fal-ai/flux-control-lora-canny`**-based flows for the same layout are **not** recommended or default; treat them as **historical** context only.
 
 ## Strategy, scope, and fal endpoints (ADR)
 
@@ -51,9 +51,9 @@ This section is the **canonical** description of generation strategy, on-disk/ga
 | Approach | Role in this repo |
 | --- | --- |
 | **FalSprite (full app / generic N×N UI)** | **Out of scope** — we do not ship that UI. **Same model stack** (nano-banana, BRIA, optional OpenRouter on fal) is used by **presets** where documented; see **`FALSPRITE_INTEGRATION_PLAN.md`**. |
-| **Flux 2 Klein + 2×2 spritesheet LoRA** | **Not the production dpad contract.** A 2×2 Klein raster would need an explicit **crop/stitch** map or manifest/game changes to feed four directional tiles; not adopted until documented and implemented. |
-| **nano-banana-2 + BRIA + dpad preset** | **In scope — primary path:** defaults in **`presets/dpad/dpad.mjs`** (`DEFAULT_FAL_ENDPOINT`, sheet geometry, crops, nano **`falExtrasSheet`**). |
-| **FLUX.1 [dev] on fal + dpad preset** | **In scope — alternate:** pass **`--endpoint fal-ai/flux/dev`**; Flux-shaped **`falExtras`** apply only within the Flux family. |
+| **Flux 2 Klein + 2×2 spritesheet LoRA** | **Not the production four-direction HUD contract.** A 2×2 Klein raster would need an explicit **crop/stitch** map or manifest/game changes to feed four directional tiles; not adopted until documented and implemented. |
+| **nano-banana-2 + BRIA + HUD preset** | **In scope — primary path:** defaults in **`presets/<slug>/<slug>.mjs`** (`DEFAULT_FAL_ENDPOINT`, sheet geometry, crops, nano **`falExtrasSheet`**). |
+| **FLUX.1 [dev] on fal + HUD preset** | **In scope — alternate:** pass **`--endpoint fal-ai/flux/dev`**; Flux-shaped **`falExtras`** apply only within the Flux family. |
 
 ### Chosen strategies (this repo)
 
@@ -65,33 +65,33 @@ Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls b
 ### Out of scope (explicit)
 
 - **Full FalSprite parity** (multi-model grids, OpenRouter routing, FalSprite UI).
-- **Replacing** the dpad **1×4 + `frameKeyRect`** contract with ad-hoc **2×2** output **without** updating **`manifest.mjs`**, **`sprite-ref.mjs`**, and loaders (character walk now uses **2×2 + `gridFrameKeys`** — dpad remains **1×4**).
+- **Replacing** the four-direction HUD **1×4 + `frameKeyRect`** contract with ad-hoc **2×2** output **without** updating **`manifest.mjs`**, **`sprite-ref.mjs`**, and loaders (walk-cycle sheet presets use **2×2 + `gridFrameKeys`** — the HUD preset remains **1×4**).
 
-**BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). **`preset.fal.chromaAfterBria`** (character walk defaults **off**; dpad / other presets may use **`on`**) runs **`postprocessSteps`** on tiles **after** BRIA when **`sheetOnlyOutput`** is false. Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
+**BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). **`preset.fal.chromaAfterBria`** (walk-cycle presets default **off**; other presets may use **`on`**) runs **`postprocessSteps`** on tiles **after** BRIA when **`sheetOnlyOutput`** is false. Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
 
 ### Runtime topology (game + `public/art`)
 
-**Canonical production layout** for the D-pad preset:
+**Canonical production layout** for the four-direction HUD preset (per-frame tiles):
 
-- One **1×4** raster aligned with **`SHEET_CROPS`** in **`presets/dpad/dpad.mjs`** (order: up → down → left → right).
-- Four **per-frame PNGs** under `public/art/dpad/<frame>/dpad.png` (basename configurable on the preset).
+- One **1×4** raster aligned with **`SHEET_CROPS`** in **`presets/<slug>/<slug>.mjs`** (order: up → down → left → right).
+- Four **per-frame PNGs** under `public/art/<slug>/<frame>/<basename>.png` (basename configurable on the preset).
 - **`sprite-ref.json`** with **`kind: 'frameKeyRect'`** — site-root URLs for each frame (see **`sprite-ref.mjs`**, **`src/art/atlasTypes.ts`**).
 
-Character walk uses **2×2** + **`gridFrameKeys`** (`sheet.png` + `sprite-ref.json`); the dpad preset remains **1×4** + **`frameKeyRect`** (per-frame PNGs). **Do not** assume the same layout for both assets.
+Walk-cycle sheet presets use **2×2** + **`gridFrameKeys`** (`sheet.png` + `sprite-ref.json`); the per-frame HUD preset remains **1×4** + **`frameKeyRect`** (per-frame PNGs). **Do not** assume the same layout for both asset kinds.
 
 ### Alpha path: chroma vs BRIA (testable surface)
 
 - **Per-tile postprocess:** only **`chromaKey`** is registered in **`POSTPROCESS_REGISTRY`** (`pipeline-stages.mjs`). The preset exposes **`postprocessSteps`**; **`resolvePostprocessSteps`** applies it in generate mode for **per-tile** and for **sheet** when alpha comes from **chroma** (flux) or when **`preset.fal.chromaAfterBria`** is set after BRIA. **`runPipeline`** passes **`chromaKeyHex`** (default **`#FF00FF`**) and tolerance into the chroma stage.
-- **Sheet BRIA:** **`fal-ai/bria/background/remove`** runs **once per sheet** after T2I when **`shouldUseBriaSheetMatting`** is true (default for **`fal-ai/nano-banana-2`**; override with **`preset.fal.sheetMatting: 'none'`** or **`'bria'`**). Matted tiles run **`chromaKey`** after crop when **`chromaAfterBria`** is set (character walk: default **off**; sheet-only presets skip per-tile crops). **`generationResults._sheet.alphaSource`** records **`bria`** vs **`chroma`** vs **`none`** (mock).
+- **Sheet BRIA:** **`fal-ai/bria/background/remove`** runs **once per sheet** after T2I when **`shouldUseBriaSheetMatting`** is true (default for **`fal-ai/nano-banana-2`**; override with **`preset.fal.sheetMatting: 'none'`** or **`'bria'`**). Matted tiles run **`chromaKey`** after crop when **`chromaAfterBria`** is set (walk-cycle presets: default **off**; sheet-only presets skip per-tile crops). **`generationResults._sheet.alphaSource`** records **`bria`** vs **`chroma`** vs **`none`** (mock).
 
 **`resolveGeneratorConfig`** (`pipeline-stages.mjs`) merges **`preset.generatorConfig`** with runtime **`tileSize`**, **`seed`**, and sheet layout for mock/fal **shape** wiring — separate from postprocess ids but part of the same preset contract.
 
-#### Default postprocess contract (dpad + generate defaults)
+#### Default postprocess contract (registry presets + generate defaults)
 
 | Surface | Value |
 | --- | --- |
 | **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** (`pipeline-stages.mjs`) | **`['chromaKey']`** |
-| D-pad **`createPreset`** **`postprocessSteps`** | Same sequence (cloned from the constant above) |
+| Directional HUD **`createPreset`** **`postprocessSteps`** | Same sequence (cloned from the constant above) |
 | Default **`chromaKeyHex`** in prompts | **`#FF00FF`** — symbol **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.mjs`** |
 
 ### Verified fal endpoint ids
@@ -103,7 +103,7 @@ Character walk uses **2×2** + **`gridFrameKeys`** (`sheet.png` + `sprite-ref.js
 
 General client/queue/authentication: https://docs.fal.ai/model-apis
 
-**Note:** **`tools/fal-raster-generate.mjs`** uses **`fal-ai/flux/dev`** for generic rasters (often 512²); that is **independent** of the dpad sheet dimensions above.
+**Note:** **`tools/fal-raster-generate.mjs`** uses **`fal-ai/flux/dev`** for generic rasters (often 512²); that is **independent** of the HUD 1×4 sheet dimensions above.
 
 ## Determinism vs T2I / chroma variance
 

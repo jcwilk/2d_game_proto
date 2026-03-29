@@ -74,7 +74,7 @@ export function parseInfoArgs(argvSlice) {
 
 /**
  * @param {string} repoRoot
- * @param {string} artDirRel POSIX e.g. `public/art/dpad`
+ * @param {string} artDirRel POSIX e.g. `public/art/<slug>`
  * @returns {{ ok: true; files: string[] } | { ok: false; error: string }}
  */
 export function gitTrackedFilesUnderArtDir(repoRoot, artDirRel) {

@@ -25,14 +25,20 @@ export const RECIPE_VERSION_MOCK = "v2-frames";
 /** Bump when per-tile fal + chroma postprocess contract changes (plain txt2img, no control image). */
 export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 
-/** Per-tile generate with **FLUX Control LoRA Canny** + mock-triangle control mask (`control-image.mjs`). */
-export const RECIPE_VERSION_PER_TILE_CONTROL = "v6-control-canny";
+/**
+ * Per-tile generate with **`fal-ai/flux-control-lora-canny`** + mock triangle control image (`control-image.mjs`).
+ * Slug uses **flux-control-lora-triangle** (not `control-canny`) so ids are distinct from pre–fal-flow legacy recipe strings.
+ */
+export const RECIPE_VERSION_PER_TILE_CONTROL = "v7-flux-control-lora-triangle";
 
 /** Bump when sheet fal + crop + chroma contract changes (plain flux/dev sheet, no control image). */
-export const RECIPE_VERSION_SHEET = "v13-frames-chroma";
+export const RECIPE_VERSION_SHEET = "v14-frames-chroma";
 
-/** Sheet generate with **FLUX Control LoRA Canny** + composite mock triangle mask (e.g. dpad 1×4). */
-export const RECIPE_VERSION_SHEET_CONTROL = "v14-1x4-control-chroma";
+/**
+ * Sheet generate with control endpoint + composite mock triangle mask (e.g. dpad 1×4 strip).
+ * Bumped with **v15-** so it does not collide with **RECIPE_VERSION_SHEET** **v14-** or legacy **v14-1x4-control-chroma** ids.
+ */
+export const RECIPE_VERSION_SHEET_CONTROL = "v15-1x4-flux-control-sheet";
 
 /**
  * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; controlCanny?: boolean }} ctx

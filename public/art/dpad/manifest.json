@@ -1,7 +1,7 @@
 {
   "kind": "dpad_tile_set",
   "preset": "dpad_four_way",
-  "recipeId": "sprite-gen-dpad_four_way-sheet-v13-frames-chroma",
+  "recipeId": "sprite-gen-dpad_four_way-sheet-v14-frames-chroma",
   "createdAt": "2026-03-29T01:35:46.994Z",
   "workflow": "fal sheet (fal-ai/flux/dev, 400×100px, txt2img → crop)",
   "specs": {

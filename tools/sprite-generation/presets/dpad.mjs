@@ -25,7 +25,7 @@
  *
  * ## `recipeId`
  *
- * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Use **`recipeIdForDpad(mode, strategy)`** to obtain the same id outside the pipeline. Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation semantics change.
+ * Not stored on the preset object. **`runPipeline`** stamps **`manifest.json`** via **`buildRecipeId`** in **`../manifest.mjs`** (`sprite-gen-dpad_four_way-*`). Per-tile generate defaults to **`fal-ai/flux-control-lora-canny`** + mock triangle mask when **`preset.fal.controlEndpoint`** is set; plain **`fal-ai/flux/dev`** uses a different **`RECIPE_VERSION_PER_TILE`** slug. Sheet defaults to flux/dev txt2img; opt-in sheet control uses **`RECIPE_VERSION_SHEET_CONTROL`**. Use **`recipeIdForDpad(mode, strategy)`** for ids without pipeline flags (matches default **`buildRecipeId`** branches). Version slugs (**`RECIPE_VERSION_*`**) live in **`manifest.mjs`** — bump when generation or postprocess semantics change.
  *
  * @see `../README.md` — deterministic geometry vs stochastic T2I/chroma
  * @see `../pipeline.mjs` — orchestration, postprocess, QA analyze

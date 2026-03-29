@@ -14,6 +14,8 @@ The copy in **`scripts/ticket`** is MIT-licensed; see **`scripts/ticket-LICENSE.
 
 **Skills** (under **`.cursor/skills/`**) are short workflows the main agent follows in this chat.
 
+**Sprite-sheet generation** (unified CLI, presets): **`.cursor/skills/generate-spritesheet/SKILL.md`**; implementation detail in **`tools/sprite-generation/README.md`**.
+
 **Agents** (under **`.cursor/agents/`**) are meant to run **inside Cursor’s Task tool** as isolated subagents — see **`.cursor/skills/spawn-subagent/SKILL.md`**. Do not paste an agent file into the main thread and execute it step by step; that collapses delegation.
 
 ## Git branches and `main` (default)

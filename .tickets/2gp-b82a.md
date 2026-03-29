@@ -1,6 +1,6 @@
 ---
 id: 2gp-b82a
-status: open
+status: closed
 deps: [2gp-zhra]
 links: []
 created: 2026-03-29T17:54:41Z
@@ -20,3 +20,9 @@ Add .cursor/skills/generate-spritesheet/SKILL.md (YAML frontmatter: name, descri
 - `tools/sprite-generation/README.md` links the skill and `generate:spritesheet` / CLI path without duplicating full flag lists.
 - If `AGENTS.md` is updated, it is a one-line pointer only (optional per ticket scope).
 
+
+## Notes
+
+**2026-03-29T18:04:58Z**
+
+Added .cursor/skills/generate-spritesheet/SKILL.md (frontmatter, live env-file examples, help as canonical, registry slug/out-base guidance). README intro links skill + npm script + help; AGENTS.md one-line pointer.

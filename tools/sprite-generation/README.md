@@ -1,5 +1,7 @@
 # Sprite generation (`tools/sprite-generation`)
 
+**Cursor skill (agent workflow):** **`.cursor/skills/generate-spritesheet/SKILL.md`**. **Unified CLI:** **`npm run generate:spritesheet`** → **`node tools/generate-spritesheet.mjs`** (registry-driven **`run`** / **`list`** / **`status`**). For **live** runs, use **`node --env-file=.env …`** so fal credentials load from **`.env`**. **Canonical flags:** run **`node tools/generate-spritesheet.mjs help`** (e.g. **`help run`**) — this README does not duplicate the full flag list.
+
 Orchestration lives in **`pipeline.mjs`** (`runPipeline`): prompt → generator → postprocess → optional QA → manifest and sprite-ref.
 
 ## Local harness: `npm run mock:dpad-workflow`

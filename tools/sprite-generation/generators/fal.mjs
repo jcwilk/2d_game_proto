@@ -190,27 +190,58 @@ export async function downloadToFile(url, destPath, fetchImpl = globalThis.fetch
   await writeFile(destPath, buf);
 }
 
+/** @see tools/sprite-generation/FALSPRITE_INTEGRATION_PLAN.md — nano-banana-2 resolution enum (verify on fal OpenAPI when changing). */
+export const NANO_BANANA2_DEFAULT_ASPECT_RATIO = "4:1";
+export const NANO_BANANA2_DEFAULT_RESOLUTION = "1K";
+
 /**
- * @param {object} params
- * @param {string} params.endpoint
- * @param {string} params.prompt
- * @param {string} params.imageSize
- * @param {number|undefined} params.seed
- * @param {boolean} params.quiet
- * @param {Record<string, unknown>|undefined} params.falExtraInput  Merged into fal input (e.g. guidance_scale).
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {typeof fetch} [params.fetch]
- * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
+ * True for `fal-ai/nano-banana-2` and ids that share the same family prefix (version suffixes).
+ *
+ * @param {string} endpoint
  */
-export async function falSubscribeToBuffer(params) {
-  const { endpoint, prompt, imageSize, seed, quiet, falExtraInput, falSubscribe, fetch: fetchImpl } = params;
-  const log = params.log ?? defaultLog;
+export function isNanoBanana2Endpoint(endpoint) {
+  const e = String(endpoint);
+  return e === "fal-ai/nano-banana-2" || e.startsWith("fal-ai/nano-banana-2/");
+}
 
-  const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
-  const fetchFn = fetchImpl ?? globalThis.fetch;
+/**
+ * Central parse for image subscribe responses (`data.images[].url`). Swap or extend if a model
+ * diverges (keep call sites on this helper + fixture tests).
+ *
+ * @param {unknown} data  `result.data` from fal.subscribe
+ * @returns {{ url: string; seed?: number; image0: Record<string, unknown> }}
+ */
+export function parseFalImageSubscribeResult(data) {
+  if (!data || typeof data !== "object") {
+    throw new Error("fal returned empty or invalid response data");
+  }
+  const d = /** @type {{ images?: unknown[]; seed?: number }} */ (data);
+  if (!Array.isArray(d.images) || d.images.length === 0) {
+    throw new Error("fal returned no images in response data");
+  }
+  const img0 = d.images[0];
+  if (!img0 || typeof img0 !== "object") {
+    throw new Error("fal image[0] missing or invalid");
+  }
+  const row = /** @type {Record<string, unknown>} */ (img0);
+  const url = row.url;
+  if (typeof url !== "string") {
+    throw new Error("fal image[0] missing url");
+  }
+  return { url, seed: d.seed, image0: row };
+}
 
+/**
+ * @param {object} ctx
+ * @param {string} ctx.prompt
+ * @param {string} ctx.imageSize  e.g. `400x100` (Flux); ignored for nano-banana-2 API shape.
+ * @param {number|undefined} ctx.seed
+ * @param {Record<string, unknown>|undefined} ctx.falExtraInput
+ */
+function buildFluxImageInput(ctx) {
+  const { prompt, imageSize, seed, falExtraInput } = ctx;
   const image_size = parseImageSize(imageSize);
+  /** @type {Record<string, unknown>} */
   const input = {
     prompt,
     image_size,
@@ -221,16 +252,114 @@ export async function falSubscribeToBuffer(params) {
   if (seed !== undefined) {
     input.seed = seed;
   }
+  return input;
+}
 
-  log("INFO", `fal:${endpoint}`, "subscribe() request input (redacted)", redactFalInputForLog(/** @type {Record<string, unknown>} */ (input)));
-  log("INFO", `fal:${endpoint}`, "subscribe() starting", {
-    image_size: typeof image_size === "string" ? image_size : image_size,
-    seed: input.seed ?? null,
-    promptChars: prompt.length,
-  });
+/**
+ * nano-banana-2: `aspect_ratio` + `resolution`, not Flux `image_size`.
+ *
+ * @param {object} ctx
+ * @param {string} ctx.prompt
+ * @param {number|undefined} ctx.seed
+ * @param {Record<string, unknown>|undefined} ctx.falExtraInput
+ */
+function buildNanoBanana2ImageInput(ctx) {
+  const { prompt, seed, falExtraInput } = ctx;
+  /** @type {Record<string, unknown>} */
+  const input = {
+    prompt,
+    aspect_ratio: NANO_BANANA2_DEFAULT_ASPECT_RATIO,
+    resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
+    num_images: 1,
+    output_format: "png",
+    ...(falExtraInput && typeof falExtraInput === "object" ? falExtraInput : {}),
+  };
+  if (seed !== undefined) {
+    input.seed = seed;
+  }
+  return input;
+}
+
+/**
+ * @typedef {object} FalImageEndpointStrategy
+ * @property {(ctx: { prompt: string; imageSize: string; seed?: number; falExtraInput?: Record<string, unknown> }) => Record<string, unknown>} buildInput
+ * @property {(input: Record<string, unknown>, promptChars: number) => Record<string, unknown>} startLogExtra
+ * @property {(input: Record<string, unknown>) => Record<string, unknown>} doneLogRequestFields
+ */
+
+/** @type {FalImageEndpointStrategy} */
+const fluxStrategy = {
+  buildInput: buildFluxImageInput,
+  startLogExtra(input, promptChars) {
+    const image_size = input.image_size;
+    return {
+      image_size: typeof image_size === "string" ? image_size : image_size,
+      seed: input.seed ?? null,
+      promptChars,
+    };
+  },
+  doneLogRequestFields(input) {
+    const image_size = input.image_size;
+    return {
+      requestedImageSize: typeof image_size === "string" ? image_size : { .../** @type {{ width: number; height: number }} */ (image_size) },
+    };
+  },
+};
+
+/** @type {FalImageEndpointStrategy} */
+const nanoBanana2Strategy = {
+  buildInput: buildNanoBanana2ImageInput,
+  startLogExtra(input, promptChars) {
+    return {
+      aspect_ratio: input.aspect_ratio,
+      resolution: input.resolution,
+      seed: input.seed ?? null,
+      promptChars,
+    };
+  },
+  doneLogRequestFields(input) {
+    return {
+      requestedAspectRatio: input.aspect_ratio,
+      requestedResolution: input.resolution,
+    };
+  },
+};
+
+/**
+ * @param {string} endpoint
+ * @returns {FalImageEndpointStrategy}
+ */
+export function getFalImageEndpointStrategy(endpoint) {
+  return isNanoBanana2Endpoint(endpoint) ? nanoBanana2Strategy : fluxStrategy;
+}
+
+/**
+ * Generic subscribe → download PNG → decode metadata. Prefer **`falSubscribeToBuffer`** for pipeline
+ * (it picks Flux vs nano-banana-2 input shape). Use this when **`input`** is already built.
+ *
+ * @param {object} params
+ * @param {string} params.endpoint
+ * @param {Record<string, unknown>} params.input
+ * @param {boolean} [params.quiet]
+ * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
+ * @param {typeof fetch} [params.fetch]
+ * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]  default: **`parseFalImageSubscribeResult`**
+ * @param {Record<string, unknown>} [params.doneLogExtras]  Merged into the final **`subscribe() done`** line (e.g. requested image size vs aspect ratio).
+ * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
+ */
+export async function falSubscribeImageToBuffer(params) {
+  const { endpoint, input, quiet, falSubscribe, fetch: fetchImpl, parseResult, doneLogExtras } = params;
+  const log = params.log ?? defaultLog;
+  const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
+  const fetchFn = fetchImpl ?? globalThis.fetch;
+  const parse = parseResult ?? parseFalImageSubscribeResult;
+
+  log("INFO", `fal:${endpoint}`, "subscribe() request input (redacted)", redactFalInputForLog(input));
   if (!quiet) {
     log("DEBUG", "fal:prompt", "full prompt follows", {});
-    console.log(prompt);
+    const p = input.prompt;
+    console.log(typeof p === "string" ? p : String(p));
   }
 
   const t0 = Date.now();
@@ -252,34 +381,64 @@ export async function falSubscribeToBuffer(params) {
 
   const wallMs = Date.now() - t0;
   const data = result.data;
-  if (!data || !Array.isArray(data.images) || data.images.length === 0) {
-    throw new Error("fal returned no images in response data");
-  }
+  const parsed = parse(data);
+  const img0 = parsed.image0;
 
-  const img0 = data.images[0];
-  if (!img0 || typeof img0.url !== "string") {
-    throw new Error("fal image[0] missing url");
-  }
+  log("INFO", `fal:${endpoint}`, "download starting", { urlHost: parsed.url ? new URL(parsed.url).host : "?" });
+  const buffer = await downloadToBuffer(parsed.url, fetchFn);
 
-  log("INFO", `fal:${endpoint}`, "download starting", { urlHost: img0.url ? new URL(img0.url).host : "?" });
-  const buffer = await downloadToBuffer(img0.url, fetchFn);
-
-  const outSeed = data.seed;
+  const outSeed = parsed.seed;
   const pngDims = readPngBufferDimensions(buffer);
   const apiWh =
-    img0 && typeof img0 === "object" && "width" in img0 && "height" in img0
+    img0 && "width" in img0 && "height" in img0
       ? { width: Number(img0.width), height: Number(img0.height) }
       : null;
   log("INFO", `fal:${endpoint}`, "subscribe() done", {
     wallMs,
     seedReturned: outSeed,
     bytes: buffer.length,
-    requestedImageSize: typeof image_size === "string" ? image_size : { ...image_size },
     falResponseImagePx: apiWh,
     pngDecodedPx: pngDims ? { width: pngDims.width, height: pngDims.height, decode: pngDims.decode } : null,
+    ...(doneLogExtras && typeof doneLogExtras === "object" ? doneLogExtras : {}),
   });
 
   return { buffer, seed: outSeed, wallMs };
+}
+
+/**
+ * @param {object} params
+ * @param {string} params.endpoint
+ * @param {string} params.prompt
+ * @param {string} params.imageSize
+ * @param {number|undefined} params.seed
+ * @param {boolean} params.quiet
+ * @param {Record<string, unknown>|undefined} params.falExtraInput  Merged into fal input (e.g. guidance_scale).
+ * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
+ * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
+ * @param {typeof fetch} [params.fetch]
+ * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
+ */
+export async function falSubscribeToBuffer(params) {
+  const { endpoint, prompt, imageSize, seed, quiet, falExtraInput, falSubscribe, fetch: fetchImpl } = params;
+  const log = params.log ?? defaultLog;
+
+  const strategy = getFalImageEndpointStrategy(endpoint);
+  const ctx = { prompt, imageSize, seed, falExtraInput };
+  const input = strategy.buildInput(ctx);
+
+  log("INFO", `fal:${endpoint}`, "subscribe() starting", {
+    ...strategy.startLogExtra(input, prompt.length),
+  });
+
+  return falSubscribeImageToBuffer({
+    endpoint,
+    input: /** @type {Record<string, unknown>} */ (input),
+    quiet,
+    log,
+    falSubscribe,
+    fetch: fetchImpl,
+    doneLogExtras: strategy.doneLogRequestFields(/** @type {Record<string, unknown>} */ (input)),
+  });
 }
 
 /**

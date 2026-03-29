@@ -7,12 +7,18 @@ import {
   assertPngBufferDimensions,
   downloadToBuffer,
   falSubscribeToBuffer,
+  falSubscribeImageToBuffer,
   formatFalClientError,
+  getFalImageEndpointStrategy,
   hashPromptForLog,
+  isNanoBanana2Endpoint,
+  parseFalImageSubscribeResult,
   parseImageSize,
   readPngBufferDimensions,
   redactFalInputForLog,
   resolveFalCredentials,
+  NANO_BANANA2_DEFAULT_ASPECT_RATIO,
+  NANO_BANANA2_DEFAULT_RESOLUTION,
 } from "./fal.mjs";
 
 describe("sprite-generation fal helpers (no network)", () => {
@@ -24,6 +30,28 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(parseImageSize("256x256")).toEqual({ width: 256, height: 256 });
     expect(parseImageSize("  512x384  ")).toEqual({ width: 512, height: 384 });
     expect(parseImageSize("landscape_16_9")).toBe("landscape_16_9");
+  });
+
+  it("isNanoBanana2Endpoint matches fal-ai/nano-banana-2 family", () => {
+    expect(isNanoBanana2Endpoint("fal-ai/nano-banana-2")).toBe(true);
+    expect(isNanoBanana2Endpoint("fal-ai/flux/dev")).toBe(false);
+  });
+
+  it("getFalImageEndpointStrategy selects nano vs flux builders", () => {
+    expect(getFalImageEndpointStrategy("fal-ai/nano-banana-2")).not.toBe(
+      getFalImageEndpointStrategy("fal-ai/flux/dev"),
+    );
+  });
+
+  it("parseFalImageSubscribeResult reads images[0].url from fixture-shaped data", () => {
+    const fixture = {
+      images: [{ url: "https://cdn.example.com/n.png", width: 400, height: 100 }],
+      seed: 42,
+    };
+    const p = parseFalImageSubscribeResult(fixture);
+    expect(p.url).toBe("https://cdn.example.com/n.png");
+    expect(p.seed).toBe(42);
+    expect(p.image0.width).toBe(400);
   });
 
   it("redactFalInputForLog hides data URIs and prompt body", () => {
@@ -155,8 +183,112 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(r.wallMs).toBeGreaterThanOrEqual(0);
     const done = logs.find((x) => x.message === "subscribe() done");
     expect(done?.extra?.pngDecodedPx).toEqual({ width: 1, height: 1, decode: "pngjs" });
+    expect(done?.extra?.requestedImageSize).toEqual({ width: 256, height: 256 });
     const req = logs.find((x) => x.message === "subscribe() request input (redacted)");
     expect(req?.extra?.image_size).toEqual({ width: 256, height: 256 });
     expect(req?.extra?.prompt).toMatchObject({ length: 4, sha256Hex16: expect.any(String) });
+  });
+
+  it("falSubscribeToBuffer for fal-ai/nano-banana-2 sends aspect_ratio and resolution, not image_size", async () => {
+    const captured = [];
+    const subscribe = vi.fn(async (_ep, opts) => {
+      captured.push(opts.input);
+      return {
+        data: {
+          images: [{ url: "https://cdn.example.com/banana.png" }],
+          seed: 7,
+        },
+      };
+    });
+    const pngOne = new PNG({ width: 1, height: 1 });
+    pngOne.data[0] = pngOne.data[1] = pngOne.data[2] = 0;
+    pngOne.data[3] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () =>
+        pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+    }));
+
+    await falSubscribeToBuffer({
+      endpoint: "fal-ai/nano-banana-2",
+      prompt: "sheet prompt",
+      imageSize: "400x100",
+      quiet: true,
+      falSubscribe: subscribe,
+      fetch: fetchMock,
+    });
+
+    expect(subscribe).toHaveBeenCalledWith(
+      "fal-ai/nano-banana-2",
+      expect.objectContaining({ input: expect.any(Object) }),
+    );
+    const input = captured[0];
+    expect(input.aspect_ratio).toBe(NANO_BANANA2_DEFAULT_ASPECT_RATIO);
+    expect(input.resolution).toBe(NANO_BANANA2_DEFAULT_RESOLUTION);
+    expect(input.output_format).toBe("png");
+    expect(input.num_images).toBe(1);
+    expect(input.image_size).toBeUndefined();
+    expect("image_size" in input).toBe(false);
+  });
+
+  it("falSubscribeToBuffer nano-banana-2 merges falExtraInput over defaults", async () => {
+    const subscribe = vi.fn(async () => ({
+      data: { images: [{ url: "https://cdn.example.com/x.png" }] },
+    }));
+    const pngOne = new PNG({ width: 1, height: 1 });
+    pngOne.data[0] = pngOne.data[1] = pngOne.data[2] = 0;
+    pngOne.data[3] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () =>
+        pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+    }));
+
+    await falSubscribeToBuffer({
+      endpoint: "fal-ai/nano-banana-2",
+      prompt: "p",
+      imageSize: "256x256",
+      quiet: true,
+      falExtraInput: { aspect_ratio: "1:1", resolution: "2K" },
+      falSubscribe: subscribe,
+      fetch: fetchMock,
+    });
+
+    const input = subscribe.mock.calls[0][1].input;
+    expect(input.aspect_ratio).toBe("1:1");
+    expect(input.resolution).toBe("2K");
+  });
+
+  it("falSubscribeImageToBuffer accepts pre-built input and uses parseFalImageSubscribeResult", async () => {
+    const subscribe = vi.fn(async () => ({
+      data: { images: [{ url: "https://cdn.example.com/direct.png" }] },
+    }));
+    const pngOne = new PNG({ width: 2, height: 2 });
+    pngOne.data.fill(0);
+    for (let i = 3; i < pngOne.data.length; i += 4) pngOne.data[i] = 255;
+    const pngBytes = Buffer.from(PNG.sync.write(pngOne));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () =>
+        pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength),
+    }));
+
+    const r = await falSubscribeImageToBuffer({
+      endpoint: "fal-ai/nano-banana-2",
+      input: {
+        prompt: "x",
+        aspect_ratio: "4:1",
+        resolution: "1K",
+        num_images: 1,
+        output_format: "png",
+      },
+      quiet: true,
+      falSubscribe: subscribe,
+      fetch: fetchMock,
+    });
+    expect(r.buffer.length).toBeGreaterThan(0);
+    expect(subscribe).toHaveBeenCalledOnce();
   });
 });

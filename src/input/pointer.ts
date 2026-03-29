@@ -1,6 +1,11 @@
 /**
  * Pointer-based input facade for Excalibur (normative: `.cursor/plans/project-implementation-deep-dive.md` §D.2).
  *
+ * **Engine vs chrome (see `specs/viewport-square-dpad-chrome.md` §2):** Canvas-relative gameplay input uses
+ * **this** module (`subscribePointerInput` → Excalibur’s pointer pipeline). **HTML d-pad / directional chrome**
+ * outside the canvas uses a **separate** DOM path (`attachDirectionalChrome` in `directionalChrome.ts`) so hit
+ * targets stay stable regardless of canvas scaling. Both are intentional; do not merge without revisiting the spec.
+ *
  * **Lifecycle:** `subscribePointerInput` returns `{ unsubscribe }`. Call `unsubscribe()` when tearing down
  * the owning surface (e.g. engine stop, scene change) so handlers are removed. This module is the single place
  * that attaches to `engine.input.pointers.events`; gameplay should use this API instead of reaching into the
@@ -8,8 +13,8 @@
  *
  * **Scroll / zoom (§D.2):** Excalibur’s `PointerEventReceiver` invokes `preventDefault()` on the native
  * pointer/touch pipeline (`_handle` in the engine build) so the page does not scroll or pinch-zoom instead of
- * delivering input to the game. Complement that with `touch-action: none` on the canvas container (`#game-root`
- * in `styles.css`). Wheel events use a separate path; the engine’s `pageScrollPreventionMode` controls whether
+ * delivering input to the game. Complement that with `touch-action: none` on the game layout root (`#game-root`
+ * in `styles.css`, canvas + chrome). Wheel events use a separate path; the engine’s `pageScrollPreventionMode` controls whether
  * wheel `preventDefault` runs for canvas vs document—see Excalibur `Engine` options if you need to tune that.
  */
 import type { Engine, PointerEvent, WheelEvent } from 'excalibur';

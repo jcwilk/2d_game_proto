@@ -8,7 +8,53 @@
   <body>
     <div id="app">
       <div id="game-root">
-        <canvas id="game-canvas"></canvas>
+        <div class="game-chrome-spacer" aria-hidden="true"></div>
+        <div
+          id="game-chrome-up"
+          class="game-chrome"
+          data-dir="up"
+          aria-label="Move up"
+          role="button"
+          tabindex="-1"
+        >
+          <img alt="" class="game-chrome-img" />
+        </div>
+        <div class="game-chrome-spacer" aria-hidden="true"></div>
+        <div
+          id="game-chrome-left"
+          class="game-chrome"
+          data-dir="left"
+          aria-label="Move left"
+          role="button"
+          tabindex="-1"
+        >
+          <img alt="" class="game-chrome-img" />
+        </div>
+        <div id="game-canvas-wrap">
+          <canvas id="game-canvas"></canvas>
+        </div>
+        <div
+          id="game-chrome-right"
+          class="game-chrome"
+          data-dir="right"
+          aria-label="Move right"
+          role="button"
+          tabindex="-1"
+        >
+          <img alt="" class="game-chrome-img" />
+        </div>
+        <div class="game-chrome-spacer" aria-hidden="true"></div>
+        <div
+          id="game-chrome-down"
+          class="game-chrome"
+          data-dir="down"
+          aria-label="Move down"
+          role="button"
+          tabindex="-1"
+        >
+          <img alt="" class="game-chrome-img" />
+        </div>
+        <div class="game-chrome-spacer" aria-hidden="true"></div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

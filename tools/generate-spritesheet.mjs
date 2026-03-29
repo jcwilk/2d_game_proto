@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`help`**.
+ * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`rename`**, **`help`**.
  *
  * @see tools/sprite-generation/presets/registry.mjs
  * @see tools/sprite-generation/pipeline.mjs
@@ -16,6 +16,11 @@ import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
 import { log } from "./sprite-generation/logging.mjs";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
+import {
+  buildRenameDryRunPlan,
+  formatRenameDryRunPlan,
+  parseRenameArgs,
+} from "./sprite-generation/rename-dry-run.mjs";
 import { PRESETS, resolveRepoRoot } from "./sprite-generation/presets/registry.mjs";
 
 const REPO_ROOT = resolveRepoRoot(import.meta.url);
@@ -157,6 +162,7 @@ Commands:
   run      Generate sprites (requires --asset and --mode mock|live)
   list     List registered assets and default output directories
   status   Manifest/sheet presence, generation mode, staleness hint
+  rename   Plan renaming an asset slug (MVP: --dry-run only)
   help     Show help (try: help run)
 
 Examples:
@@ -196,6 +202,20 @@ and staleness (git timestamps preset vs art, else mtime, else unknown).
 `);
 }
 
+function printHelpRename() {
+  console.log(`Usage: node tools/generate-spritesheet.mjs rename --dry-run --from <slug> --to <slug>
+
+Prints a migration plan (directory renames, preset module path, registry notes,
+and candidate file references). Does not modify the repo. Blocklisted and
+colliding --to slugs are rejected. No --apply in MVP.
+
+Required:
+  --dry-run              Only supported mode for rename (no writes)
+  --from <slug>          Existing registry asset id
+  --to <slug>            New slug (not blocklisted, not an existing asset)
+`);
+}
+
 /**
  * @param {string | undefined} topic
  */
@@ -214,8 +234,11 @@ function printHelp(topic) {
     case "status":
       printHelpStatus();
       break;
+    case "rename":
+      printHelpRename();
+      break;
     default:
-      console.error(`No help for "${topic}". Try: help run | list | status`);
+      console.error(`No help for "${topic}". Try: help run | list | status | rename`);
       process.exit(1);
   }
 }
@@ -320,6 +343,36 @@ async function cmdStatus() {
 /**
  * @param {string[]} argv
  */
+async function cmdRename(argv) {
+  const slice = argv.slice(3);
+  let parsed;
+  try {
+    parsed = parseRenameArgs(slice);
+  } catch (e) {
+    console.error(`error: ${e instanceof Error ? e.message : e}`);
+    printHelpRename();
+    process.exit(1);
+  }
+  if (!parsed.dryRun) {
+    console.error("error: only rename --dry-run is supported (MVP); --apply is not available");
+    printHelpRename();
+    process.exit(1);
+  }
+  if (!parsed.from || !parsed.to) {
+    console.error("error: rename --dry-run requires --from <slug> and --to <slug>");
+    printHelpRename();
+    process.exit(1);
+  }
+
+  const registryAssetIds = Object.keys(PRESETS);
+  const plan = buildRenameDryRunPlan(REPO_ROOT, parsed.from, parsed.to, registryAssetIds);
+  if (!plan.ok) {
+    console.error(`error: ${plan.error}`);
+    process.exit(1);
+  }
+  console.log(formatRenameDryRunPlan(plan));
+}
+
 async function cmdRun(argv) {
   const slice = argv.slice(3);
   let parsed;
@@ -390,8 +443,11 @@ async function main() {
     case "status":
       await cmdStatus();
       break;
+    case "rename":
+      await cmdRename(argv);
+      break;
     case undefined:
-      console.error("error: missing command (run | list | status | help)");
+      console.error("error: missing command (run | list | status | rename | help)");
       printHelpGeneral();
       process.exit(1);
       break;

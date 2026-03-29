@@ -79,6 +79,31 @@ describe("generate-spritesheet CLI", () => {
     expect(runCliStatus(["status"]).code).toBe(0);
   });
 
+  it("rename --dry-run --from dpad --to hud_dpad exits 0 with plan shape", () => {
+    const r = runCliStatus(["rename", "--dry-run", "--from", "dpad", "--to", "hud_dpad"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/^rename dry-run: dpad -> hud_dpad/m);
+    expect(r.stdout).toContain("registry.mjs");
+    expect(r.stdout).toContain("Candidate references");
+    expect(r.stdout).toContain("--apply is not available");
+  });
+
+  it("rename --dry-run with blocklisted --to exits non-zero", () => {
+    const r = runCliStatus(["rename", "--dry-run", "--from", "dpad", "--to", "art"]);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/blocklist/i);
+  });
+
+  it("rename without --dry-run exits non-zero", () => {
+    const r = runCliStatus(["rename", "--from", "dpad", "--to", "hud_dpad"]);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr).toMatch(/dry-run/i);
+  });
+
+  it("help rename exits 0", () => {
+    expect(runCliStatus(["help", "rename"]).code).toBe(0);
+  });
+
   /** @type {string | undefined} */
   let tmpDir;
 

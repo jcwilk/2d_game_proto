@@ -1,6 +1,6 @@
 ---
 id: 2gp-qsnl
-status: open
+status: closed
 deps: [2gp-zhra]
 links: []
 created: 2026-03-29T17:54:41Z

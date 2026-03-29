@@ -107,6 +107,7 @@ function maskSecret(s) {
  * @property {boolean} [keepSheet]  Write `sheet.png` under `outBase` (sheet strategy).
  * @property {boolean} [savePreChroma]  Per-tile generate: write `dpad-pre-chroma.png` beside each tile (raw fal PNG before chroma).
  * @property {boolean} [useControlCanny]  Per-tile generate: use **`fal-ai/flux-control-lora-canny`** + mock triangle mask (default **true** when preset has **`controlEndpoint`**; set **false** for plain **`fal-ai/flux/dev`**).
+ * @property {boolean} [useSheetControlCanny]  Sheet generate: use control Canny + composite mask (default **false**; primary sheet path is **`fal-ai/flux/dev`** txt2img per ADR).
  */
 
 /**
@@ -152,9 +153,9 @@ export async function runPipeline(preset, opts) {
     mode === "generate" &&
     strategy === "per-tile";
 
+  /** Sheet strategy defaults to flux/dev txt2img (ADR); control Canny is opt-in only. */
   const useControlCannySheet =
-    opts.useControlCanny !== false &&
-    preset.fal?.useControlCanny !== false &&
+    opts.useSheetControlCanny === true &&
     Boolean(preset.fal?.controlEndpoint) &&
     mode === "generate" &&
     strategy === "sheet";

@@ -46,7 +46,7 @@ export function buildRecipeId(ctx) {
   }
   const strategy = ctx.strategy;
   if (mode === "generate" && strategy === "sheet") {
-    const useControl = ctx.controlCanny !== false;
+    const useControl = ctx.controlCanny === true;
     const ver = useControl ? RECIPE_VERSION_SHEET_CONTROL : RECIPE_VERSION_SHEET;
     return `${base}-sheet-${ver}`;
   }

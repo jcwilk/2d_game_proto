@@ -137,12 +137,12 @@ D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
 Options:
   --mode mock|generate   mock = RGBA triangles (default, no API).
                          generate = fal (needs FAL_KEY); post chroma-key → RGBA tiles.
-  --strategy sheet|per-tile   For generate only. Default: **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
-                         (control Canny + composite triangle mask unless --no-control).
-                         per-tile = one fal call per frame (same --seed when set).
+  --strategy sheet|per-tile   For generate only. Default **sheet** = ONE ${SHEET_WIDTH}×${SHEET_HEIGHT} 1×4 strip + crop
+                         (fal-ai/flux/dev txt2img; no control mask).
+                         **per-tile** = one fal call per frame (same --seed when set); control Canny + triangle mask unless --no-control.
   --keep-sheet           With --strategy sheet: also write public/art/dpad/sheet.png for debugging.
   --save-pre-chroma      With --mode generate --strategy per-tile: write dpad-pre-chroma.png per frame (raw fal before chroma).
-  --no-control           With --mode generate: use plain fal-ai/flux/dev (no Canny control mask; per-tile or sheet).
+  --no-control           With --mode generate and **per-tile**: use plain fal-ai/flux/dev (no Canny control mask). Ignored for sheet.
   --endpoint <id>        fal model id (default: ${DEFAULT_FAL_ENDPOINT})
   --image-size <WxH>     per-tile: passed to fal per tile (default: ${TILE_SIZE}x${TILE_SIZE}).
                          Ignored for sheet (sheet is always ${SHEET_WIDTH}x${SHEET_HEIGHT}).

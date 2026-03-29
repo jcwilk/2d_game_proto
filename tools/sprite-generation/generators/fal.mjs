@@ -27,34 +27,36 @@ export function hashPromptForLog(prompt) {
 
 /**
  * Redacts large data URIs and prompt text for safe structured logging. Policy:
- * - **`control_lora_image_url`**: if `data:` URI, replace with length + media prefix only; HTTPS URLs
- *   keep host + truncated path (no query secrets).
+ * - **String keys ending with `_url`** (incl. **`control_lora_image_url`** and other fal file inputs): if
+ *   `data:` URI, replace with length + media prefix only; HTTPS URLs keep host + truncated path (no query secrets).
  * - **`prompt`**: replaced with `{ length, sha256Hex16 }` (see `hashPromptForLog`).
  * - Keys matching obvious secret names: value replaced with `"<redacted>"`.
  *
  * @param {Record<string, unknown>} input  Full fal `subscribe` input object (already merged).
  * @returns {Record<string, unknown>}
  */
+function redactUrlLikeString(s) {
+  if (s.startsWith("data:")) {
+    const comma = s.indexOf(",");
+    const head = comma >= 0 ? s.slice(0, comma) : s.slice(0, 64);
+    const payloadLen = comma >= 0 ? s.length - comma - 1 : 0;
+    return `<data-uri ${head} payloadChars=${payloadLen}>`;
+  }
+  try {
+    const u = new URL(s);
+    const path = u.pathname.length > 48 ? `${u.pathname.slice(0, 48)}…` : u.pathname;
+    return `<url host=${u.host} path=${path}>`;
+  } catch {
+    return "<url (unparseable)>";
+  }
+}
+
 export function redactFalInputForLog(input) {
   /** @type {Record<string, unknown>} */
   const out = {};
   for (const [k, v] of Object.entries(input)) {
-    if (k === "control_lora_image_url" && typeof v === "string") {
-      const s = v;
-      if (s.startsWith("data:")) {
-        const comma = s.indexOf(",");
-        const head = comma >= 0 ? s.slice(0, comma) : s.slice(0, 64);
-        const payloadLen = comma >= 0 ? s.length - comma - 1 : 0;
-        out[k] = `<data-uri ${head} payloadChars=${payloadLen}>`;
-      } else {
-        try {
-          const u = new URL(s);
-          const path = u.pathname.length > 48 ? `${u.pathname.slice(0, 48)}…` : u.pathname;
-          out[k] = `<url host=${u.host} path=${path}>`;
-        } catch {
-          out[k] = "<url (unparseable)>";
-        }
-      }
+    if (/_url$/i.test(k) && typeof v === "string") {
+      out[k] = redactUrlLikeString(v);
       continue;
     }
     if (k === "prompt" && typeof v === "string") {

@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { DPAD_FAL_CONTROL_EXTRA_INPUT } from "./presets/dpad.mjs";
+import { DPAD_FAL_EXTRA_INPUT } from "./presets/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE,
@@ -60,10 +60,12 @@ describe("manifest builder", () => {
     });
     const sheet = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const sheetPlain = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet", controlCanny: false });
+    const sheetControl = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet", controlCanny: true });
     expect(perTile).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`);
     expect(perTilePlain).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
-    expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
+    expect(sheet).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
     expect(sheetPlain).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
+    expect(sheetControl).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
     expect(perTile).not.toBe(sheet);
   });
 
@@ -196,7 +198,7 @@ describe("manifest builder", () => {
     expect(specs.chroma.keyHex).toBe("#FF00FF");
   });
 
-  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (control-canny strip)", () => {
+  it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (flux/dev strip)", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const m = buildInitialManifest({
       kind: "dpad_tile_set",
@@ -206,8 +208,8 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      controlCanny: true,
-      endpoint: "fal-ai/flux-control-lora-canny",
+      controlCanny: false,
+      endpoint: "fal-ai/flux/dev",
       imageSize: "400x100",
       tileSize: 100,
       sheetSize: 400,
@@ -224,7 +226,7 @@ describe("manifest builder", () => {
       pngBasename: "dpad.png",
     });
 
-    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
+    expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-sheet-${RECIPE_VERSION_SHEET}`);
     expect(m.workflow).toContain("fal sheet");
     expect(m.workflow).toContain("400×100");
 
@@ -232,6 +234,7 @@ describe("manifest builder", () => {
     expect(gr.falExtrasPerTile).toBeNull();
     expect(gr.falExtrasSheet).toEqual(FAL_EXTRAS_TILE);
     expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("400x100");
+    expect(String(m.workflow)).toContain("fal-ai/flux/dev");
 
     const specs = /** @type {{ sheetSize: { width: number; height: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
     expect(specs.strategy).toBe("sheet");
@@ -244,7 +247,7 @@ describe("manifest builder", () => {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const sample = JSON.parse(await readFile(join(__dirname, "../../public/art/dpad/manifest.json"), "utf8"));
 
-    /** Matches `runPipeline` + dpad preset for **generate / sheet / control-canny** (checked-in `public/art/dpad/manifest.json`). */
+    /** Matches `runPipeline` + dpad preset for **generate / sheet / flux/dev txt2img** (checked-in `public/art/dpad/manifest.json`). */
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
     const built = buildInitialManifest({
       kind: "dpad_tile_set",
@@ -254,8 +257,8 @@ describe("manifest builder", () => {
       frames: DPAD_FRAMES_FIXTURE,
       mode: "generate",
       strategy: "sheet",
-      controlCanny: true,
-      endpoint: "fal-ai/flux-control-lora-canny",
+      controlCanny: false,
+      endpoint: "fal-ai/flux/dev",
       imageSize: "400x100",
       tileSize: 100,
       sheetSize: 400,
@@ -266,7 +269,7 @@ describe("manifest builder", () => {
       chromaTolerance: 72,
       keyRgbForManifest: KEY_RGB,
       falExtrasPerTile: null,
-      falExtrasSheet: DPAD_FAL_CONTROL_EXTRA_INPUT,
+      falExtrasSheet: DPAD_FAL_EXTRA_INPUT,
       seed: null,
       provenance: { tool: "tools/dpad-workflow.mjs", version: 4 },
       pngBasename: "dpad.png",

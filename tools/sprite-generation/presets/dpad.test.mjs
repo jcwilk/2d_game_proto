@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   RECIPE_VERSION_MOCK,
   RECIPE_VERSION_PER_TILE_CONTROL,
-  RECIPE_VERSION_SHEET_CONTROL,
+  RECIPE_VERSION_SHEET,
 } from "../manifest.mjs";
 import { defaultDpadShapeForFrame } from "../generators/mock.mjs";
 import {
@@ -53,7 +53,7 @@ describe("presets/dpad", () => {
     expect(recipeIdForDpad("generate", "per-tile")).toBe(
       `sprite-gen-${DPAD_PRESET_ID}-per-tile-${RECIPE_VERSION_PER_TILE_CONTROL}`,
     );
-    expect(recipeIdForDpad("generate", "sheet")).toBe(`sprite-gen-${DPAD_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET_CONTROL}`);
+    expect(recipeIdForDpad("generate", "sheet")).toBe(`sprite-gen-${DPAD_PRESET_ID}-sheet-${RECIPE_VERSION_SHEET}`);
   });
 
   it("throws without outBase", () => {

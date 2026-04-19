@@ -1,6 +1,6 @@
 ---
 id: wor-isz6
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T16:37:15Z

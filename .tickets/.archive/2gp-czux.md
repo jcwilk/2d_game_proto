@@ -19,9 +19,12 @@ Migrate first-party **tools/** source (especially **tools/sprite-generation/** a
 - **npm run typecheck** (and **typecheck:tools** if split in **2gp-gwjc**) passes; **npm test** passes per **README.md**; **npm run build** passes.
 - No **package.json** scripts reference removed **tools/*.mjs** entrypoints.
 
-
 ## Notes
 
 **2026-04-19T03:39:35Z**
 
 Epic closure: All children through 2gp-rl8t already closed. Verified 2026-04-18: npm run typecheck, npm test, npm run build pass on js_to_ts. tools/**/*.mjs: zero first-party implementation files (glob). package.json scripts use node --experimental-strip-types tools/*.ts only—no tools/*.mjs paths. Aligns with 2gp-rl8t final gate (typecheck/build/test; rg/doc allowlist for .mjs string refs).
+
+**2026-04-19 (merge to main)**
+
+Re-confirmed on `main` after merging `docs/preset-composition-structure-plan`: success criteria above remain satisfied; see **`2gp-rl8t`** notes for final-gate evidence on that branch.

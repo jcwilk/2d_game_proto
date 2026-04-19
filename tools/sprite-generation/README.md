@@ -6,6 +6,27 @@
 
 Orchestration lives in **`pipeline.ts`** (`runPipeline`): prompt → generator → postprocess → optional QA → manifest and sprite-ref.
 
+## Mock vs live (fal) vs sprite-ref (layering)
+
+Think of three layers that stack on top of the same **preset contract** (see **`preset-contract.ts`** — what each **`presets/<slug>/<slug>.ts`** must export; runtime shape in **`pipeline.ts`** → **`PipelinePreset`**):
+
+1. **Mock generator** — **`runPipeline`** with internal mode **`mock`** (unified CLI **`--mode mock`**). Uses **`generators/mock.ts`** so sheets/tiles need **no** **`FAL_KEY`** and **no** network. Output is **deterministic** placeholder geometry that still exercises **crops**, **manifest** layout, and **sprite-ref** wiring the same way as live for that preset.
+2. **Live / fal** — internal mode **`generate`** (CLI **`--mode live`**). **`generators/fal.ts`** runs T2I (and usually **BRIA** matting for nano-banana sheets), optional **OpenRouter** sheet rewrite from **`preset.fal.sheetRewrite`**, then the same **postprocess** / **QA** / **writes** as mock. Pixels are **stochastic**; geometry (crop map, frame ids, sheet grid) stays **preset-driven**.
+3. **Sprite-ref** — not a separate “mode”: **`sprite-ref.ts`** **`writeSpriteRef`** runs **after** generation inside **`runPipeline`**, producing **`sprite-ref.json`** beside **`manifest.json`** (and **`sheet.png`** / per-frame PNGs depending on preset). It records **`frameKeyRect`** vs **`gridFrameKeys`** so the game can resolve URLs/crops without re-deriving layout from raw PNGs.
+
+Shared **character walk** strip geometry and fal/chroma defaults live under **`presets/lib/`** (especially **`character-defaults.ts`** and **`character-preset.ts`** **`createCharacterStripPreset`**). **Prompt identity** (NPC vs player, art direction) stays in each **`presets/<slug>/<slug>.ts`** module — that split is the same idea as **`merchant-character`** vs **`avatar-character`**.
+
+### Forking a character preset (merchant-style)
+
+To add a **new** walk-cycle NPC (same **1×N** strip machinery as **`avatar-character`**, new **`kind`** / manifest **`preset`**):
+
+1. **Copy** **`presets/merchant-character/`** (or **`avatar-character/`**) to **`presets/<your-slug>/`** and rename the module to **`your-slug.ts`** (directory name and **`ASSET_ID`** must match — enforced by **`presets/registry.ts`**).
+2. In the new module, set unique **`ASSET_ID`**, **`MANIFEST_PRESET_ID`**, and **`KIND`**; point defaults at **`art/<your-slug>`** via **`artUrlPrefix`** in **`createPreset`** (and **`provenanceTool`** to this file).
+3. Replace **prompt** strings / frame **`promptVariant`**s for the new character; keep using **`createCharacterStripPreset`** + **`../lib/character-defaults.ts`** if you want the same strip dimensions and fal defaults as other walk presets.
+4. **No manual registry entry:** any **`presets/<slug>/<slug>.ts`** is auto-discovered. Run **`npm run generate:spritesheet -- list`** and **`run --asset <slug> --mode mock`** to verify.
+
+For a full in-repo example of “forked” identity on shared lib geometry, see **`presets/merchant-character/merchant-character.ts`**.
+
 ## Local harness: `npm run mock:dpad-workflow`
 
 The **primary** local command for the four-direction D-pad layout is **`npm run mock:dpad-workflow`**, which runs **`node --experimental-strip-types tools/dpad-workflow.ts --mode mock`**. It needs **no** `FAL_KEY` and **no** network; output is deterministic mock geometry suitable for CI and iteration.

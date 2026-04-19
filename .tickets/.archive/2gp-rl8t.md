@@ -21,7 +21,7 @@ Final verification after **S1** **`2gp-y4cn`** and **S2** **`2gp-nxd2`**. Spawn 
 
 **critique-and-refine** completes with **verdict** using that agent’s vocabulary (**proceed**, **capped**, **unresolved themes**) plus concrete evidence; **rg** allowlist recorded; **package.json** scripts reference no removed **tools/\*.mjs**; follow-up work spun out as new tickets if needed.
 
-## Verification closure (2026-04-19)
+## Verification closure (2026-04-19) — main branch (`js_to_ts`)
 
 ### Commands (all passed)
 
@@ -61,3 +61,28 @@ All tool entrypoints use `node --experimental-strip-types tools/<name>.ts` only 
 | `tools/sprite-generation/info.test.ts`, `tools/sprite-generation/postprocess/png-region.test.ts` | Historical comments: tests migrated from `.mjs` |
 | `tools/tsconfig-toolchain.smoke.test.ts` | Comment: `.mjs` glob / **2gp-y4cn** stitch context |
 
+---
+
+## Notes — `docs/preset-composition-structure-plan` (2026-04-19T17:22:50Z)
+
+Second verification pass before merge to **main**; same acceptance intent as above.
+
+### Critique-and-refine (verdict: **proceed**)
+
+- **Rounds:** 1 (Cursor Task critique-and-refine subagent not invocable in that session; reconciliation applied per `.cursor/agents/critique-and-refine.md` stop criteria on evidence below).
+- **Concrete evidence:** `npm run typecheck` OK (no separate `typecheck:tools` in package.json—combined in `typecheck`). `npm run build` OK. `npm test` OK (37 files). `npm run test:e2e` OK after `npx playwright install chromium` (initial failure: missing browser binary at `~/.cache/ms-playwright/...`).
+- **Unresolved themes:** none blocking.
+
+### rg gate (`rg '\.mjs\b' tools src --glob '!**/node_modules/**'`)
+
+All hits are allowlisted (no first-party `tools/*.mjs` entrypoints):
+
+- **Upstream URLs / third-party:** `prompt.ts` (falsprite `lib/fal.mjs` on GitHub); `fal.ts` comment (`api/generate.mjs`).
+- **Historical / migration comments:** `png-region.test.ts`, `info.test.ts`, `tsconfig-toolchain.smoke.test.ts` (“migrated from .mjs” / Vitest glob note).
+- **Prose docs:** `tools/README.md` (documents removal of `tools/**/*.test.mjs` glob).
+- **Implementation hints:** `rename-dry-run.ts` (string check for `/${slug}/${slug}.mjs` pattern).
+- **Ambient typings:** `js-modules.d.ts` (legacy `.mjs` typings comment).
+
+### package.json
+
+Scripts use `node --experimental-strip-types tools/*.ts`; no references to removed `tools/*.mjs`.

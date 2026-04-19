@@ -32,7 +32,13 @@ import {
   ISO_FLOOR_SHEET_REWRITE_USER_SEED,
 } from "../../prompt.ts";
 import { ISO_FLOOR_TEXTURE_HEIGHT_PX, ISO_FLOOR_TEXTURE_WIDTH_PX } from "../../gameDimensions.ts";
-import { sheetLayoutFromCropsRect } from "../../sheet-layout.ts";
+import { createIsoTileStripPreset } from "../lib/iso-tile-preset.ts";
+import {
+  frameSheetCellsRowMajor,
+  horizontalStripCrops,
+  sheetDimensionsFromStrip,
+  sheetLayoutFromStripCrops,
+} from "../lib/sheet-spec.ts";
 
 export const ASSET_ID = "isometric-open-floor";
 
@@ -50,9 +56,6 @@ export const TILE_HEIGHT = ISO_FLOOR_TEXTURE_HEIGHT_PX;
 
 /** Pipeline **`tileSize`** = cell width (Excalibur scales from native width to {@link TILE_WIDTH} at runtime). */
 export const TILE_SIZE = TILE_WIDTH;
-
-export const SHEET_WIDTH = TILE_WIDTH * 4;
-export const SHEET_HEIGHT = TILE_HEIGHT;
 
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
@@ -98,23 +101,24 @@ export const ISO_FLOOR_FRAMES: readonly GeneratorFrame[] = Object.freeze([
   },
 ]);
 
-export const SHEET_CROPS: Readonly<Record<string, { x: number; y: number }>> = Object.freeze({
-  floor_0: { x: 0, y: 0 },
-  floor_1: { x: TILE_WIDTH, y: 0 },
-  floor_2: { x: TILE_WIDTH * 2, y: 0 },
-  floor_3: { x: TILE_WIDTH * 3, y: 0 },
-});
+const ISO_FLOOR_FRAME_IDS = ISO_FLOOR_FRAMES.map((f) => f.id);
 
-export const ISO_FLOOR_FRAME_SHEET_CELLS: Readonly<Record<string, { column: number; row: number }>> = Object.freeze({
-  floor_0: { column: 0, row: 0 },
-  floor_1: { column: 1, row: 0 },
-  floor_2: { column: 2, row: 0 },
-  floor_3: { column: 3, row: 0 },
-});
+export const SHEET_CROPS = horizontalStripCrops(ISO_FLOOR_FRAME_IDS, TILE_WIDTH, TILE_HEIGHT);
 
-export const ISO_FLOOR_SHEET_LAYOUT: Readonly<Record<string, { x: number; y: number }>> = Object.freeze(
-  sheetLayoutFromCropsRect(SHEET_CROPS, TILE_WIDTH, TILE_HEIGHT),
+export const ISO_FLOOR_FRAME_SHEET_CELLS = frameSheetCellsRowMajor(
+  ISO_FLOOR_FRAME_IDS,
+  ISO_FLOOR_FRAME_IDS.length,
 );
+
+const { sheetWidth: SHEET_WIDTH, sheetHeight: SHEET_HEIGHT } = sheetDimensionsFromStrip(
+  ISO_FLOOR_FRAME_IDS.length,
+  TILE_WIDTH,
+  TILE_HEIGHT,
+);
+
+export { SHEET_WIDTH, SHEET_HEIGHT };
+
+export const ISO_FLOOR_SHEET_LAYOUT = sheetLayoutFromStripCrops(SHEET_CROPS, TILE_WIDTH, TILE_HEIGHT);
 
 export function recipeId(mode: "mock" | "generate", strategy?: "per-tile" | "sheet"): string {
   return buildRecipeId({
@@ -138,33 +142,12 @@ export function createPreset(opts: CreateIsoFloorPresetOpts): PipelinePreset {
     opts.provenanceTool ?? "tools/sprite-generation/presets/isometric-open-floor/isometric-open-floor.ts";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
-  for (const f of ISO_FLOOR_FRAMES) {
-    if (!(f.id in SHEET_CROPS)) {
-      throw new Error(`createPreset(isometric-open-floor): SHEET_CROPS missing entry for frame id "${f.id}"`);
-    }
-  }
-
-  return {
+  return createIsoTileStripPreset({
+    outBase,
     presetId: MANIFEST_PRESET_ID,
     kind: KIND,
-    frames: [...ISO_FLOOR_FRAMES],
-    outBase,
-    tileSize: TILE_SIZE,
-    tileHeight: TILE_HEIGHT,
-    sheetGridSize: 4,
-    sheetOnlyOutput: true,
-    sheetNativeRaster: true,
-    frameSheetCells: { ...ISO_FLOOR_FRAME_SHEET_CELLS },
-    specsNaming: "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame floor PNGs",
-    sheet: {
-      width: SHEET_WIDTH,
-      height: SHEET_HEIGHT,
-      crops: { ...SHEET_CROPS },
-      rows: 1,
-      columns: 4,
-      spriteWidth: TILE_WIDTH,
-      spriteHeight: TILE_HEIGHT,
-    },
+    tier: "floorOnly",
+    frames: ISO_FLOOR_FRAMES,
     prompt: {
       frameStyle: ISO_FLOOR_FRAME_STYLE,
       frameComposition: ISO_FLOOR_FRAME_COMPOSITION,
@@ -186,6 +169,9 @@ export function createPreset(opts: CreateIsoFloorPresetOpts): PipelinePreset {
       },
       framePromptSuffix: ISO_FLOOR_FRAME_PROMPT_SUFFIX,
     },
+    renderMockTileBuffer: (frame, c) =>
+      renderIsometricFloorMockTileBuffer(frame, c.tileWidth ?? TILE_WIDTH, c.tileHeight ?? TILE_HEIGHT),
+    specsNaming: "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame floor PNGs",
     fal: {
       defaultEndpoint: DEFAULT_FAL_ENDPOINT,
       falExtrasPerTile: { ...ISO_FLOOR_FAL_EXTRAS_PER_TILE },
@@ -197,17 +183,13 @@ export function createPreset(opts: CreateIsoFloorPresetOpts): PipelinePreset {
       },
     },
     qa: { spriteWidth: QA_SPRITE_W, spriteHeight: QA_SPRITE_H },
-    provenance: { tool: provenanceTool, version: provenanceVersion },
-    generatorConfig: {
-      tileBufferForFrame: (frame, c) =>
-        renderIsometricFloorMockTileBuffer(frame, c.tileWidth ?? TILE_WIDTH, c.tileHeight ?? TILE_HEIGHT),
-      sheetLayout: ISO_FLOOR_SHEET_LAYOUT,
-    },
+    provenanceTool,
+    provenanceVersion,
     postprocessSteps: [],
     spriteRef: {
       kind: "gridFrameKeys",
       jsonRelativePath: spriteRefJsonRelativePath,
       sheetImageRelativePath: `${artUrlPrefix.replace(/\/$/, "")}/sheet.png`,
     },
-  };
+  });
 }

@@ -29,11 +29,7 @@
  * @see `../../manifest.ts` — `buildRecipeId`
  */
 
-import {
-  NANO_BANANA2_DEFAULT_RESOLUTION,
-  NANO_BANANA2_LOW_RESOLUTION,
-  NANO_BANANA2_SQUARE_ASPECT_RATIO,
-} from "../../generators/fal.ts";
+import { NANO_BANANA2_SQUARE_ASPECT_RATIO } from "../../generators/fal.ts";
 import type { GeneratorFrame } from "../../generators/types.ts";
 import { defaultDpadShapeForFrame } from "../../generators/mock.ts";
 import { buildRecipeId } from "../../manifest.ts";
@@ -47,7 +43,13 @@ import {
   DPAD_FRAME_PROMPT_SUFFIX,
   DPAD_FRAME_STYLE,
 } from "../../prompt.ts";
-import { sheetLayoutFromCrops } from "../../sheet-layout.ts";
+import {
+  frameSheetCellsRowMajor,
+  rowMajorGridCrops,
+  sheetDimensionsFromGrid,
+  sheetLayoutFromStripCrops,
+} from "../lib/sheet-spec.ts";
+import { nanoBanana2FalExtrasPerTile, nanoBanana2FalExtrasSheet } from "../lib/fal-nano-banana.ts";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.ts`. */
 export const ASSET_ID = "dpad";
@@ -70,11 +72,8 @@ export const DPAD_KIND = KIND;
 /** Tile pixel size (width = height) for each d-pad direction cell (nominal; native fal/BRIA may differ when `sheetNativeRaster`). */
 export const TILE_SIZE = 100;
 
-/**
- * Single fal/mock sheet: **2×2** grid (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**.
- */
-export const SHEET_WIDTH = TILE_SIZE * 2;
-export const SHEET_HEIGHT = TILE_SIZE * 2;
+/** Sheet grid width in cells (row-major 2×2 for four-way dpad). */
+const DPAD_SHEET_COLUMNS = 2;
 
 /** fal default; callers may override via `runPipeline` opts / CLI `--endpoint`. */
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
@@ -82,20 +81,14 @@ export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 /**
  * Nano-banana sheet inputs: **1:1** + **0.5K** (aligned with character walk preset).
  */
-export const DPAD_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
-  resolution: NANO_BANANA2_LOW_RESOLUTION,
-  expand_prompt: true,
-  safety_tolerance: 2,
-};
+export const DPAD_FAL_EXTRAS_SHEET = nanoBanana2FalExtrasSheet({
+  aspectRatio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
+});
 
 /**
  * Extra fal input for **per-tile** nano-banana jobs (square tiles).
  */
-export const DPAD_FAL_EXTRAS_PER_TILE = {
-  aspect_ratio: "1:1",
-  resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
-};
+export const DPAD_FAL_EXTRAS_PER_TILE = nanoBanana2FalExtrasPerTile();
 
 /** Grid cell size for png-analyze (5×5 cells on 100²). */
 export const QA_SPRITE_W = 20;
@@ -161,32 +154,43 @@ export const DPAD_FRAMES: readonly GeneratorFrame[] = Object.freeze([
   },
 ]);
 
+const DPAD_FRAME_IDS = DPAD_FRAMES.map((f) => f.id);
+
+const DPAD_SHEET_PIXEL_SIZE = sheetDimensionsFromGrid(
+  DPAD_FRAME_IDS.length,
+  DPAD_SHEET_COLUMNS,
+  TILE_SIZE,
+  TILE_SIZE,
+);
+
+/**
+ * Single fal/mock sheet: **2×2** grid (four **`TILE_SIZE`** squares). Must match **`SHEET_CROPS`**.
+ */
+export const SHEET_WIDTH = DPAD_SHEET_PIXEL_SIZE.sheetWidth;
+export const SHEET_HEIGHT = DPAD_SHEET_PIXEL_SIZE.sheetHeight;
+
 /**
  * Top-left origins in the 200×200 sheet (row-major: up, down / left, right).
  */
-export const SHEET_CROPS: Readonly<Record<string, { x: number; y: number }>> = Object.freeze({
-  up: { x: 0, y: 0 },
-  down: { x: TILE_SIZE, y: 0 },
-  left: { x: 0, y: TILE_SIZE },
-  right: { x: TILE_SIZE, y: TILE_SIZE },
-});
+export const SHEET_CROPS: Readonly<Record<string, { x: number; y: number }>> = rowMajorGridCrops(
+  DPAD_FRAME_IDS,
+  DPAD_SHEET_COLUMNS,
+  TILE_SIZE,
+  TILE_SIZE,
+);
 
 /**
  * Logical frame → grid cell (**column**, **row**) for **`sprite-ref.json`** (`gridFrameKeys`).
  */
-export const DPAD_FRAME_SHEET_CELLS: Readonly<Record<string, { column: number; row: number }>> = Object.freeze({
-  up: { column: 0, row: 0 },
-  down: { column: 1, row: 0 },
-  left: { column: 0, row: 1 },
-  right: { column: 1, row: 1 },
-});
+export const DPAD_FRAME_SHEET_CELLS: Readonly<Record<string, { column: number; row: number }>> =
+  frameSheetCellsRowMajor(DPAD_FRAME_IDS, DPAD_SHEET_COLUMNS);
 
 /**
  * Mock `generateSheet` cell layout — **not** independent of **`SHEET_CROPS`**; same mapping as
- * **`sheetLayoutFromCrops`** in **`../../sheet-layout.ts`** so compositor placement matches crop extraction.
+ * **`sheetLayoutFromCropsRect`** so compositor placement matches crop extraction.
  */
 export const DPAD_SHEET_LAYOUT: Readonly<Record<string, { x: number; y: number }>> = Object.freeze(
-  sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE),
+  sheetLayoutFromStripCrops(SHEET_CROPS, TILE_SIZE, TILE_SIZE),
 );
 
 /**

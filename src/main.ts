@@ -30,8 +30,9 @@ mainScene.backgroundColor = Color.fromHex('#1a1a2e');
 engine.addScene('main', mainScene);
 
 const characterAssets = createGridSheetLoader('art/avatar-character');
+const merchantAssets = createGridSheetLoader('art/merchant-character');
 const floorAssets = createGridSheetLoader('art/isometric-open-floor');
-const loader = mergeGridSheetLoaders(characterAssets, floorAssets);
+const loader = mergeGridSheetLoaders(characterAssets, merchantAssets, floorAssets);
 
 void engine
   .start('main', { loader })
@@ -93,6 +94,22 @@ void engine
     const floorScale = scaleToTargetWidthPx(floorGraphic0.width, TILE_FOOTPRINT_WIDTH_PX);
     const characterScale = scaleToTargetWidthPx(leadWalkSprite.width, CHARACTER_WALK_FRAME_PX);
 
+    const merchantRaw = merchantAssets.spriteRefResource.data;
+    if (merchantRaw == null) {
+      throw new Error('Expected merchant sprite-ref JSON after preload');
+    }
+    const merchantManifest = parseGridFrameKeysManifestJson(merchantRaw);
+    if (!merchantAssets.sheetImageSource.isLoaded()) {
+      throw new Error('Expected merchant sheet ImageSource loaded after preload');
+    }
+    const merchantSpriteSheet = spriteSheetFromGridImageSource(merchantAssets.sheetImageSource, merchantManifest);
+    const merchantIdleCell = merchantManifest.frames['walk_0'];
+    if (!merchantIdleCell) {
+      throw new Error('Expected merchant sprite-ref frame "walk_0" (idle)');
+    }
+    const merchantIdleGraphic = merchantSpriteSheet.getSprite(merchantIdleCell.column, merchantIdleCell.row);
+    const merchantCharacterScale = scaleToTargetWidthPx(merchantIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
+
     /**
      * Shared world anchor: **bottom midpoint of the art cell** (cell edge), +Y down — same for floor and character
      * so horizontal footprint aligns; feet vs. rhombus are handled by art insets (`dimensions.ts`).
@@ -106,16 +123,36 @@ void engine
     const centerG = (gridSize - 1) / 2;
     const floorZMax = (gridSize - 1) * 2;
 
+    function gridCellBottomCenter(gx: number, gy: number): typeof cellBottomCenter {
+      return cellBottomCenter.add(
+        vec((gx - gy) * isoHalfW, (gx + gy - 2 * centerG) * isoHalfH),
+      );
+    }
+
+    /**
+     * Isometric depth **gx + gy** from world position (inverse of {@link gridCellBottomCenter}). Matches floor tile
+     * `z` ordering so figures “farther forward” on the grid draw on top. Continuous in `pos` for smooth player motion.
+     */
+    function isoDepthSumFromWorld(pos: typeof cellBottomCenter): number {
+      const oy = pos.y - cellBottomCenter.y;
+      return oy / isoHalfH + 2 * centerG;
+    }
+
+    /**
+     * Actor `z` for standing figures: always above every floor tile (`z ≤ floorZMax`), with sub-order from
+     * {@link isoDepthSumFromWorld} so the player can pass behind NPCs.
+     */
+    function isoCharacterZFromWorldPos(pos: typeof cellBottomCenter): number {
+      const depthScale = 0.01;
+      return floorZMax + 1 + isoDepthSumFromWorld(pos) * depthScale;
+    }
+
     for (let gx = 0; gx < gridSize; gx++) {
       for (let gy = 0; gy < gridSize; gy++) {
         const variantIndex = Math.floor(Math.random() * floorGraphics.length);
         const floorGraphic = floorGraphics[variantIndex] ?? floorGraphic0;
-        const offset = vec(
-          (gx - gy) * isoHalfW,
-          (gx + gy - 2 * centerG) * isoHalfH,
-        );
         const floorActor = new Actor({
-          pos: cellBottomCenter.add(offset),
+          pos: gridCellBottomCenter(gx, gy),
           scale: vec(floorScale, floorScale),
           z: gx + gy,
         });
@@ -125,10 +162,24 @@ void engine
       }
     }
 
+    /** Stationary merchant NPC — a few isometric steps from spawn so the player can walk over. */
+    const merchantGx = 7;
+    const merchantGy = 2;
+    const merchantPos = gridCellBottomCenter(merchantGx, merchantGy);
+    const merchantFacesRight = merchantPos.x <= cellBottomCenter.x;
+    const merchantActor = new Actor({
+      pos: merchantPos,
+      scale: vec(merchantFacesRight ? merchantCharacterScale : -merchantCharacterScale, merchantCharacterScale),
+      z: isoCharacterZFromWorldPos(merchantPos),
+    });
+    merchantActor.graphics.anchor = vec(0.5, 1);
+    merchantActor.graphics.use(merchantIdleGraphic);
+    mainScene.add(merchantActor);
+
     const actor = new Actor({
       pos: cellBottomCenter,
       scale: vec(characterScale, characterScale),
-      z: floorZMax + 1,
+      z: isoCharacterZFromWorldPos(cellBottomCenter),
     });
     actor.graphics.anchor = vec(0.5, 1);
     actor.graphics.use(walkAnim);
@@ -141,6 +192,7 @@ void engine
     const chromeMoveSub = mainScene.on('preupdate', () => {
       const v = chromeMoveVelocityFromActiveDirections(chrome.getActiveDirections(), CHROME_MOVE_SPEED);
       actor.vel = vec(v.x, v.y);
+      actor.z = isoCharacterZFromWorldPos(actor.pos);
       if (v.x > 0) {
         facingRight = true;
       } else if (v.x < 0) {

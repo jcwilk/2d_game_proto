@@ -1,0 +1,27 @@
+{
+  "grid": {
+    "rows": 1,
+    "columns": 4,
+    "spriteWidth": 156,
+    "spriteHeight": 416
+  },
+  "frames": {
+    "walk_0": {
+      "column": 0,
+      "row": 0
+    },
+    "walk_1": {
+      "column": 1,
+      "row": 0
+    },
+    "walk_2": {
+      "column": 2,
+      "row": 0
+    },
+    "walk_3": {
+      "column": 3,
+      "row": 0
+    }
+  },
+  "image": "art/merchant-character/sheet.png"
+}

@@ -5,7 +5,7 @@ import {
   renderTriangleSilhouetteTileBuffer,
   softenTriangleMaskBuffer,
   triangleForDirection,
-} from "./mock.mjs";
+} from "./mock.ts";
 
 describe("mock triangle silhouette masks", () => {
   it("renderTriangleSilhouetteTileBuffer produces expected WxH PNG", () => {

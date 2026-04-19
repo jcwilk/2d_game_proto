@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+// @ts-expect-error TS7016 — co-located `dpad.mjs` preset; NodeNext does not bind `dpad.mjs.d.ts` for these specifiers.
 import { DPAD_FAL_EXTRAS_SHEET } from "./presets/dpad/dpad.mjs";
 import {
   RECIPE_VERSION_MOCK,
@@ -10,7 +11,25 @@ import {
   RECIPE_VERSION_SHEET,
   buildInitialManifest,
   buildRecipeId,
-} from "./manifest.mjs";
+  type BuildInitialManifestInput,
+} from "./manifest.ts";
+
+/** Narrow-enough shape for assertions (builder returns a generic record). */
+interface TestManifest {
+  kind: string;
+  preset: string;
+  recipeId: string;
+  createdAt: string;
+  workflow: string;
+  frames: unknown[];
+  provenance: unknown;
+  specs: Record<string, unknown>;
+  generationRecipe: Record<string, unknown>;
+}
+
+function buildTestManifest(input: BuildInitialManifestInput): TestManifest {
+  return buildInitialManifest(input) as unknown as TestManifest;
+}
 
 /** D-pad preset frame order (matches `DPAD_FRAMES` in dpad-workflow). */
 const DPAD_FRAMES_FIXTURE = [
@@ -58,7 +77,7 @@ describe("manifest builder", () => {
 
   it("mock manifest: required keys, framePreset order, generationRecipe", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "mock" });
-    const m = buildInitialManifest({
+    const m = buildTestManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
@@ -94,26 +113,25 @@ describe("manifest builder", () => {
     expect(m.frames).toEqual([]);
     expect(m.provenance).toEqual({ tool: "tools/dpad-workflow.mjs", version: 3 });
 
-    const specs = /** @type {{ framePreset: { id: string; outSubdir: string }[] }} */ (m.specs);
-    expect(specs.framePreset.map((f) => f.id)).toEqual(["up", "down", "left", "right"]);
-    expect(specs.tileSize).toEqual({ width: 100, height: 100 });
+    const specs = m.specs;
+    const framePreset = specs["framePreset"] as { id: string; outSubdir: string }[];
+    expect(framePreset.map((f) => f.id)).toEqual(["up", "down", "left", "right"]);
+    expect(specs["tileSize"]).toEqual({ width: 100, height: 100 });
     expect(specs).not.toHaveProperty("strategy");
     expect(specs).not.toHaveProperty("chroma");
-    expect(specs.naming).toBe("sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png");
+    expect(specs["naming"]).toBe("sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png");
 
-    const gr = /** @type {{ mode: string; endpoint: unknown; falExtrasPerTile: unknown; falExtrasSheet: unknown; note: string }} */ (
-      m.generationRecipe
-    );
-    expect(gr.mode).toBe("mock");
-    expect(gr.endpoint).toBeNull();
-    expect(gr.falExtrasPerTile).toBeNull();
-    expect(gr.falExtrasSheet).toBeNull();
-    expect(gr.note).toContain("Mock:");
+    const gr = m.generationRecipe;
+    expect(gr["mode"]).toBe("mock");
+    expect(gr["endpoint"]).toBeNull();
+    expect(gr["falExtrasPerTile"]).toBeNull();
+    expect(gr["falExtrasSheet"]).toBeNull();
+    expect(String(gr["note"])).toContain("Mock:");
   });
 
   it("specs.naming is derived from pngBasename unless specsNaming overrides", () => {
     const recipeId = buildRecipeId({ preset: "other_preset", mode: "mock" });
-    const base = {
+    const base: BuildInitialManifestInput = {
       kind: "tile_set",
       preset: "other_preset",
       recipeId,
@@ -134,16 +152,17 @@ describe("manifest builder", () => {
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
       provenance: { tool: "test", version: 1 },
+      pngBasename: "tile.png",
     };
-    const generic = buildInitialManifest({ ...base, pngBasename: "tile.png" });
-    expect(generic.specs.naming).toBe("tile.png per frame folder (outSubdir)");
-    const custom = buildInitialManifest({ ...base, pngBasename: "tile.png", specsNaming: "Custom naming line" });
-    expect(custom.specs.naming).toBe("Custom naming line");
+    const generic = buildTestManifest({ ...base, pngBasename: "tile.png" });
+    expect(generic.specs["naming"]).toBe("tile.png per frame folder (outSubdir)");
+    const custom = buildTestManifest({ ...base, pngBasename: "tile.png", specsNaming: "Custom naming line" });
+    expect(custom.specs["naming"]).toBe("Custom naming line");
   });
 
   it("per-tile generate manifest: recipeId + generationRecipe fal extras and chroma specs", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "per-tile" });
-    const m = buildInitialManifest({
+    const m = buildTestManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
@@ -171,24 +190,23 @@ describe("manifest builder", () => {
     expect(m.recipeId).toBe(`sprite-gen-dpad_four_way-per-tile-${RECIPE_VERSION_PER_TILE}`);
     expect(String(m.workflow)).toContain("fal per-tile");
     expect(String(m.workflow)).toContain("fal-ai/flux/dev");
-    const gr = /** @type {{ mode: string; endpoint: string; seedRequested: number; falExtrasPerTile: object; falExtrasSheet: null }} */ (
-      m.generationRecipe
-    );
-    expect(gr.mode).toBe("generate");
-    expect(gr.endpoint).toBe("fal-ai/flux/dev");
-    expect(gr.seedRequested).toBe(1084367636);
-    expect(gr.falExtrasPerTile).toEqual(FAL_EXTRAS_TILE);
-    expect(gr.falExtrasSheet).toBeNull();
-    expect(gr.note).toContain("fal.subscribe");
+    const gr = m.generationRecipe;
+    expect(gr["mode"]).toBe("generate");
+    expect(gr["endpoint"]).toBe("fal-ai/flux/dev");
+    expect(gr["seedRequested"]).toBe(1084367636);
+    expect(gr["falExtrasPerTile"]).toEqual(FAL_EXTRAS_TILE);
+    expect(gr["falExtrasSheet"]).toBeNull();
+    expect(String(gr["note"])).toContain("fal.subscribe");
 
-    const specs = /** @type {{ strategy: string; chroma: { keyHex: string } }} */ (m.specs);
-    expect(specs.strategy).toBe("per-tile");
-    expect(specs.chroma.keyHex).toBe("#FF00FF");
+    const specs = m.specs;
+    const chroma = specs["chroma"] as { keyHex: string };
+    expect(specs["strategy"]).toBe("per-tile");
+    expect(chroma.keyHex).toBe("#FF00FF");
   });
 
   it("sheet strategy manifest: recipeId, sheet specs, falExtrasSheet (nano-banana strip)", () => {
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
-    const m = buildInitialManifest({
+    const m = buildTestManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
@@ -217,17 +235,17 @@ describe("manifest builder", () => {
     expect(m.workflow).toContain("fal sheet");
     expect(m.workflow).toContain("200×200");
 
-    const gr = /** @type {{ falExtrasPerTile: null; falExtrasSheet: object }} */ (m.generationRecipe);
-    expect(gr.falExtrasPerTile).toBeNull();
-    expect(gr.falExtrasSheet).toEqual(DPAD_FAL_EXTRAS_SHEET);
-    expect(String(/** @type {{ note: string }} */ (m.generationRecipe).note)).toContain("200x200");
+    const gr = m.generationRecipe;
+    expect(gr["falExtrasPerTile"]).toBeNull();
+    expect(gr["falExtrasSheet"]).toEqual(DPAD_FAL_EXTRAS_SHEET);
+    expect(String(gr["note"])).toContain("200x200");
     expect(String(m.workflow)).toContain("fal-ai/nano-banana-2");
 
-    const specs = /** @type {{ sheetSize: { width: number; height: number }; sheetCropMap: object; imageSize: string; strategy: string }} */ (m.specs);
-    expect(specs.strategy).toBe("sheet");
-    expect(specs.sheetSize).toEqual({ width: 200, height: 200 });
-    expect(specs.sheetCropMap).toEqual(SHEET_CROPS_FIXTURE);
-    expect(specs.imageSize).toBe("200x200");
+    const specs = m.specs;
+    expect(specs["strategy"]).toBe("sheet");
+    expect(specs["sheetSize"]).toEqual({ width: 200, height: 200 });
+    expect(specs["sheetCropMap"]).toEqual(SHEET_CROPS_FIXTURE);
+    expect(specs["imageSize"]).toBe("200x200");
   });
 
   it("structural field names align with generate-sheet fixture (not public/ mock output)", async () => {
@@ -236,7 +254,7 @@ describe("manifest builder", () => {
 
     /** Matches `runPipeline` + dpad preset for **generate / sheet / nano-banana-2** (`fixtures/dpad-generate-sheet-manifest.json`; `public/art/dpad/manifest.json` is overwritten by `mock:dpad-workflow`). */
     const recipeId = buildRecipeId({ preset: "dpad_four_way", mode: "generate", strategy: "sheet" });
-    const built = buildInitialManifest({
+    const built = buildTestManifest({
       kind: "dpad_tile_set",
       preset: "dpad_four_way",
       recipeId,
@@ -263,20 +281,20 @@ describe("manifest builder", () => {
 
     expect(Object.keys(built).sort()).toEqual(Object.keys(sample).sort());
 
-    const sampleSpecsKeys = Object.keys(sample.specs).sort();
-    const builtSpecsKeys = Object.keys(/** @type {object} */ (built.specs)).sort();
+    const sampleSpecsKeys = Object.keys(sample.specs as object).sort();
+    const builtSpecsKeys = Object.keys(built.specs).sort();
     expect(builtSpecsKeys).toEqual(sampleSpecsKeys);
 
-    const sampleGrKeys = Object.keys(sample.generationRecipe).sort();
-    const builtGrKeys = Object.keys(/** @type {object} */ (built.generationRecipe)).sort();
+    const sampleGrKeys = Object.keys(sample.generationRecipe as object).sort();
+    const builtGrKeys = Object.keys(built.generationRecipe).sort();
     expect(builtGrKeys).toEqual(sampleGrKeys);
 
-    const sampleChroma = /** @type {{ chroma?: object }} */ (sample.specs).chroma;
-    const builtChroma = /** @type {{ chroma?: object }} */ (built.specs).chroma;
+    const sampleChroma = (sample.specs as Record<string, unknown>)["chroma"] as Record<string, unknown> | undefined;
+    const builtChroma = built.specs["chroma"] as Record<string, unknown> | undefined;
     if (sampleChroma && builtChroma) {
       expect(Object.keys(sampleChroma).sort()).toEqual(Object.keys(builtChroma).sort());
-      expect(Object.keys(/** @type {object} */ (sampleChroma.keyRgb)).sort()).toEqual(
-        Object.keys(/** @type {object} */ (builtChroma.keyRgb)).sort(),
+      expect(Object.keys(sampleChroma["keyRgb"] as object).sort()).toEqual(
+        Object.keys(builtChroma["keyRgb"] as object).sort(),
       );
     } else {
       expect(sampleChroma).toEqual(builtChroma);

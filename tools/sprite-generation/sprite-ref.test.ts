@@ -9,10 +9,16 @@ import {
   parseFrameKeyRectManifestJson,
   parseGridFrameKeysManifestJson,
 } from '../../src/art/atlasTypes.ts';
-import { buildSpriteRefPayload, DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from './sprite-ref.mjs';
+import {
+  buildSpriteRefPayload,
+  DEFAULT_TILE_PNG_BASENAME,
+  writeSpriteRef,
+  type SpriteGenPresetGrid,
+  type SpriteGenPresetTiles,
+} from "./sprite-ref.ts";
 
 /** D-pad preset: **individual tiles** — **`FrameKeyRectManifestJson`** + **`images`** paths. */
-function dpadTilePreset() {
+function dpadTilePreset(): SpriteGenPresetTiles {
   return {
     id: 'dpad',
     tileSize: 256,
@@ -23,16 +29,16 @@ function dpadTilePreset() {
       { id: 'right', outSubdir: 'right', promptVariant: '' },
     ],
     spriteRef: {
-      kind: 'frameKeyRect',
-      jsonRelativePath: 'sprite-ref.json',
-      artUrlPrefix: 'art/dpad',
-      pngFilename: 'dpad.png',
+      kind: "frameKeyRect",
+      jsonRelativePath: "sprite-ref.json",
+      artUrlPrefix: "art/dpad",
+      pngFilename: "dpad.png",
     },
   };
 }
 
 /** Sheet strategy: **grid + frame keys** — **`AtlasGridWithFrameKeysManifestJson`**. */
-function dpadGridPreset() {
+function dpadGridPreset(): SpriteGenPresetGrid {
   return {
     id: 'dpad',
     tileSize: 256,
@@ -55,26 +61,27 @@ function dpadGridPreset() {
       right: { column: 1, row: 1 },
     },
     spriteRef: {
-      kind: 'gridFrameKeys',
-      jsonRelativePath: 'sprite-ref.json',
-      sheetImageRelativePath: 'art/dpad/sheet.png',
+      kind: "gridFrameKeys",
+      jsonRelativePath: "sprite-ref.json",
+      sheetImageRelativePath: "art/dpad/sheet.png",
     },
   };
 }
 
 describe('sprite-ref', () => {
   it('frameKeyRect without pngFilename uses DEFAULT_TILE_PNG_BASENAME in image paths', () => {
-    const preset = {
-      id: 'generic',
+    const preset: SpriteGenPresetTiles = {
+      id: "generic",
       tileSize: 64,
-      frames: [{ id: 'a', outSubdir: 'a', promptVariant: '' }],
+      frames: [{ id: "a", outSubdir: "a", promptVariant: "" }],
       spriteRef: {
-        kind: 'frameKeyRect',
-        artUrlPrefix: 'art/foo',
+        kind: "frameKeyRect",
+        artUrlPrefix: "art/foo",
       },
     };
     const raw = buildSpriteRefPayload(preset);
-    expect(raw['images']?.['a']).toBe(`art/foo/a/${DEFAULT_TILE_PNG_BASENAME}`);
+    const images = raw["images"] as Record<string, string>;
+    expect(images["a"]).toBe(`art/foo/a/${DEFAULT_TILE_PNG_BASENAME}`);
   });
 
   it('dpad tile preset: JSON validates with parseFrameKeyRectManifestJson; paths match public/ layout', () => {

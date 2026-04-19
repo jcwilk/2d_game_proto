@@ -3,7 +3,7 @@
  *
  * Each cell is **W×(W/2)** px (width = footprint **1m**, height = foreshortened band) — see **`ISO_FLOOR_TEXTURE_WIDTH_PX`** /
  * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`gameDimensions.mjs`** / **`src/dimensions.ts`**. The rhombus is **flush to all four
- * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.mjs`**.
+ * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.ts`**.
  *
  * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.
  *
@@ -15,9 +15,9 @@ import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO,
   NANO_BANANA2_LOW_RESOLUTION,
-} from "../../generators/fal.mjs";
-import { renderIsometricFloorMockTileBuffer } from "../../generators/mock.mjs";
-import { buildRecipeId } from "../../manifest.mjs";
+} from "../../generators/fal.ts";
+import { renderIsometricFloorMockTileBuffer } from "../../generators/mock.ts";
+import { buildRecipeId } from "../../manifest.ts";
 import {
   buildIsometricFloorStripSpritePrompt,
   interpolatePromptTemplate,
@@ -27,9 +27,9 @@ import {
   ISO_FLOOR_FRAME_PROMPT_SUFFIX,
   ISO_FLOOR_FRAME_STYLE,
   ISO_FLOOR_SHEET_REWRITE_USER_SEED,
-} from "../../prompt.mjs";
+} from "../../prompt.ts";
 import { ISO_FLOOR_TEXTURE_HEIGHT_PX, ISO_FLOOR_TEXTURE_WIDTH_PX } from "../../gameDimensions.ts";
-import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
+import { sheetLayoutFromCropsRect } from "../../sheet-layout.ts";
 
 export const ASSET_ID = "isometric-open-floor";
 
@@ -69,7 +69,7 @@ export const QA_SPRITE_W = 16;
 export const QA_SPRITE_H = Math.max(8, Math.round(TILE_HEIGHT / 4));
 
 /**
- * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
+ * @type {readonly import('../../generators/types.ts').GeneratorFrame[]}
  */
 export const ISO_FLOOR_FRAMES = Object.freeze([
   {

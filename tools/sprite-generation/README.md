@@ -16,17 +16,17 @@ The **primary** local command for the four-direction D-pad layout is **`npm run 
 | --- | --- |
 | **Preset contract** (frames, sheet size, crops, `postprocessSteps`, QA grid, `fal` defaults) | **`presets/<slug>/<slug>.mjs`** |
 | **Pipeline** (`runPipeline`, generators, postprocess, manifest / sprite-ref, QA loop) | **`pipeline.mjs`** |
-| **QA bridge** (spawn **`node --experimental-strip-types tools/png-analyze.ts`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.mjs`** |
+| **QA bridge** (spawn **`node --experimental-strip-types tools/png-analyze.ts`** per tile → `png-analyze.json` sidecars) | **`qa/analyze-bridge.ts`** |
 
 **CLI entry:** **`tools/dpad-workflow.mjs`** wires **`createPreset`** + **`runPipeline`**; use **`npm run dpad-workflow -- --help`** for flags (`--strategy sheet` \| `per-tile`, `--keep-sheet`, **`--endpoint`**, optional **`--rewrite`** for sheet OpenRouter prompt rewrite before T2I, etc.).
 
-**Character walk** (four frames, art under **`public/art/<id>/`**): **`npm run generate:spritesheet -- run --asset <id> --mode mock|live`** (unified CLI, **`tools/generate-spritesheet.mjs`**) loads **`presets/<slug>/<slug>.mjs`** for the matching slug. Run **`list`** to see ids. The **first sheet cell** (top-left, **`walk_0`**) is **idle standing**; **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** in that preset defines the falsprite “CHARACTER AND ANIMATION DIRECTION” line (not shared defaults in **`prompt.mjs`**). Sheet T2I follows [falsprite](https://github.com/lovisdotio/falsprite)-style prompting (**`buildFalspriteStyleSpritePrompt`** + OpenRouter **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** in **`prompt.mjs`**) on a **2×2** grid ( **`SHEET_WIDTH`×`SHEET_HEIGHT`** = `2×TILE_SIZE` square). Nano-banana **`falExtrasSheet`** uses **`1:1`** + **`0.5K`** + **`expand_prompt`** + **`safety_tolerance`** (see preset); art direction is **illustrated / painterly 2D** (not pixel art), **`CHARACTER_WALK_FRAME_STYLE`** in the preset. Alpha is **BRIA** (`fal-ai/bria/background/remove`). **`chromaAfterBria`** defaults **off** (no per-tile chroma). Output is **sheet-only** (**`sheetOnlyOutput`**): **`sheet.png`** + **`sprite-ref.json`** with **`kind: 'gridFrameKeys'`** (no **`walk_*`** tile PNGs). **`sheetNativeRaster`** is **on**: the saved sheet matches fal/BRIA output size (no NN downscale to the nominal **`SHEET_WIDTH`×`SHEET_HEIGHT`**); **`sprite-ref.json`** **`grid.spriteWidth` / `spriteHeight`** follow the raster. Other presets still use **`normalizeDecodedSheetToPreset`** when model size ≠ preset.
+**Character walk** (four frames, art under **`public/art/<id>/`**): **`npm run generate:spritesheet -- run --asset <id> --mode mock|live`** (unified CLI, **`tools/generate-spritesheet.mjs`**) loads **`presets/<slug>/<slug>.mjs`** for the matching slug. Run **`list`** to see ids. The **first sheet cell** (top-left, **`walk_0`**) is **idle standing**; **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** in that preset defines the falsprite “CHARACTER AND ANIMATION DIRECTION” line (not shared defaults in **`prompt.ts`**). Sheet T2I follows [falsprite](https://github.com/lovisdotio/falsprite)-style prompting (**`buildFalspriteStyleSpritePrompt`** + OpenRouter **`CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT`** in **`prompt.ts`**) on a **2×2** grid ( **`SHEET_WIDTH`×`SHEET_HEIGHT`** = `2×TILE_SIZE` square). Nano-banana **`falExtrasSheet`** uses **`1:1`** + **`0.5K`** + **`expand_prompt`** + **`safety_tolerance`** (see preset); art direction is **illustrated / painterly 2D** (not pixel art), **`CHARACTER_WALK_FRAME_STYLE`** in the preset. Alpha is **BRIA** (`fal-ai/bria/background/remove`). **`chromaAfterBria`** defaults **off** (no per-tile chroma). Output is **sheet-only** (**`sheetOnlyOutput`**): **`sheet.png`** + **`sprite-ref.json`** with **`kind: 'gridFrameKeys'`** (no **`walk_*`** tile PNGs). **`sheetNativeRaster`** is **on**: the saved sheet matches fal/BRIA output size (no NN downscale to the nominal **`SHEET_WIDTH`×`SHEET_HEIGHT`**); **`sprite-ref.json`** **`grid.spriteWidth` / `spriteHeight`** follow the raster. Other presets still use **`normalizeDecodedSheetToPreset`** when model size ≠ preset.
 
 ### Optional live generation (`--mode generate`)
 
 Run **`npm run dpad-workflow -- --mode generate`** (or `node tools/dpad-workflow.mjs --mode generate`). Set **`FAL_KEY`** in the environment ([fal.ai model APIs](https://docs.fal.ai/model-apis)).
 
-**Default T2I** for the directional HUD preset is **`fal-ai/nano-banana-2`** (see **`presets/<slug>/<slug>.mjs`** `DEFAULT_FAL_ENDPOINT`). Sheet jobs use **`fal.falExtrasSheet`** (`aspect_ratio`, `resolution`, …). **`--endpoint`** overrides the model id; preset extras still merge when the override is in the **same endpoint family** as the preset default (nano-banana variants share one family; Flux `fal-ai/flux/*` share another) — implemented in **`pipeline.mjs`** via **`sameImageEndpointFamily`** in **`generators/fal.mjs`**.
+**Default T2I** for the directional HUD preset is **`fal-ai/nano-banana-2`** (see **`presets/<slug>/<slug>.mjs`** `DEFAULT_FAL_ENDPOINT`). Sheet jobs use **`fal.falExtrasSheet`** (`aspect_ratio`, `resolution`, …). **`--endpoint`** overrides the model id; preset extras still merge when the override is in the **same endpoint family** as the preset default (nano-banana variants share one family; Flux `fal-ai/flux/*` share another) — implemented in **`pipeline.mjs`** via **`sameImageEndpointFamily`** in **`generators/fal.ts`**.
 
 **Example (real API, bills account):**
 
@@ -65,7 +65,7 @@ Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls b
 ### Out of scope (explicit)
 
 - **Full FalSprite parity** (multi-model grids, OpenRouter routing, FalSprite UI).
-- **Replacing** the four-direction HUD **1×4 + `frameKeyRect`** contract with ad-hoc **2×2** output **without** updating **`manifest.mjs`**, **`sprite-ref.mjs`**, and loaders (walk-cycle sheet presets use **2×2 + `gridFrameKeys`** — the HUD preset remains **1×4**).
+- **Replacing** the four-direction HUD **1×4 + `frameKeyRect`** contract with ad-hoc **2×2** output **without** updating **`manifest.ts`**, **`sprite-ref.ts`**, and loaders (walk-cycle sheet presets use **2×2 + `gridFrameKeys`** — the HUD preset remains **1×4**).
 
 **BRIA matting** is implemented **once per sheet** in **`pipeline.mjs`** `runGenerateSheetPath` (not as a `POSTPROCESS_REGISTRY` tile step): T2I returns an HTTPS URL → **`fal-ai/bria/background/remove`** with **`image_url`** → download matted PNG → normalize → crop. Default when using **`fal-ai/nano-banana-2`** and **`preset.fal.sheetMatting`** is not **`'none'`**; set **`preset.fal.sheetMatting: 'none'`** for chroma-only on the raw T2I sheet (e.g. flux). **`preset.fal.chromaAfterBria`** (walk-cycle presets default **off**; other presets may use **`on`**) runs **`postprocessSteps`** on tiles **after** BRIA when **`sheetOnlyOutput`** is false. Manifest **`generationResults._sheet.alphaSource`** is **`'bria'`** \| **`'chroma'`** \| **`'none'`** (mock).
 
@@ -75,7 +75,7 @@ Tradeoffs: sheet = one latency bill and shared lighting; per-tile = more calls b
 
 - One **1×4** raster aligned with **`SHEET_CROPS`** in **`presets/<slug>/<slug>.mjs`** (order: up → down → left → right).
 - Four **per-frame PNGs** under `public/art/<slug>/<frame>/<basename>.png` (basename configurable on the preset).
-- **`sprite-ref.json`** with **`kind: 'frameKeyRect'`** — site-root URLs for each frame (see **`sprite-ref.mjs`**, **`src/art/atlasTypes.ts`**).
+- **`sprite-ref.json`** with **`kind: 'frameKeyRect'`** — site-root URLs for each frame (see **`sprite-ref.ts`**, **`src/art/atlasTypes.ts`**).
 
 Walk-cycle sheet presets use **2×2** + **`gridFrameKeys`** (`sheet.png` + `sprite-ref.json`); the per-frame HUD preset remains **1×4** + **`frameKeyRect`** (per-frame PNGs). **Do not** assume the same layout for both asset kinds.
 
@@ -92,7 +92,7 @@ Walk-cycle sheet presets use **2×2** + **`gridFrameKeys`** (`sheet.png` + `spri
 | --- | --- |
 | **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** (`pipeline-stages.mjs`) | **`['chromaKey']`** |
 | Directional HUD **`createPreset`** **`postprocessSteps`** | Same sequence (cloned from the constant above) |
-| Default **`chromaKeyHex`** in prompts | **`#FF00FF`** — symbol **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.mjs`** |
+| Default **`chromaKeyHex`** in prompts | **`#FF00FF`** — symbol **`DEFAULT_CHROMA_KEY_HEX`** in **`prompt.ts`** |
 
 ### Verified fal endpoint ids
 
@@ -120,4 +120,4 @@ Cross-critique intent: geometry and grid QA are **contract**; model and chroma b
 
 - **`pipeline.mjs`** — calls **`applyPostprocessPipeline`** after generation (per-tile and sheet paths); QA loop calls **`runPngAnalyzeBridge`** → per-frame **`png-analyze.json`**.
 - **`pipeline-stages.mjs`** — **`resolvePostprocessSteps`**, **`applyPostprocessPipeline`**, **`POSTPROCESS_REGISTRY`**.
-- **`qa/analyze-bridge.mjs`** — invokes the png-analyze tool with sprite dimensions from the preset.
+- **`qa/analyze-bridge.ts`** — invokes the png-analyze tool with sprite dimensions from the preset.

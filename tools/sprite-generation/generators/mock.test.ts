@@ -1,15 +1,16 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
+// @ts-expect-error TS7016 — co-located `dpad.mjs` preset; NodeNext does not bind `dpad.mjs.d.ts` for these specifiers.
 import { DPAD_SHEET_LAYOUT } from "../presets/dpad/dpad.mjs";
 import {
   defaultDpadShapeForFrame,
   generate,
   generateSheet,
   pointInTriangle,
-} from "./mock.mjs";
+} from "./mock.ts";
 
-function rgbaAt(png, x, y) {
+function rgbaAt(png: PNG, x: number, y: number) {
   const i = (png.width * y + x) << 2;
   return {
     r: png.data[i],
@@ -23,9 +24,9 @@ describe("sprite-generation mock generator", () => {
   it("produces 256×256 RGBA PNG with transparent background and filled triangle (up)", async () => {
     const frame = { id: "up", outSubdir: "up", promptVariant: "" };
     const { buffer, metadata } = await generate(frame, { tileSize: 256, seed: 42 });
-    expect(metadata.width).toBe(256);
-    expect(metadata.height).toBe(256);
-    expect(metadata.mode).toBe("mock");
+    expect(metadata["width"]).toBe(256);
+    expect(metadata["height"]).toBe(256);
+    expect(metadata["mode"]).toBe("mock");
 
     const png = PNG.sync.read(buffer);
     expect(png.width).toBe(256);
@@ -52,8 +53,8 @@ describe("sprite-generation mock generator", () => {
     const tileSize = 128;
     const frame = { id: "right", outSubdir: "r", promptVariant: "" };
     const { buffer, metadata } = await generate(frame, { tileSize });
-    expect(metadata.width).toBe(tileSize);
-    expect(metadata.height).toBe(tileSize);
+    expect(metadata["width"]).toBe(tileSize);
+    expect(metadata["height"]).toBe(tileSize);
     const png = PNG.sync.read(buffer);
     expect(png.width).toBe(tileSize);
     expect(png.height).toBe(tileSize);
@@ -97,10 +98,10 @@ describe("sprite-generation mock generator", () => {
       tileSize: 256,
       sheetLayout: layout2x2,
     });
-    expect(metadata.width).toBe(512);
-    expect(metadata.height).toBe(512);
+    expect(metadata["width"]).toBe(512);
+    expect(metadata["height"]).toBe(512);
     const sheet = PNG.sync.read(buffer);
-    const upAlone = PNG.sync.read((await generate(frames[0], { tileSize: 256 })).buffer);
+    const upAlone = PNG.sync.read((await generate(frames[0]!, { tileSize: 256 })).buffer);
     expect(rgbaAt(sheet, 0, 0)).toEqual(rgbaAt(upAlone, 0, 0));
     expect(rgbaAt(sheet, 128, 128).a).toBeGreaterThan(0);
   });
@@ -116,8 +117,8 @@ describe("sprite-generation mock generator", () => {
       tileSize: 100,
       sheetLayout: DPAD_SHEET_LAYOUT,
     });
-    expect(metadata.width).toBe(200);
-    expect(metadata.height).toBe(200);
+    expect(metadata["width"]).toBe(200);
+    expect(metadata["height"]).toBe(200);
     const sheet = PNG.sync.read(buffer);
     expect(sheet.width).toBe(200);
     expect(sheet.height).toBe(200);

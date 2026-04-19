@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-import { generate, renderTriangleSilhouetteTileBuffer, triangleForDirection } from "../../generators/mock.mjs";
+import { generate, renderTriangleSilhouetteTileBuffer, triangleForDirection } from "../../generators/mock.ts";
 import { DPAD_FRAMES, TILE_SIZE } from "./dpad.mjs";
 
 /** @param {Buffer} buf */

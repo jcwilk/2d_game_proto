@@ -8,20 +8,19 @@
  * IHDR parse when the first chunk is IHDR) and log `pngDecodedPx` next to the requested `image_size`.
  */
 
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
-import { ApiError } from "@fal-ai/client";
-import { fal } from "@fal-ai/client";
+import { ApiError, type FalClient, fal } from "@fal-ai/client";
 import { writeFile } from "node:fs/promises";
 import { PNG } from "pngjs";
 
 import { log as defaultLog } from "../logging.ts";
+import type { LogFn } from "./types.ts";
 
-/**
- * Stable short fingerprint for logs (full prompt is never logged at INFO).
- *
- * @param {string} prompt
- */
-export function hashPromptForLog(prompt) {
+type FalSubscribeFn = FalClient["subscribe"];
+
+/** Stable short fingerprint for logs (full prompt is never logged at INFO). */
+export function hashPromptForLog(prompt: string): string {
   return createHash("sha256").update(String(prompt), "utf8").digest("hex").slice(0, 16);
 }
 
@@ -35,7 +34,7 @@ export function hashPromptForLog(prompt) {
  * @param {Record<string, unknown>} input  Full fal `subscribe` input object (already merged).
  * @returns {Record<string, unknown>}
  */
-function redactUrlLikeString(s) {
+function redactUrlLikeString(s: string): string {
   if (s.startsWith("data:")) {
     const comma = s.indexOf(",");
     const head = comma >= 0 ? s.slice(0, comma) : s.slice(0, 64);
@@ -51,9 +50,8 @@ function redactUrlLikeString(s) {
   }
 }
 
-export function redactFalInputForLog(input) {
-  /** @type {Record<string, unknown>} */
-  const out = {};
+export function redactFalInputForLog(input: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(input)) {
     if (/_url$/i.test(k) && typeof v === "string") {
       out[k] = redactUrlLikeString(v);
@@ -78,7 +76,7 @@ export function redactFalInputForLog(input) {
  * @param {Buffer} buf
  * @returns {{ width: number; height: number; decode: 'pngjs' | 'ihdr' } | null}
  */
-export function readPngBufferDimensions(buf) {
+export function readPngBufferDimensions(buf: Buffer): { width: number; height: number; decode: "pngjs" | "ihdr" } | null {
   if (!Buffer.isBuffer(buf) || buf.length < 24) {
     return null;
   }
@@ -112,7 +110,7 @@ export function readPngBufferDimensions(buf) {
  * @param {number} expectedH
  * @param {string} stageLabel
  */
-export function assertPngBufferDimensions(buf, expectedW, expectedH, stageLabel) {
+export function assertPngBufferDimensions(buf: Buffer, expectedW: number, expectedH: number, stageLabel: string): void {
   const d = readPngBufferDimensions(buf);
   if (!d) {
     throw new Error(`${stageLabel}: expected valid PNG buffer`);
@@ -122,23 +120,20 @@ export function assertPngBufferDimensions(buf, expectedW, expectedH, stageLabel)
   }
 }
 
-export function resolveFalCredentials() {
-  const direct = process.env.FAL_KEY;
+export function resolveFalCredentials(): string | undefined {
+  const direct = process.env["FAL_KEY"];
   if (direct !== undefined && String(direct).trim() !== "") {
     return String(direct).trim();
   }
-  const id = process.env.FAL_KEY_ID;
-  const secret = process.env.FAL_KEY_SECRET;
+  const id = process.env["FAL_KEY_ID"];
+  const secret = process.env["FAL_KEY_SECRET"];
   if (id && secret && String(id).trim() && String(secret).trim()) {
     return `${String(id).trim()}:${String(secret).trim()}`;
   }
   return undefined;
 }
 
-/**
- * @param {unknown} err
- */
-export function formatFalClientError(err) {
+export function formatFalClientError(err: unknown): string {
   if (err instanceof ApiError) {
     const body = err.body;
     if (body && typeof body === "object") {
@@ -160,7 +155,7 @@ export function formatFalClientError(err) {
  * @param {string} s
  * @returns {{ width: number; height: number } | string}
  */
-export function parseImageSize(s) {
+export function parseImageSize(s: string): { width: number; height: number } | string {
   const m = /^(\d+)x(\d+)$/.exec(s.trim());
   if (m) {
     return { width: Number(m[1]), height: Number(m[2]) };
@@ -172,7 +167,7 @@ export function parseImageSize(s) {
  * @param {string} url
  * @param {typeof fetch} [fetchImpl]
  */
-export async function downloadToBuffer(url, fetchImpl = globalThis.fetch) {
+export async function downloadToBuffer(url: string, fetchImpl: typeof fetch = globalThis.fetch): Promise<Buffer> {
   const res = await fetchImpl(url);
   if (!res.ok) {
     throw new Error(`Failed to download image: HTTP ${res.status} ${res.statusText}`);
@@ -185,7 +180,7 @@ export async function downloadToBuffer(url, fetchImpl = globalThis.fetch) {
  * @param {string} destPath
  * @param {typeof fetch} [fetchImpl]
  */
-export async function downloadToFile(url, destPath, fetchImpl = globalThis.fetch) {
+export async function downloadToFile(url: string, destPath: string, fetchImpl: typeof fetch = globalThis.fetch): Promise<void> {
   const buf = await downloadToBuffer(url, fetchImpl);
   await writeFile(destPath, buf);
 }
@@ -231,47 +226,27 @@ export const DEFAULT_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for a single horizontal UI sprite sheet. " +
   "Keep the user's layout constraints (grid, chroma key, dimensions). Output only the improved prompt text, no preamble.";
 
-/**
- * True for `fal-ai/nano-banana-2` and ids that share the same family prefix (version suffixes).
- *
- * @param {string} endpoint
- */
-export function isNanoBanana2Endpoint(endpoint) {
+/** True for `fal-ai/nano-banana-2` and ids that share the same family prefix (version suffixes). */
+export function isNanoBanana2Endpoint(endpoint: string): boolean {
   const e = String(endpoint);
   return e === "fal-ai/nano-banana-2" || e.startsWith("fal-ai/nano-banana-2/");
 }
 
-/**
- * Coarse endpoint family for **`falExtras`** merge in **`pipeline.mjs`**: nano-banana-2 vs Flux-shaped
- * (`image_size`) models. Non-nano endpoints share the Flux strategy family.
- *
- * @param {string} endpoint
- * @returns {'nano-banana-2' | 'flux'}
- */
-export function getFalImageEndpointFamily(endpoint) {
+/** Coarse endpoint family for **`falExtras`** merge in **`pipeline.mjs`**: nano-banana-2 vs Flux-shaped (`image_size`) models. */
+export function getFalImageEndpointFamily(endpoint: string): "nano-banana-2" | "flux" {
   return isNanoBanana2Endpoint(endpoint) ? "nano-banana-2" : "flux";
 }
 
-/**
- * True when **`a`** and **`b`** use the same fal input shape / extras blob (Phase D Option B).
- *
- * @param {string} a
- * @param {string} b
- */
-export function sameImageEndpointFamily(a, b) {
+/** True when **`a`** and **`b`** use the same fal input shape / extras blob (Phase D Option B). */
+export function sameImageEndpointFamily(a: string, b: string): boolean {
   return getFalImageEndpointFamily(a) === getFalImageEndpointFamily(b);
 }
 
 /**
  * Sheet path: run BRIA matting after nano-banana (or any T2I that returns an HTTPS image URL) when
  * **`preset.fal.sheetMatting`** is **`'bria'`**, or **`'auto'`** / omitted and **`endpoint`** is nano-banana-2.
- * Set **`preset.fal.sheetMatting`** to **`'none'`** to force chroma-only on the raw T2I PNG (e.g. Flux).
- *
- * @param {{ fal?: { sheetMatting?: 'auto' | 'bria' | 'none' } }} preset
- * @param {string} endpoint
- * @returns {boolean}
  */
-export function shouldUseBriaSheetMatting(preset, endpoint) {
+export function shouldUseBriaSheetMatting(preset: { fal?: { sheetMatting?: "auto" | "bria" | "none" } }, endpoint: string): boolean {
   const m = preset.fal?.sheetMatting;
   if (m === "bria") return true;
   if (m === "none") return false;
@@ -285,11 +260,11 @@ export function shouldUseBriaSheetMatting(preset, endpoint) {
  * @param {unknown} data  `result.data` from fal.subscribe
  * @returns {{ url: string; seed?: number; image0: Record<string, unknown> }}
  */
-export function parseFalImageSubscribeResult(data) {
+export function parseFalImageSubscribeResult(data: unknown): { url: string; seed?: number; image0: Record<string, unknown> } {
   if (!data || typeof data !== "object") {
     throw new Error("fal returned empty or invalid response data");
   }
-  const d = /** @type {{ images?: unknown[]; seed?: number }} */ (data);
+  const d = data as { images?: unknown[]; seed?: number };
   if (!Array.isArray(d.images) || d.images.length === 0) {
     throw new Error("fal returned no images in response data");
   }
@@ -297,8 +272,8 @@ export function parseFalImageSubscribeResult(data) {
   if (!img0 || typeof img0 !== "object") {
     throw new Error("fal image[0] missing or invalid");
   }
-  const row = /** @type {Record<string, unknown>} */ (img0);
-  const url = row.url;
+  const row = img0 as Record<string, unknown>;
+  const url = row["url"];
   if (typeof url !== "string") {
     throw new Error("fal image[0] missing url");
   }
@@ -312,16 +287,16 @@ export function parseFalImageSubscribeResult(data) {
  * @returns {{ url: string; seed?: number; image0: Record<string, unknown> }}
  * @see https://fal.ai/models/fal-ai/bria/background/remove/api (Output schema)
  */
-export function parseFalBriaBackgroundRemoveResult(data) {
+export function parseFalBriaBackgroundRemoveResult(data: unknown): { url: string; seed?: number; image0: Record<string, unknown> } {
   if (!data || typeof data !== "object") {
     throw new Error("fal returned empty or invalid response data");
   }
-  const d = /** @type {{ image?: { url?: string; width?: number; height?: number } }} */ (data);
+  const d = data as { image?: { url?: string; width?: number; height?: number } };
   const img = d.image;
   if (!img || typeof img !== "object") {
     throw new Error("fal bria/background/remove returned no image in response data");
   }
-  const row = /** @type {Record<string, unknown>} */ (img);
+  const row = img as Record<string, unknown>;
   const url = img.url;
   if (typeof url !== "string") {
     throw new Error("fal bria/background/remove image missing url");
@@ -333,53 +308,46 @@ export function parseFalBriaBackgroundRemoveResult(data) {
  * @param {unknown} data  `result.data` from **`openrouter/router`**
  * @returns {string} Trimmed completion text
  */
-export function parseOpenRouterRouterOutput(data) {
+export function parseOpenRouterRouterOutput(data: unknown): string {
   if (!data || typeof data !== "object") {
     throw new Error("openrouter/router returned empty or invalid response data");
   }
-  const d = /** @type {{ output?: unknown; error?: unknown }} */ (data);
-  if (typeof d.error === "string" && d.error.trim()) {
-    throw new Error(`openrouter/router: ${d.error.trim()}`);
+  const d = data as { output?: unknown; error?: unknown };
+  if (typeof d["error"] === "string" && d["error"].trim()) {
+    throw new Error(`openrouter/router: ${d["error"].trim()}`);
   }
-  if (typeof d.output !== "string" || !d.output.trim()) {
+  if (typeof d["output"] !== "string" || !d["output"].trim()) {
     throw new Error("openrouter/router returned no output text");
   }
-  return d.output.trim();
+  return d["output"].trim();
 }
 
-/**
- * Optional LLM rewrite via **`fal.subscribe("openrouter/router", { input })`** — same **`FAL_KEY`** as T2I.
- * Never logs full prompt text at INFO (**`redactFalInputForLog`**).
- *
- * @param {object} params
- * @param {string} params.userPrompt
- * @param {string} [params.systemPrompt]
- * @param {string} params.model
- * @param {number} [params.temperature]
- * @param {number} [params.maxTokens]
- * @param {boolean} [params.quiet]
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @returns {Promise<{ text: string; wallMs: number }>}
- */
-export async function rewritePromptViaOpenRouter(params) {
+export async function rewritePromptViaOpenRouter(params: {
+  userPrompt: string;
+  systemPrompt?: string;
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  quiet?: boolean;
+  log?: LogFn;
+  falSubscribe?: FalSubscribeFn;
+}): Promise<{ text: string; wallMs: number }> {
   const { userPrompt, systemPrompt, model, temperature, maxTokens, quiet, falSubscribe } = params;
   const log = params.log ?? defaultLog;
-  const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
+  const subscribe = falSubscribe ?? ((ep: string, opts: Parameters<FalSubscribeFn>[1]) => fal.subscribe(ep, opts));
 
-  /** @type {Record<string, unknown>} */
-  const input = {
+  const input: Record<string, unknown> = {
     prompt: userPrompt,
     model,
   };
   if (systemPrompt !== undefined && systemPrompt !== "") {
-    input.system_prompt = systemPrompt;
+    input["system_prompt"] = systemPrompt;
   }
   if (temperature !== undefined) {
-    input.temperature = temperature;
+    input["temperature"] = temperature;
   }
   if (maxTokens !== undefined) {
-    input.max_tokens = maxTokens;
+    input["max_tokens"] = maxTokens;
   }
 
   log("INFO", `fal:${OPENROUTER_ROUTER_ENDPOINT}`, "subscribe() request input (redacted)", redactFalInputForLog(input));
@@ -396,11 +364,11 @@ export async function rewritePromptViaOpenRouter(params) {
   const result = await subscribe(OPENROUTER_ROUTER_ENDPOINT, {
     input,
     logs: true,
-    onQueueUpdate: (status) => {
-      const s = status && typeof status === "object" && "status" in status ? String(status.status) : "?";
+    onQueueUpdate: (status: unknown) => {
+      const s = status && typeof status === "object" && "status" in status ? String((status as { status: unknown }).status) : "?";
       log("DEBUG", "fal:queue", `openrouter status=${s}`, {});
     },
-  });
+  } as Parameters<FalSubscribeFn>[1]);
   const wallMs = Date.now() - t0;
   const text = parseOpenRouterRouterOutput(result.data);
   log("INFO", `fal:${OPENROUTER_ROUTER_ENDPOINT}`, "subscribe() done", {
@@ -411,18 +379,17 @@ export async function rewritePromptViaOpenRouter(params) {
   return { text, wallMs };
 }
 
-/**
- * @param {object} ctx
- * @param {string} ctx.prompt
- * @param {string} ctx.imageSize  e.g. `400x100` (Flux); ignored for nano-banana-2 API shape.
- * @param {number|undefined} ctx.seed
- * @param {Record<string, unknown>|undefined} ctx.falExtraInput
- */
-function buildFluxImageInput(ctx) {
+interface FalImageBuildCtx {
+  prompt: string;
+  imageSize: string;
+  seed?: number;
+  falExtraInput?: Record<string, unknown>;
+}
+
+function buildFluxImageInput(ctx: FalImageBuildCtx): Record<string, unknown> {
   const { prompt, imageSize, seed, falExtraInput } = ctx;
   const image_size = parseImageSize(imageSize);
-  /** @type {Record<string, unknown>} */
-  const input = {
+  const input: Record<string, unknown> = {
     prompt,
     image_size,
     num_images: 1,
@@ -430,23 +397,15 @@ function buildFluxImageInput(ctx) {
     ...(falExtraInput && typeof falExtraInput === "object" ? falExtraInput : {}),
   };
   if (seed !== undefined) {
-    input.seed = seed;
+    input["seed"] = seed;
   }
   return input;
 }
 
-/**
- * nano-banana-2: `aspect_ratio` + `resolution`, not Flux `image_size`.
- *
- * @param {object} ctx
- * @param {string} ctx.prompt
- * @param {number|undefined} ctx.seed
- * @param {Record<string, unknown>|undefined} ctx.falExtraInput
- */
-function buildNanoBanana2ImageInput(ctx) {
+/** nano-banana-2: `aspect_ratio` + `resolution`, not Flux `image_size`. */
+function buildNanoBanana2ImageInput(ctx: FalImageBuildCtx): Record<string, unknown> {
   const { prompt, seed, falExtraInput } = ctx;
-  /** @type {Record<string, unknown>} */
-  const input = {
+  const input: Record<string, unknown> = {
     prompt,
     aspect_ratio: NANO_BANANA2_DEFAULT_ASPECT_RATIO,
     resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
@@ -455,87 +414,81 @@ function buildNanoBanana2ImageInput(ctx) {
     ...(falExtraInput && typeof falExtraInput === "object" ? falExtraInput : {}),
   };
   if (seed !== undefined) {
-    input.seed = seed;
+    input["seed"] = seed;
   }
   return input;
 }
 
-/**
- * @typedef {object} FalImageEndpointStrategy
- * @property {(ctx: { prompt: string; imageSize: string; seed?: number; falExtraInput?: Record<string, unknown> }) => Record<string, unknown>} buildInput
- * @property {(input: Record<string, unknown>, promptChars: number) => Record<string, unknown>} startLogExtra
- * @property {(input: Record<string, unknown>) => Record<string, unknown>} doneLogRequestFields
- */
+interface FalImageEndpointStrategy {
+  buildInput(ctx: FalImageBuildCtx): Record<string, unknown>;
+  startLogExtra(input: Record<string, unknown>, promptChars: number): Record<string, unknown>;
+  doneLogRequestFields(input: Record<string, unknown>): Record<string, unknown>;
+}
 
-/** @type {FalImageEndpointStrategy} */
-const fluxStrategy = {
+const fluxStrategy: FalImageEndpointStrategy = {
   buildInput: buildFluxImageInput,
-  startLogExtra(input, promptChars) {
-    const image_size = input.image_size;
+  startLogExtra(input: Record<string, unknown>, promptChars: number) {
+    const image_size = input["image_size"];
     return {
       image_size: typeof image_size === "string" ? image_size : image_size,
-      seed: input.seed ?? null,
+      seed: input["seed"] ?? null,
       promptChars,
     };
   },
-  doneLogRequestFields(input) {
-    const image_size = input.image_size;
+  doneLogRequestFields(input: Record<string, unknown>) {
+    const image_size = input["image_size"];
     return {
-      requestedImageSize: typeof image_size === "string" ? image_size : { .../** @type {{ width: number; height: number }} */ (image_size) },
+      requestedImageSize:
+        typeof image_size === "string" ? image_size : { ...(image_size as { width: number; height: number }) },
     };
   },
 };
 
-/** @type {FalImageEndpointStrategy} */
-const nanoBanana2Strategy = {
+const nanoBanana2Strategy: FalImageEndpointStrategy = {
   buildInput: buildNanoBanana2ImageInput,
-  startLogExtra(input, promptChars) {
+  startLogExtra(input: Record<string, unknown>, promptChars: number) {
     return {
-      aspect_ratio: input.aspect_ratio,
-      resolution: input.resolution,
-      seed: input.seed ?? null,
+      aspect_ratio: input["aspect_ratio"],
+      resolution: input["resolution"],
+      seed: input["seed"] ?? null,
       promptChars,
     };
   },
-  doneLogRequestFields(input) {
+  doneLogRequestFields(input: Record<string, unknown>) {
     return {
-      requestedAspectRatio: input.aspect_ratio,
-      requestedResolution: input.resolution,
+      requestedAspectRatio: input["aspect_ratio"],
+      requestedResolution: input["resolution"],
     };
   },
 };
 
-/**
- * @param {string} endpoint
- * @returns {FalImageEndpointStrategy}
- */
-export function getFalImageEndpointStrategy(endpoint) {
+export function getFalImageEndpointStrategy(endpoint: string): FalImageEndpointStrategy {
   return isNanoBanana2Endpoint(endpoint) ? nanoBanana2Strategy : fluxStrategy;
 }
+
+type FalParsedImage = { url: string; seed?: number; image0: Record<string, unknown> };
 
 /**
  * Subscribe only — parses **`data.images[0].url`** but does **not** download. Use to chain **BRIA** with
  * the T2I result URL without fetching the intermediate PNG (**`FALSPRITE_INTEGRATION_PLAN.md`** Phase C).
- *
- * @param {object} params
- * @param {string} params.endpoint
- * @param {Record<string, unknown>} params.input
- * @param {boolean} [params.quiet]
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]
- * @returns {Promise<{ imageUrl: string; seed?: number; wallMs: number; image0: Record<string, unknown> }>}
  */
-export async function falSubscribeImageToUrlResult(params) {
+export async function falSubscribeImageToUrlResult(params: {
+  endpoint: string;
+  input: Record<string, unknown>;
+  quiet?: boolean;
+  log?: LogFn;
+  falSubscribe?: FalSubscribeFn;
+  parseResult?: (data: unknown) => FalParsedImage;
+}): Promise<{ imageUrl: string; seed?: number; wallMs: number; image0: Record<string, unknown> }> {
   const { endpoint, input, quiet, falSubscribe, parseResult } = params;
   const log = params.log ?? defaultLog;
-  const subscribe = falSubscribe ?? ((ep, opts) => fal.subscribe(ep, opts));
+  const subscribe = falSubscribe ?? ((ep: string, opts: Parameters<FalSubscribeFn>[1]) => fal.subscribe(ep, opts));
   const parse = parseResult ?? parseFalImageSubscribeResult;
 
   log("INFO", `fal:${endpoint}`, "subscribe() request input (redacted)", redactFalInputForLog(input));
   if (!quiet) {
     log("DEBUG", "fal:prompt", "full prompt follows", {});
-    const p = input.prompt;
+    const p = input["prompt"];
     console.log(typeof p === "string" ? p : String(p));
   }
 
@@ -545,16 +498,16 @@ export async function falSubscribeImageToUrlResult(params) {
   const result = await subscribe(endpoint, {
     input,
     logs: true,
-    onQueueUpdate: (status) => {
-      const s = status && typeof status === "object" && "status" in status ? String(status.status) : "?";
+    onQueueUpdate: (status: unknown) => {
+      const s = status && typeof status === "object" && "status" in status ? String((status as { status: unknown }).status) : "?";
       if (s !== lastStatus) {
         lastStatus = s;
         log("DEBUG", "fal:queue", `status=${s}`, {
-          ...(typeof status === "object" && status !== null && "position" in status ? { position: status.position } : {}),
+          ...(typeof status === "object" && status !== null && "position" in status ? { position: (status as { position: unknown }).position } : {}),
         });
       }
     },
-  });
+  } as Parameters<FalSubscribeFn>[1]);
 
   const wallMs = Date.now() - t0;
   const data = result.data;
@@ -570,22 +523,17 @@ export async function falSubscribeImageToUrlResult(params) {
   return { imageUrl: parsed.url, seed: parsed.seed, wallMs, image0: img0 };
 }
 
-/**
- * Generic subscribe → download PNG → decode metadata. Prefer **`falSubscribeToBuffer`** for pipeline
- * (it picks Flux vs nano-banana-2 input shape). Use this when **`input`** is already built.
- *
- * @param {object} params
- * @param {string} params.endpoint
- * @param {Record<string, unknown>} params.input
- * @param {boolean} [params.quiet]
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {typeof fetch} [params.fetch]
- * @param {(data: unknown) => { url: string; seed?: number; image0: Record<string, unknown> }} [params.parseResult]  default: **`parseFalImageSubscribeResult`**
- * @param {Record<string, unknown>} [params.doneLogExtras]  Merged into the final **`subscribe() done`** line (e.g. requested image size vs aspect ratio).
- * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
- */
-export async function falSubscribeImageToBuffer(params) {
+/** Generic subscribe → download PNG → decode metadata. Prefer **`falSubscribeToBuffer`** for pipeline. */
+export async function falSubscribeImageToBuffer(params: {
+  endpoint: string;
+  input: Record<string, unknown>;
+  quiet?: boolean;
+  log?: LogFn;
+  falSubscribe?: FalSubscribeFn;
+  fetch?: typeof fetch;
+  parseResult?: (data: unknown) => FalParsedImage;
+  doneLogExtras?: Record<string, unknown>;
+}): Promise<{ buffer: Buffer; seed?: number; wallMs: number }> {
   const { endpoint, input, quiet, falSubscribe, fetch: fetchImpl, parseResult, doneLogExtras } = params;
   const log = params.log ?? defaultLog;
   const fetchFn = fetchImpl ?? globalThis.fetch;
@@ -608,7 +556,7 @@ export async function falSubscribeImageToBuffer(params) {
   const pngDims = readPngBufferDimensions(buffer);
   const apiWh =
     img0 && "width" in img0 && "height" in img0
-      ? { width: Number(img0.width), height: Number(img0.height) }
+      ? { width: Number(img0["width"]), height: Number(img0["height"]) }
       : null;
   log("INFO", `fal:${endpoint}`, "subscribe() done", {
     wallMs: urlResult.wallMs,
@@ -622,22 +570,17 @@ export async function falSubscribeImageToBuffer(params) {
   return { buffer, seed: outSeed, wallMs: urlResult.wallMs };
 }
 
-/**
- * **`fal-ai/bria/background/remove`**: HTTPS **`image_url`** in (typically T2I **`data.images[0].url`**), PNG with alpha out.
- *
- * @param {object} params
- * @param {string} params.imageUrl
- * @param {boolean} [params.quiet]
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {typeof fetch} [params.fetch]
- * @returns {Promise<{ buffer: Buffer; wallMs: number }>}
- */
-export async function falSubscribeBriaBackgroundRemoveToBuffer(params) {
+/** **`fal-ai/bria/background/remove`**: HTTPS **`image_url`** in, PNG with alpha out. */
+export async function falSubscribeBriaBackgroundRemoveToBuffer(params: {
+  imageUrl: string;
+  quiet?: boolean;
+  log?: LogFn;
+  falSubscribe?: FalSubscribeFn;
+  fetch?: typeof fetch;
+}): Promise<{ buffer: Buffer; wallMs: number }> {
   const { imageUrl, quiet, falSubscribe, fetch: fetchImpl } = params;
   const log = params.log ?? defaultLog;
-  /** @type {Record<string, unknown>} */
-  const input = { image_url: imageUrl };
+  const input: Record<string, unknown> = { image_url: imageUrl };
   return falSubscribeImageToBuffer({
     endpoint: BRIA_BACKGROUND_REMOVE_ENDPOINT,
     input,
@@ -650,25 +593,22 @@ export async function falSubscribeBriaBackgroundRemoveToBuffer(params) {
   });
 }
 
-/**
- * @param {object} params
- * @param {string} params.endpoint
- * @param {string} params.prompt
- * @param {string} params.imageSize
- * @param {number|undefined} params.seed
- * @param {boolean} params.quiet
- * @param {Record<string, unknown>|undefined} params.falExtraInput  Merged into fal input (e.g. guidance_scale).
- * @param {(level: 'DEBUG'|'INFO'|'WARN'|'ERROR', step: string, message: string, extra?: Record<string, unknown>) => void} [params.log]
- * @param {import('@fal-ai/client').FalClient['subscribe']} [params.falSubscribe]
- * @param {typeof fetch} [params.fetch]
- * @returns {Promise<{ buffer: Buffer; seed?: number; wallMs: number }>}
- */
-export async function falSubscribeToBuffer(params) {
+export async function falSubscribeToBuffer(params: {
+  endpoint: string;
+  prompt: string;
+  imageSize: string;
+  seed?: number;
+  quiet?: boolean;
+  falExtraInput?: Record<string, unknown>;
+  log?: LogFn;
+  falSubscribe?: FalSubscribeFn;
+  fetch?: typeof fetch;
+}): Promise<{ buffer: Buffer; seed?: number; wallMs: number }> {
   const { endpoint, prompt, imageSize, seed, quiet, falExtraInput, falSubscribe, fetch: fetchImpl } = params;
   const log = params.log ?? defaultLog;
 
   const strategy = getFalImageEndpointStrategy(endpoint);
-  const ctx = { prompt, imageSize, seed, falExtraInput };
+  const ctx: FalImageBuildCtx = { prompt, imageSize, seed, falExtraInput };
   const input = strategy.buildInput(ctx);
 
   log("INFO", `fal:${endpoint}`, "subscribe() starting", {
@@ -677,20 +617,17 @@ export async function falSubscribeToBuffer(params) {
 
   return falSubscribeImageToBuffer({
     endpoint,
-    input: /** @type {Record<string, unknown>} */ (input),
+    input,
     quiet,
     log,
     falSubscribe,
     fetch: fetchImpl,
-    doneLogExtras: strategy.doneLogRequestFields(/** @type {Record<string, unknown>} */ (input)),
+    doneLogExtras: strategy.doneLogRequestFields(input),
   });
 }
 
-/**
- * @param {Buffer} buf  PNG bytes
- * @returns {string} `data:image/png;base64,...` for fal file inputs
- */
-export function pngBufferToDataUri(buf) {
+/** @returns `data:image/png;base64,...` for fal file inputs */
+export function pngBufferToDataUri(buf: Buffer): string {
   if (!Buffer.isBuffer(buf)) {
     throw new Error("pngBufferToDataUri: expected Buffer");
   }

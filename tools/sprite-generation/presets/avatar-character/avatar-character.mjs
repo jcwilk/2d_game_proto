@@ -15,16 +15,16 @@
  *
  * @see `../../README.md`
  * @see `../../pipeline.mjs`
- * @see `../../manifest.mjs` — `buildRecipeId`
+ * @see `../../manifest.ts` — `buildRecipeId`
  */
 
 import {
   NANO_BANANA2_CHARACTER_WALK_STRIP_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_LOW_RESOLUTION,
-} from "../../generators/fal.mjs";
-import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.mjs";
-import { buildRecipeId } from "../../manifest.mjs";
+} from "../../generators/fal.ts";
+import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.ts";
+import { buildRecipeId } from "../../manifest.ts";
 import {
   buildCharacterWalkStripSpritePrompt,
   CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT as CHARACTER_WALK_REWRITE_SYSTEM_BASE,
@@ -32,14 +32,14 @@ import {
   CHARACTER_WALK_FRAME_PROMPT_SUFFIX,
   CHARACTER_WALK_SHEET_COMPOSITION,
   CHARACTER_WALK_SHEET_STYLE,
-} from "../../prompt.mjs";
+} from "../../prompt.ts";
 import {
   CHARACTER_WALK_FRAME_HEIGHT_PX,
   CHARACTER_WALK_FRAME_PX,
   CHARACTER_WALK_SHEET_HEIGHT_PX,
   CHARACTER_WALK_SHEET_WIDTH_PX,
 } from "../../gameDimensions.ts";
-import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
+import { sheetLayoutFromCropsRect } from "../../sheet-layout.ts";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
 export const ASSET_ID = "avatar-character";
@@ -141,7 +141,7 @@ export const QA_SPRITE_H = Math.max(8, Math.round(TILE_HEIGHT / 4));
 /**
  * Ordered frames: **idle** (sheet cell 1) then three walk phases. **Per-tile** prompts only matter for `--strategy per-tile`.
  *
- * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
+ * @type {readonly import('../../generators/types.ts').GeneratorFrame[]}
  */
 export const CHARACTER_WALK_FRAMES = Object.freeze([
   {

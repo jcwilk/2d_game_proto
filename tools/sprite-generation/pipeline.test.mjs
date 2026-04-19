@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PNG } from "pngjs";
 
 import { parseFrameKeyRectManifestJson } from "../../src/art/atlasTypes.ts";
-import { buildDpadGridSpritePrompt } from "./prompt.mjs";
-import { hashPromptForLog } from "./generators/fal.mjs";
-import { RECIPE_VERSION_MOCK } from "./manifest.mjs";
+import { buildDpadGridSpritePrompt } from "./prompt.ts";
+import { hashPromptForLog } from "./generators/fal.ts";
+import { RECIPE_VERSION_MOCK } from "./manifest.ts";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
 import { createPreset } from "./presets/dpad/dpad.mjs";
 import { runPipeline } from "./pipeline.mjs";

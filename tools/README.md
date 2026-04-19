@@ -53,7 +53,7 @@ sprite-generation/
   presets/             # workflow presets (e.g. dpad)
 ```
 
-Supporting modules at the library root include **`manifest.mjs`**, **`prompt.mjs`**, **`sprite-ref.mjs`**, and **`logging.mjs`**. The D-pad CLI wires these together; see **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** for preset-specific defaults and **`dpad-workflow.mjs`** for the user-facing entry.
+Supporting modules at the library root include **`manifest.ts`**, **`prompt.ts`**, **`sprite-ref.ts`**, and **`logging.ts`**. The D-pad CLI wires these together; see **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** for preset-specific defaults and **`dpad-workflow.mjs`** for the user-facing entry.
 
 ### Vitest coverage (tools)
 

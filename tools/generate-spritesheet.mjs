@@ -12,10 +12,10 @@ import { existsSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
+import { formatFalClientError } from "./sprite-generation/generators/fal.ts";
 import { log } from "./sprite-generation/logging.ts";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
-import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
+import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.ts";
 import {
   buildRenameDryRunPlan,

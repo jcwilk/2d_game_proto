@@ -13,10 +13,10 @@ import { ApiError } from "@fal-ai/client";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
+import { formatFalClientError } from "./sprite-generation/generators/fal.ts";
 import { log } from "./sprite-generation/logging.ts";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
-import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
+import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import {
   createPreset,
   DEFAULT_FAL_ENDPOINT,

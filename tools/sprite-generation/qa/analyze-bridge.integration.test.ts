@@ -5,15 +5,14 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PNG } from "pngjs";
 
-import { getPngAnalyzeScriptPathForTests, runPngAnalyzeBridge } from "./analyze-bridge.mjs";
+import { getPngAnalyzeScriptPathForTests, runPngAnalyzeBridge } from "./analyze-bridge.ts";
 
 /**
- * Repo root for `tools/png-analyze.ts` must match `analyze-bridge.mjs`:
+ * Repo root for `tools/png-analyze.ts` must match `analyze-bridge.ts`:
  * from `tools/sprite-generation/qa/`, three parents up to the repository root.
  */
 describe("analyze-bridge (integration)", () => {
-  /** @type {string | undefined} */
-  let dir;
+  let dir: string | undefined;
 
   afterEach(() => {
     if (dir) {

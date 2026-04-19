@@ -1,6 +1,6 @@
 ---
 id: 2gp-rl8t
-status: open
+status: closed
 deps: [2gp-nxd2]
 links: []
 created: 2026-04-19T03:02:23Z
@@ -20,4 +20,44 @@ Final verification after **S1** **`2gp-y4cn`** and **S2** **`2gp-nxd2`**. Spawn 
 ## Acceptance Criteria
 
 **critique-and-refine** completes with **verdict** using that agent’s vocabulary (**proceed**, **capped**, **unresolved themes**) plus concrete evidence; **rg** allowlist recorded; **package.json** scripts reference no removed **tools/\*.mjs**; follow-up work spun out as new tickets if needed.
+
+## Verification closure (2026-04-19)
+
+### Commands (all passed)
+
+| Command | Outcome |
+|---------|---------|
+| `npm run typecheck` | Pass (`tsc --noEmit && tsc --noEmit -p tools/tsconfig.json`; no separate `typecheck:tools` in **package.json**) |
+| `npm run build` | Pass |
+| `npm test` | Pass |
+| `npm run test:e2e` | Pass (1 Playwright smoke, Chromium) |
+
+### package.json scripts
+
+All tool entrypoints use `node --experimental-strip-types tools/<name>.ts` only — no **`tools/*.mjs`** references.
+
+### critique-and-refine (Task, `.cursor/agents/critique-and-refine.md`)
+
+- **Verdict:** **proceed** — **capped:** none — **unresolved themes:** none  
+- **Rounds:** 2 (cross-critique lanes approved final summary; evidence: command outcomes + allowlist paths aligned to repo).
+
+### rg gate (`.mjs` in `tools/`, `src/`)
+
+`rg` is not available in this environment (`command not found`). Equivalent audit:
+
+`git grep -nE '\.mjs\b' -- tools src`
+
+**`src/`:** no matches.
+
+**Allowlist (every `tools/` hit):**
+
+| File | Classification |
+|------|------------------|
+| `tools/README.md` | Documentation: legacy Vitest `tools/**/*.test.mjs` glob removal (**2gp-y4cn**) |
+| `tools/sprite-generation/prompt.ts` | Docstrings: external falsprite GitHub `lib/fal.mjs` URLs (not repo files) |
+| `tools/sprite-generation/generators/fal.ts` | Comment: external falsprite `api/generate.mjs` reference |
+| `tools/sprite-generation/rename-dry-run.ts` | String literals: `/${slug}/${slug}.mjs` migration hints |
+| `tools/sprite-generation/js-modules.d.ts` | Ambient declaration comment: legacy `.mjs` typings |
+| `tools/sprite-generation/info.test.ts`, `tools/sprite-generation/postprocess/png-region.test.ts` | Historical comments: tests migrated from `.mjs` |
+| `tools/tsconfig-toolchain.smoke.test.ts` | Comment: `.mjs` glob / **2gp-y4cn** stitch context |
 

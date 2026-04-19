@@ -106,6 +106,80 @@ export function renderIsometricFloorMockTileBuffer(frame: GeneratorFrame, tileWi
   return PNG.sync.write(png);
 }
 
+/**
+ * Mock isometric **wall** tile: same **W** footprint as open floor; **tall** cell (**tileHeight** > **W/2**).
+ * Foreshortened floor **rhombus** sits in the **bottom** band (**W/2** px tall), matching the floor preset; a simple vertical mass fills the upper band (occluder read).
+ */
+export function renderIsometricWallMockTileBuffer(frame: GeneratorFrame, tileWidth: number, tileHeight: number): Buffer {
+  const m = /^wall_(\d)$/.exec(frame.id);
+  if (!m) {
+    throw new Error(`mock isometric wall: frame id must be wall_0..wall_3, got ${JSON.stringify(frame.id)}`);
+  }
+  const variant = Number(m[1]);
+  if (variant < 0 || variant > 3 || !Number.isInteger(variant)) {
+    throw new Error(`mock isometric wall: invalid variant in ${JSON.stringify(frame.id)}`);
+  }
+
+  const floorBandH = Math.max(2, Math.round(tileWidth / 2));
+  if (tileHeight < floorBandH) {
+    throw new Error(
+      `mock isometric wall: tileHeight must be >= floor band (${floorBandH}), got ${tileWidth}×${tileHeight}`,
+    );
+  }
+  const offsetY = tileHeight - floorBandH;
+
+  /** @type {readonly { r: number; g: number; b: number }[]} */
+  const bases = [
+    { r: 0x5a, g: 0x4e, b: 0x42 },
+    { r: 0x52, g: 0x48, b: 0x3c },
+    { r: 0x56, g: 0x4a, b: 0x40 },
+    { r: 0x4e, g: 0x44, b: 0x3a },
+  ];
+  const base = bases[variant]!;
+  const wallBase = {
+    r: Math.min(255, base.r + 8),
+    g: Math.min(255, base.g + 6),
+    b: Math.min(255, base.b + 4),
+  };
+
+  const png = new PNG({ width: tileWidth, height: tileHeight, colorType: 6 });
+  png.data.fill(0);
+
+  const colL = Math.max(0, Math.floor(tileWidth / 4));
+  const colR = Math.min(tileWidth, Math.ceil((tileWidth * 3) / 4));
+
+  for (let y = 0; y < tileHeight; y++) {
+    for (let x = 0; x < tileWidth; x++) {
+      const i = (tileWidth * y + x) << 2;
+      const relY = y - offsetY;
+      if (relY >= 0) {
+        const p = { x, y: relY };
+        if (!pointInIsoFloorRhombusRect(p, tileWidth, floorBandH)) {
+          continue;
+        }
+        const n = ((x * 17 + y * 31 + variant * 97) & 0xff) - 128;
+        const shade = Math.max(-18, Math.min(18, n >> 3));
+        png.data[i] = Math.max(0, Math.min(255, base.r + shade));
+        png.data[i + 1] = Math.max(0, Math.min(255, base.g + shade));
+        png.data[i + 2] = Math.max(0, Math.min(255, base.b + shade));
+        png.data[i + 3] = 0xff;
+        continue;
+      }
+
+      if (x < colL || x >= colR) continue;
+
+      const n = ((x * 19 + y * 29 + variant * 101) & 0xff) - 128;
+      const shade = Math.max(-14, Math.min(14, n >> 3));
+      png.data[i] = Math.max(0, Math.min(255, wallBase.r + shade));
+      png.data[i + 1] = Math.max(0, Math.min(255, wallBase.g + shade));
+      png.data[i + 2] = Math.max(0, Math.min(255, wallBase.b + shade));
+      png.data[i + 3] = 0xff;
+    }
+  }
+
+  return PNG.sync.write(png);
+}
+
 export function pointInTriangle(p: Point, a: Point, b: Point, c: Point): boolean {
   const sign = (p1: Point, p2: Point, p3: Point) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
   const d1 = sign(p, a, b);

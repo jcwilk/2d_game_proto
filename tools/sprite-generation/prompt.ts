@@ -178,6 +178,46 @@ export const ISO_FLOOR_SHEET_REWRITE_USER_SEED =
   "One row of four isometric floor tiles; each cell is half as tall as wide; rhombus touches top, bottom, left, and right edge midpoints; four subtle surface variations; identical geometry for tiling. " +
   "No vertical gutters, panel frames, or outlines between columns — one continuous plain flat-color backdrop at shared cell boundaries (illustrated-game style, not chroma-key vocabulary).";
 
+/** Per-tile suffix for **halfHeight** isometric wall cells. Placeholders: `{cellWidth}`, `{cellHeight}`. */
+export const ISO_WALL_HALF_HEIGHT_FRAME_PROMPT_SUFFIX =
+  ` **CELL SHAPE:** Each cell is **{cellWidth}×{cellHeight}px** — **width** equals the **1m floor footprint**; **height** is **taller than the foreshortened floor band** (not a 2:1 floor strip). ` +
+  `**BOTTOM ANCHOR:** The **lowest {cellWidth}/2 px** of the cell matches the **open-floor rhombus**: one foreshortened isometric ground diamond **flush to the bottom, left, and right cell edges** (bottom vertex on bottom-center, left/right on side midpoints at the **floor** horizon), same horizontal footprint as floor tiles for seamless tiling. ` +
+  `**ABOVE:** A vertical **wall / occluder** mass rises in isometric three-quarter view (readable front plane + one side), stone or plaster, **no** walkable floor in the upper band — it occludes what is behind. ` +
+  `**FORBIDDEN:** a second full rhombus filling the tall cell; top-down-only view; characters; props sitting on the wall. No text or watermark.`;
+
+/** Style line for wall tiles. Placeholders: `{cellWidth}`, `{cellHeight}`. */
+export const ISO_WALL_HALF_HEIGHT_FRAME_STYLE =
+  `Illustrated {cellWidth}×{cellHeight}px isometric **wall** cell — same ground footprint width as floor tiles, **taller** cell for vertical faces — painterly or soft cel-shaded, readable at small scale, not pixel art, not photoreal. `;
+
+/**
+ * Chroma + wall composition. Placeholders: `{chromaKeyHex}`, `{cellWidth}`, `{cellHeight}`.
+ */
+export const ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION =
+  `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed — backdrop extends **flush to all four cell edges**. ` +
+  `**Lower band (bottom {cellWidth}/2 px of the cell):** exactly one foreshortened isometric **ground rhombus** matching open-floor geometry — **bottom** vertex on **bottom-edge center**, **left/right** vertices on the **midpoints of the left and right edges** of this band (floor horizon), **top** vertex on **top-edge center** of this band. ` +
+  `**Upper volume:** a single **wall** surface (corner or straight run) rising above that horizon in the **same** isometric camera as the floor — vertical enough to read as an occluder; **no** extra floor plane in the upper area. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the wall or floor (reserved for the flat backdrop only). ` +
+  `No halo or color bleed from the backdrop into art; minimize pink, magenta, or purple fringing on edges.`;
+
+/** Sheet subject seed for 1×4 wall strip T2I + rewrite. */
+export const ISO_WALL_FALSPRITE_SHEET_SUBJECT =
+  `Illustrated isometric **wall** strip (not pixel art). ` +
+  `One horizontal row of **four** cells: (1) clean ashlar; (2) light cracks; (3) mossy grout; (4) worn corner — ` +
+  `each cell **{cellWidth}×{cellHeight}**, **same** bottom-anchored floor rhombus + **taller** wall above, identical footprint width for tiling.`;
+
+export const ISO_WALL_SHEET_REWRITE_USER_SEED =
+  "One row of four isometric wall tiles; each cell uses the same **width** as floor tiles but is **taller** than the floor-only strip: the **bottom W/2 px** of the cell is the same flush-edge floor rhombus as open floor; above that a vertical wall face in three-quarter iso; four cosmetic masonry variations; identical bottom geometry for tiling. " +
+  "No vertical gutters between columns — one continuous flat-color backdrop at shared edges (illustrated-game style, not chroma-key vocabulary).";
+
+/** OpenRouter sheet rewrite for 1×4 isometric **wall** strip (tall cells). */
+export const ISO_WALL_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE horizontal strip sprite sheet: **four equal cells in a single row** (1×4, not 2×2). " +
+  "Preserve as non-negotiable: each cell is **rectangular** — **width** is the **floor footprint** (same as open-floor tiles); **height** is **greater** than half the width (taller than the 2:1 floor strip). " +
+  "Each cell has **one foreshortened ground rhombus** in the **bottom** portion matching **open-floor** geometry (flush to bottom and sides at the floor band); **above** that horizon, **one vertical wall / occluder** in isometric three-quarter view — **no** second walkable floor in the upper area. " +
+  "Same bottom geometry in all four cells; **plain uniform flat-color backdrop** outside the art (one calm solid hue, full bleed) — **do not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia; **no** gutters or divider lines between columns. " +
+  "Improve: cohesive dark-fantasy masonry read, subtle variation between cells only — still clean 2D game tiles; keep edges clean with **no** pink/purple glow. " +
+  "Output only the improved prompt text, no preamble.";
+
 /** OpenRouter sheet rewrite for 1×4 isometric floor strip. */
 export const ISO_FLOOR_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for ONE horizontal strip sprite sheet: **four equal cells in a single row** (1×4, not 2×2). " +
@@ -264,6 +304,50 @@ export function buildIsometricFloorStripSpritePrompt(basePrompt: string, sheetWi
     "PANEL FLOW: Cells read left-to-right. Four distinct cosmetic variations of open walkable floor.",
     "",
     "ISOMETRIC FLOOR DIRECTION:",
+    basePrompt,
+  ].join("\n");
+}
+
+/**
+ * Isometric **wall** **1×4** strip: four cells in one row; each cell **W×H** with **H > W/2** (taller than floor strip); floor rhombus anchored in bottom band.
+ *
+ * @param {string} basePrompt  Rewritten or static material / variation block.
+ * @param {number} sheetWidth  Total sheet width (px).
+ * @param {number} sheetHeight  Total sheet height (px) — equals one cell height.
+ * @returns {string}
+ */
+export function buildIsometricWallStripSpritePrompt(basePrompt: string, sheetWidth: number, sheetHeight: number): string {
+  const cw = Math.round(sheetWidth / 4);
+  const ch = Math.round(sheetHeight);
+  const floorBand = Math.round(cw / 2);
+  return [
+    "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
+    "",
+    `FORMAT: A single image, total canvas **${sheetWidth}×${sheetHeight}px**, containing **one horizontal row of four** equal cells (four columns, **one** row — a **1×4** strip).`,
+    `Each cell is **${cw}×${ch}px** — **width** matches the **1m isometric floor footprint**; **height** is **taller** than half the width (**not** a 2:1 floor-only cell).`,
+    "Every cell must align perfectly on the grid with no gaps or overlap.",
+    "",
+    "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
+    "no watermarks, no signatures, no UI chrome.",
+    "FORBIDDEN: a 2×2 grid; treating each tall cell as only a ground rhombus with no wall above.",
+    "",
+    "CONSISTENCY: The same isometric wall art style and **identical bottom floor geometry** in every cell — only subtle surface details differ.",
+    "",
+    "GEOMETRY IN EVERY CELL (identical footprint):",
+    `**Floor band (bottom **${floorBand}px** of each cell):** exactly ONE foreshortened isometric **ground rhombus** — same flush-edge diamond as **open-floor** tiles: bottom vertex on **bottom-edge center**, left/right vertices on **side midpoints** at the floor horizon, top vertex at the **top of this bottom band** (floor line).`,
+    "**Upper volume:** above that horizon, a **vertical wall face** (or corner) in **isometric three-quarter view** — reads as an **occluder**; no extra walkable floor plane in the upper area.",
+    "Strong silhouette against a **plain solid flat-color** background outside the art (one uniform backdrop hue, full bleed, no gradients).",
+    "",
+    "BACKDROP AND EDGES (match illustrated-character policy — avoid greenscreen / chroma artifacts):",
+    "Do **not** describe chroma keys, greenscreen, matting, or any specific fluorescent backdrop color (no magenta/fuchsia/hot-pink vocabulary).",
+    "The flat fill outside the art is simply a calm neutral flat color; **no** halo, colored outline, glow, or pink/magenta/purple fringing along edges or at column boundaries.",
+    "",
+    "SEAMS BETWEEN COLUMNS (critical for cropping):",
+    "The strip is **one continuous image**. The backdrop is **uniform** across interior vertical boundaries: **no** gutters, divider lines, contact-sheet borders, or darker/lighter vertical bands between columns.",
+    "",
+    "PANEL FLOW: Cells read left-to-right. Four distinct cosmetic variations of **wall + shared floor footprint**.",
+    "",
+    "ISOMETRIC WALL DIRECTION:",
     basePrompt,
   ].join("\n");
 }

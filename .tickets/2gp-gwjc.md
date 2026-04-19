@@ -1,6 +1,6 @@
 ---
 id: 2gp-gwjc
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T03:02:23Z
@@ -27,3 +27,9 @@ Evidence: **npm run typecheck** (and **typecheck:tools** if split) passes; **tsc
 
 **Typecheck vs Vitest:** tools sources typecheck under **tools/tsconfig** and run under Vitest without unresolved-module drift; if resolver behavior must differ between **tsc** and Vitest, document the exception next to the runner notes.
 
+
+## Notes
+
+**2026-04-19T03:05:57Z**
+
+TS toolchain: Node 22 --experimental-strip-types (no tsx). Added tools/tsconfig.json (extends root, NodeNext). typecheck runs root tsc + tsc -p tools. Vitest include adds tools/**/*.test.ts; smoke test tools/tsconfig-toolchain.smoke.test.ts. Docs: tools/README.md + AGENTS.md pointer. CI already npm run typecheck/test.

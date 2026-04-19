@@ -4,49 +4,42 @@
  */
 import { PNG } from "pngjs";
 
-/**
- * @typedef {Object} AlphaStats
- * @property {number} fullyTransparentPercent
- * @property {number} fullyOpaquePercent
- * @property {number} semiTransparentPercent
- * @property {number[]} histogram256 — count per alpha value 0..255 (deterministic length 256)
- */
+export interface AlphaStats {
+  fullyTransparentPercent: number;
+  fullyOpaquePercent: number;
+  semiTransparentPercent: number;
+  /** count per alpha value 0..255 (deterministic length 256) */
+  histogram256: number[];
+}
 
-/**
- * @typedef {Object} OpaqueBbox
- * @property {number} minX
- * @property {number} minY
- * @property {number} maxX
- * @property {number} maxY
- */
+export interface OpaqueBbox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
 
-/**
- * @typedef {Object} GridProjection
- * @property {number} spriteWidth
- * @property {number} spriteHeight
- * @property {number} remainderWidth
- * @property {number} remainderHeight
- * @property {boolean} divisible
- * @property {number | null} columns — null if spriteWidth <= 0 or invalid
- * @property {number | null} rows
- * @property {number | null} meanVerticalBoundaryEdge — mean RGB luma diff across internal vertical grid lines; null if no internal V lines or not divisible
- * @property {number | null} meanHorizontalBoundaryEdge — same for horizontal lines
- */
+export interface GridProjection {
+  spriteWidth: number;
+  spriteHeight: number;
+  remainderWidth: number;
+  remainderHeight: number;
+  divisible: boolean;
+  columns: number | null;
+  rows: number | null;
+  meanVerticalBoundaryEdge: number | null;
+  meanHorizontalBoundaryEdge: number | null;
+}
 
-/**
- * @typedef {Object} PngAnalysisResult
- * @property {{ width: number; height: number }} dimensions
- * @property {number} fileSizeBytes
- * @property {AlphaStats} alpha
- * @property {OpaqueBbox | null} opaqueBbox — null when every pixel is fully transparent
- * @property {GridProjection | null} grid — null when grid params omitted or invalid
- */
+export interface PngAnalysisResult {
+  dimensions: { width: number; height: number };
+  fileSizeBytes: number;
+  alpha: AlphaStats;
+  opaqueBbox: OpaqueBbox | null;
+  grid: GridProjection | null;
+}
 
-/**
- * @param {import("pngjs").PNG} png
- * @returns {AlphaStats}
- */
-export function computeAlphaStats(png) {
+export function computeAlphaStats(png: PNG): AlphaStats {
   const { width, height, data } = png;
   const total = width * height;
   const histogram256 = Array.from({ length: 256 }, () => 0);
@@ -55,14 +48,14 @@ export function computeAlphaStats(png) {
   let semi = 0;
 
   for (let i = 3; i < data.length; i += 4) {
-    const a = data[i];
-    histogram256[a]++;
+    const a = data[i]!;
+    histogram256[a]!++;
     if (a === 0) transparent++;
     else if (a === 255) opaque++;
     else semi++;
   }
 
-  const pct = (n) => (total === 0 ? 0 : (100 * n) / total);
+  const pct = (n: number) => (total === 0 ? 0 : (100 * n) / total);
 
   return {
     fullyTransparentPercent: pct(transparent),
@@ -72,12 +65,8 @@ export function computeAlphaStats(png) {
   };
 }
 
-/**
- * Axis-aligned bounding box of pixels with alpha > 0.
- * @param {import("pngjs").PNG} png
- * @returns {OpaqueBbox | null}
- */
-export function computeOpaqueBbox(png) {
+/** Axis-aligned bounding box of pixels with alpha > 0. */
+export function computeOpaqueBbox(png: PNG): OpaqueBbox | null {
   const { width, height, data } = png;
   let minX = width;
   let minY = height;
@@ -86,7 +75,7 @@ export function computeOpaqueBbox(png) {
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const a = data[(y * width + x) * 4 + 3];
+      const a = data[(y * width + x) * 4 + 3]!;
       if (a > 0) {
         if (x < minX) minX = x;
         if (y < minY) minY = y;
@@ -100,23 +89,12 @@ export function computeOpaqueBbox(png) {
   return { minX, minY, maxX, maxY };
 }
 
-/**
- * @param {number} r
- * @param {number} g
- * @param {number} b
- * @returns {number}
- */
-function luma(r, g, b) {
+function luma(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-/**
- * Mean absolute luma difference across straddling pairs along a vertical line at x (left x-1 vs x).
- * @param {import("pngjs").PNG} png
- * @param {number} x
- * @returns {number}
- */
-function verticalBoundaryEdgeEnergy(png, x) {
+/** Mean absolute luma difference across straddling pairs along a vertical line at x (left x-1 vs x). */
+function verticalBoundaryEdgeEnergy(png: PNG, x: number): number {
   const { width, height, data } = png;
   if (x <= 0 || x >= width) return 0;
   let sum = 0;
@@ -124,19 +102,14 @@ function verticalBoundaryEdgeEnergy(png, x) {
   for (let y = 0; y < height; y++) {
     const i0 = (y * width + (x - 1)) * 4;
     const i1 = (y * width + x) * 4;
-    const l0 = luma(data[i0], data[i0 + 1], data[i0 + 2]);
-    const l1 = luma(data[i1], data[i1 + 1], data[i1 + 2]);
+    const l0 = luma(data[i0]!, data[i0 + 1]!, data[i0 + 2]!);
+    const l1 = luma(data[i1]!, data[i1 + 1]!, data[i1 + 2]!);
     sum += Math.abs(l1 - l0);
   }
   return n === 0 ? 0 : sum / n;
 }
 
-/**
- * @param {import("pngjs").PNG} png
- * @param {number} y
- * @returns {number}
- */
-function horizontalBoundaryEdgeEnergy(png, y) {
+function horizontalBoundaryEdgeEnergy(png: PNG, y: number): number {
   const { width, height, data } = png;
   if (y <= 0 || y >= height) return 0;
   let sum = 0;
@@ -144,8 +117,8 @@ function horizontalBoundaryEdgeEnergy(png, y) {
   for (let x = 0; x < width; x++) {
     const i0 = ((y - 1) * width + x) * 4;
     const i1 = (y * width + x) * 4;
-    const l0 = luma(data[i0], data[i0 + 1], data[i0 + 2]);
-    const l1 = luma(data[i1], data[i1 + 1], data[i1 + 2]);
+    const l0 = luma(data[i0]!, data[i0 + 1]!, data[i0 + 2]!);
+    const l1 = luma(data[i1]!, data[i1 + 1]!, data[i1 + 2]!);
     sum += Math.abs(l1 - l0);
   }
   return n === 0 ? 0 : sum / n;
@@ -153,12 +126,8 @@ function horizontalBoundaryEdgeEnergy(png, y) {
 
 /**
  * Grid projection vs expected cell size: divisibility remainders and mean edge energy on internal grid lines.
- * @param {import("pngjs").PNG} png
- * @param {number} spriteWidth
- * @param {number} spriteHeight
- * @returns {GridProjection | null}
  */
-export function computeGridProjection(png, spriteWidth, spriteHeight) {
+export function computeGridProjection(png: PNG, spriteWidth: number, spriteHeight: number): GridProjection | null {
   if (!Number.isFinite(spriteWidth) || !Number.isFinite(spriteHeight) || spriteWidth <= 0 || spriteHeight <= 0) {
     return null;
   }
@@ -170,8 +139,8 @@ export function computeGridProjection(png, spriteWidth, spriteHeight) {
   const columns = divisible ? width / spriteWidth : null;
   const rows = divisible ? height / spriteHeight : null;
 
-  let meanVerticalBoundaryEdge = null;
-  let meanHorizontalBoundaryEdge = null;
+  let meanVerticalBoundaryEdge: number | null = null;
+  let meanHorizontalBoundaryEdge: number | null = null;
 
   if (divisible && columns !== null && rows !== null && columns >= 2) {
     let vSum = 0;
@@ -208,17 +177,15 @@ export function computeGridProjection(png, spriteWidth, spriteHeight) {
   };
 }
 
-/**
- * @param {Buffer} buffer
- * @param {{ spriteWidth?: number; spriteHeight?: number }} [grid]
- * @returns {PngAnalysisResult}
- */
-export function analyzePngBuffer(buffer, grid = {}) {
+export function analyzePngBuffer(
+  buffer: Buffer,
+  grid: { spriteWidth?: number; spriteHeight?: number } = {},
+): PngAnalysisResult {
   const png = PNG.sync.read(buffer);
   const alpha = computeAlphaStats(png);
   const opaqueBbox = computeOpaqueBbox(png);
 
-  let gridProjection = null;
+  let gridProjection: GridProjection | null = null;
   const sw = grid.spriteWidth;
   const sh = grid.spriteHeight;
   if (sw !== undefined && sh !== undefined) {

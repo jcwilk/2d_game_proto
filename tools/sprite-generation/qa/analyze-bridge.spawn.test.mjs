@@ -17,7 +17,7 @@ describe("analyze-bridge spawn argv", () => {
     vi.clearAllMocks();
   });
 
-  it("invokes node with tools/png-analyze.mjs and preset sprite dimensions (golden argv)", () => {
+  it("invokes node with --experimental-strip-types and tools/png-analyze.ts (golden argv)", () => {
     const dir = mkdtempSync(join(tmpdir(), "qa-bridge-spawn-"));
     const png = join(dir, "t.png");
     const jsonOut = join(dir, "png-analyze.json");
@@ -26,7 +26,7 @@ describe("analyze-bridge spawn argv", () => {
     runPngAnalyzeBridge(png, jsonOut, 32, 48);
 
     expect(execFileSync).toHaveBeenCalledOnce();
-    expect(execFileSync).toHaveBeenCalledWith(process.execPath, [getPngAnalyzeScriptPathForTests(), png, "--sprite-width", "32", "--sprite-height", "48"], {
+    expect(execFileSync).toHaveBeenCalledWith(process.execPath, ["--experimental-strip-types", getPngAnalyzeScriptPathForTests(), png, "--sprite-width", "32", "--sprite-height", "48"], {
       encoding: "utf8",
     });
   });

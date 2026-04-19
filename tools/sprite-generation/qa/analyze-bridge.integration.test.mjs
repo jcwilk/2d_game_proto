@@ -8,7 +8,7 @@ import { PNG } from "pngjs";
 import { getPngAnalyzeScriptPathForTests, runPngAnalyzeBridge } from "./analyze-bridge.mjs";
 
 /**
- * Repo root for `tools/png-analyze.mjs` must match `analyze-bridge.mjs`:
+ * Repo root for `tools/png-analyze.ts` must match `analyze-bridge.mjs`:
  * from `tools/sprite-generation/qa/`, three parents up to the repository root.
  */
 describe("analyze-bridge (integration)", () => {
@@ -40,7 +40,7 @@ describe("analyze-bridge (integration)", () => {
     runPngAnalyzeBridge(pngPath, jsonPath, spriteW, spriteH);
 
     const script = getPngAnalyzeScriptPathForTests();
-    const direct = execFileSync(process.execPath, [script, pngPath, "--sprite-width", String(spriteW), "--sprite-height", String(spriteH)], {
+    const direct = execFileSync(process.execPath, ["--experimental-strip-types", script, pngPath, "--sprite-width", String(spriteW), "--sprite-height", String(spriteH)], {
       encoding: "utf8",
     });
     const sidecar = readFileSync(jsonPath, "utf8");

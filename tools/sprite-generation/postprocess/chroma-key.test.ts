@@ -1,8 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-// @ts-expect-error — pipeline-stages remains .mjs until sprite-generation wave 2
-import { runChromaKeyStage } from "../pipeline-stages.mjs";
+import { runChromaKeyStage } from "../pipeline-stages.ts";
 import {
   CHROMA_FALLBACK_TOLERANCE_MIN,
   applyChromaKeyToPngBuffer,

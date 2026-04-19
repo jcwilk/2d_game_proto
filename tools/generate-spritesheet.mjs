@@ -3,7 +3,7 @@
  * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`info`**, **`rename`**, **`help`**.
  *
  * @see tools/sprite-generation/presets/registry.mjs
- * @see tools/sprite-generation/pipeline.mjs
+ * @see tools/sprite-generation/pipeline.ts
  */
 
 import { ApiError } from "@fal-ai/client";
@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { formatFalClientError } from "./sprite-generation/generators/fal.ts";
 import { log } from "./sprite-generation/logging.ts";
-import { runPipeline } from "./sprite-generation/pipeline.mjs";
+import { runPipeline } from "./sprite-generation/pipeline.ts";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.ts";
 import {

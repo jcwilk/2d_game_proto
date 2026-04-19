@@ -9,7 +9,8 @@ import {
   resolvePostprocessSteps,
   resolveSheetTilePostprocessSteps,
   runChromaKeyStage,
-} from "./pipeline-stages.mjs";
+} from "./pipeline-stages.ts";
+// @ts-expect-error TS7016 — preset module is still `.mjs` (see epic / registry TS migration)
 import { createPreset } from "./presets/dpad/dpad.mjs";
 
 describe("pipeline-stages", () => {
@@ -19,7 +20,7 @@ describe("pipeline-stages", () => {
 
   it("POSTPROCESS_REGISTRY exposes only chromaKey (BRIA not registered)", () => {
     expect(Object.keys(POSTPROCESS_REGISTRY).sort()).toEqual(["chromaKey"]);
-    expect(POSTPROCESS_REGISTRY.chromaKey).toBe(runChromaKeyStage);
+    expect(POSTPROCESS_REGISTRY["chromaKey"]).toBe(runChromaKeyStage);
   });
 
   it("resolvePostprocessSteps: mock mode never runs postprocess", () => {
@@ -33,15 +34,20 @@ describe("pipeline-stages", () => {
 
   it("resolvePostprocessSteps: dpad preset uses no chroma postprocess (BRIA sheet path)", () => {
     const preset = createPreset({ outBase: "/tmp/dpad-pipeline-stages-test" });
-    expect(resolvePostprocessSteps(preset, "generate")).toEqual([]);
+    expect(resolvePostprocessSteps(preset as import("./pipeline.ts").PipelinePreset, "generate")).toEqual([]);
   });
 
   it("resolvePostprocessSteps: rejects unknown step ids", () => {
-    expect(() => resolvePostprocessSteps({ postprocessSteps: ["nope"] }, "generate")).toThrow(/unknown postprocess step/);
+    expect(() =>
+      resolvePostprocessSteps(
+        { postprocessSteps: ["nope"] as unknown as readonly import("./generators/types.ts").PostprocessStepId[] },
+        "generate",
+      ),
+    ).toThrow(/unknown postprocess step/);
   });
 
   it("resolveSheetTilePostprocessSteps: BRIA alpha skips chroma unless chromaAfterBria", () => {
-    const base = { postprocessSteps: ["chromaKey"] };
+    const base = { postprocessSteps: ["chromaKey"] as const };
     expect(resolveSheetTilePostprocessSteps(base, "generate", "bria")).toEqual([]);
     expect(resolveSheetTilePostprocessSteps({ ...base, fal: { chromaAfterBria: true } }, "generate", "bria")).toEqual([
       "chromaKey",
@@ -61,13 +67,13 @@ describe("pipeline-stages", () => {
     const png = new PNG({ width: 2, height: 2, colorType: 6 });
     png.data.fill(255);
     const raw = PNG.sync.write(png);
-    const log = () => {};
-    const out = applyPostprocessPipeline(raw, [], {
+    const log = (): void => {};
+    const out = applyPostprocessPipeline(Buffer.from(raw), [], {
       keyRgb: { r: 255, g: 0, b: 255 },
       chromaTolerance: 0,
       log,
     });
-    expect(out.buffer.equals(raw)).toBe(true);
+    expect(out.buffer.equals(Buffer.from(raw))).toBe(true);
     expect(out.chromaApplied).toBe(false);
     expect(out.chromaKeySource).toBe(null);
   });
@@ -81,8 +87,8 @@ describe("pipeline-stages", () => {
       png.data[i + 3] = 255;
     }
     const raw = PNG.sync.write(png);
-    const log = () => {};
-    const out = applyPostprocessPipeline(raw, ["chromaKey"], {
+    const log = (): void => {};
+    const out = applyPostprocessPipeline(Buffer.from(raw), ["chromaKey"], {
       keyRgb: { r: 255, g: 0, b: 255 },
       chromaTolerance: 0,
       log,

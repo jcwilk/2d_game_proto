@@ -2,8 +2,8 @@
  * Shared contracts for sprite preset modules under `presets/<assetId>/`.
  *
  * Runtime implementations remain in **`presets/<slug>/<slug>.mjs`** until migrated.
- * **`PipelinePreset`** is defined in **`pipeline.mjs`** (JSDoc typedef) — **`createPreset`** return type
- * is left as **`unknown`** here until **`pipeline`** is TypeScript (**2gp-bdeg**).
+ * **`PipelinePreset`** is exported from **`pipeline.ts`** — **`createPreset`** return type
+ * remains **`unknown`** here until preset modules are migrated to TypeScript.
  */
 
 /** Options shared by preset `createPreset` implementations (each module may extend). */
@@ -22,7 +22,7 @@ export interface CreatePresetOptsBase {
 /**
  * Contract implemented by each **`presets/<slug>/<slug>.mjs`** module (named exports only; no default export).
  *
- * @see `../pipeline.mjs` — `PipelinePreset` typedef for `createPreset` result shape.
+ * @see `../pipeline.ts` — `PipelinePreset` for `createPreset` result shape.
  */
 export interface SpritePresetModule {
   /** Short id equal to the directory name under `presets/` and the basename of the module file. */

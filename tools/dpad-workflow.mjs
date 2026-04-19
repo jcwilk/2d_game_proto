@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * D-pad tile workflow CLI — **delegates** to **`createPreset`** (`presets/dpad/dpad.mjs`) +
- * **`runPipeline`** (`sprite-generation/pipeline.mjs`). See preset and pipeline docs for behavior.
+ * **`runPipeline`** (`sprite-generation/pipeline.ts`). See preset and pipeline docs for behavior.
  *
  * Modes: `--mode mock` (default) | `--mode generate` (fal; needs FAL_KEY).
  *
  * @see tools/sprite-generation/presets/dpad/dpad.mjs
- * @see tools/sprite-generation/pipeline.mjs
+ * @see tools/sprite-generation/pipeline.ts
  */
 
 import { ApiError } from "@fal-ai/client";
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 import { formatFalClientError } from "./sprite-generation/generators/fal.ts";
 import { log } from "./sprite-generation/logging.ts";
-import { runPipeline } from "./sprite-generation/pipeline.mjs";
+import { runPipeline } from "./sprite-generation/pipeline.ts";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import {
   createPreset,

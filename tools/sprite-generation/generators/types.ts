@@ -1,6 +1,6 @@
 /**
  * Shared contracts for sprite generators consumed by
- * `tools/sprite-generation/pipeline.mjs` (**2gp-98mn**).
+ * `tools/sprite-generation/pipeline.ts` (**2gp-98mn**).
  *
  * Each generator implements the same async surface so presets can swap mock vs fal
  * without branching the orchestrator.
@@ -41,7 +41,7 @@ export type TileBufferForFrameFn = (
   ctx: { tileSize: number; tileWidth?: number; tileHeight?: number },
 ) => Buffer;
 
-/** Postprocess step id (see **`../pipeline-stages.mjs`** **`POSTPROCESS_REGISTRY`**). */
+/** Postprocess step id (see **`../pipeline-stages.ts`** **`POSTPROCESS_REGISTRY`**). */
 export type PostprocessStepId = "chromaKey";
 
 /**

@@ -190,7 +190,7 @@ export function summarizeSpriteRef(sr) {
 }
 
 /**
- * @param {import('./pipeline.mjs').PipelinePreset} preset
+ * @param {import('./pipeline.ts').PipelinePreset} preset
  * @param {boolean} includePrompts
  * @returns {string[]}
  */
@@ -258,7 +258,7 @@ export function summarizePresetPrompts(preset, includePrompts) {
  * @param {string} repoRoot
  * @param {string} outBaseAbs
  * @param {{ publicArtDir: string; manifestRelative: string; sheetBasename: string; presetModuleHref: string }} entry
- * @param {import('./pipeline.mjs').PipelinePreset} preset
+ * @param {import('./pipeline.ts').PipelinePreset} preset
  * @param {{ prompts: boolean }} opts
  * @returns {Promise<string[]>}
  */

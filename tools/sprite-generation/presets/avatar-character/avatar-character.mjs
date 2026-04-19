@@ -2,8 +2,8 @@
  * Character walk-cycle preset — **single source of truth** for frame list, sheet layout,
  * fal tuning, QA grid, and **`gridFrameKeys`** sprite-ref under `public/art/avatar-character/`.
  *
- * Contract matches **`presets/dpad/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../../pipeline.mjs`**).
- * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); **`npm run generate:spritesheet -- run --asset avatar-character --mode live`** uses preset defaults. Override rewrite via **`fal.sheetRewrite`** on the object passed to **`runPipeline`** (see **`../../pipeline.mjs`**).
+ * Contract matches **`presets/dpad/dpad.mjs`** (`PipelinePreset`, `runPipeline` from **`../../pipeline.ts`**).
+ * **`fal.sheetRewrite`** defaults to **on** for generate sheet (OpenRouter via **`FAL_KEY`**); **`npm run generate:spritesheet -- run --asset avatar-character --mode live`** uses preset defaults. Override rewrite via **`fal.sheetRewrite`** on the object passed to **`runPipeline`** (see **`../../pipeline.ts`**).
  *
  * **Transparency:** **BRIA** is the alpha path; **`fal.chromaAfterBria`** defaults to **off** (FalSprite-style BRIA-only; no per-tile chroma).
  *
@@ -14,7 +14,7 @@
  * **Frames (1×4 row, left to right):** **`walk_0`** is **idle standing**; **`walk_1`–`walk_3`** are walk phases. **`CHARACTER_FALSPRITE_SHEET_SUBJECT`** drives the falsprite T2I block.
  *
  * @see `../../README.md`
- * @see `../../pipeline.mjs`
+ * @see `../../pipeline.ts`
  * @see `../../manifest.ts` — `buildRecipeId`
  */
 

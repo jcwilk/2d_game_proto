@@ -232,7 +232,7 @@ export function isNanoBanana2Endpoint(endpoint: string): boolean {
   return e === "fal-ai/nano-banana-2" || e.startsWith("fal-ai/nano-banana-2/");
 }
 
-/** Coarse endpoint family for **`falExtras`** merge in **`pipeline.mjs`**: nano-banana-2 vs Flux-shaped (`image_size`) models. */
+/** Coarse endpoint family for **`falExtras`** merge in **`pipeline.ts`**: nano-banana-2 vs Flux-shaped (`image_size`) models. */
 export function getFalImageEndpointFamily(endpoint: string): "nano-banana-2" | "flux" {
   return isNanoBanana2Endpoint(endpoint) ? "nano-banana-2" : "flux";
 }

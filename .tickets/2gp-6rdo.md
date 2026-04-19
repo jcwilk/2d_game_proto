@@ -1,6 +1,6 @@
 ---
 id: 2gp-6rdo
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T19:44:57Z

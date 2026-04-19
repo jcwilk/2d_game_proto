@@ -1,0 +1,143 @@
+{
+  "kind": "character_monster_walk",
+  "preset": "character_monster_walk",
+  "recipeId": "sprite-gen-character_monster_walk-mock-v4-iso-floor-1x4-half-cell",
+  "createdAt": "2026-04-19T19:49:04.641Z",
+  "workflow": "mock (triangles)",
+  "specs": {
+    "tileSize": {
+      "width": 64,
+      "height": 160
+    },
+    "framePreset": [
+      {
+        "id": "walk_0",
+        "outSubdir": "walk_0"
+      },
+      {
+        "id": "walk_1",
+        "outSubdir": "walk_1"
+      },
+      {
+        "id": "walk_2",
+        "outSubdir": "walk_2"
+      },
+      {
+        "id": "walk_3",
+        "outSubdir": "walk_3"
+      }
+    ],
+    "imageSize": "64x64",
+    "naming": "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame walk_* tiles"
+  },
+  "generationRecipe": {
+    "mode": "mock",
+    "endpoint": null,
+    "seedRequested": null,
+    "falExtrasPerTile": null,
+    "falExtrasSheet": null,
+    "note": "Mock: geometry from pngjs triangles, not T2I."
+  },
+  "frames": [
+    {
+      "id": "walk_0",
+      "outSubdir": "walk_0",
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "walk_1",
+      "outSubdir": "walk_1",
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "64,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "walk_2",
+      "outSubdir": "walk_2",
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "128,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "walk_3",
+      "outSubdir": "walk_3",
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "192,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    }
+  ],
+  "provenance": {
+    "tool": "tools/generate-spritesheet.ts",
+    "version": 1
+  },
+  "generationResults": {
+    "walk_0": {
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "walk_1": {
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "64,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "walk_2": {
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "128,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "walk_3": {
+      "wallMs": 48,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "192,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "_sheet": {
+      "wallMs": 48,
+      "strategy": "sheet",
+      "mode": "mock",
+      "alphaSource": "none"
+    }
+  }
+}

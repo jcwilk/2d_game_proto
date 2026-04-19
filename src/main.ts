@@ -2,6 +2,17 @@ import './styles.css';
 
 import { Actor, Animation, AnimationStrategy, Color, Scene, vec } from 'excalibur';
 
+/** Scene character classification — player and NPC kinds (proximity UI, follow-on tickets). */
+export const CharacterKind = {
+  player: 'player',
+  merchant: 'merchant',
+  monster: 'monster',
+} as const;
+export type CharacterKind = (typeof CharacterKind)[keyof typeof CharacterKind];
+
+/** Spawned monster NPC — world position readable for proximity UI (e.g. ticket 2gp-real). */
+export let monsterActor: Actor | undefined;
+
 import { createGridSheetLoader, mergeGridSheetLoaders } from './art/atlasLoader';
 import { parseGridFrameKeysManifestJson } from './art/atlasTypes';
 import { spriteSheetFromGridImageSource } from './art/gridSpriteSheet';
@@ -36,8 +47,14 @@ engine.addScene('main', mainScene);
 
 const characterAssets = createGridSheetLoader('art/avatar-character');
 const merchantAssets = createGridSheetLoader('art/merchant-character');
+const monsterAssets = createGridSheetLoader('art/monster-character');
 const floorAssets = createGridSheetLoader('art/isometric-open-floor');
-const loader = mergeGridSheetLoaders(characterAssets, merchantAssets, floorAssets);
+const loader = mergeGridSheetLoaders(
+  characterAssets,
+  merchantAssets,
+  monsterAssets,
+  floorAssets,
+);
 
 void engine
   .start('main', { loader })
@@ -115,6 +132,22 @@ void engine
     const merchantIdleGraphic = merchantSpriteSheet.getSprite(merchantIdleCell.column, merchantIdleCell.row);
     const merchantCharacterScale = scaleToTargetWidthPx(merchantIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
 
+    const monsterRaw = monsterAssets.spriteRefResource.data;
+    if (monsterRaw == null) {
+      throw new Error('Expected monster sprite-ref JSON after preload');
+    }
+    const monsterManifest = parseGridFrameKeysManifestJson(monsterRaw);
+    if (!monsterAssets.sheetImageSource.isLoaded()) {
+      throw new Error('Expected monster sheet ImageSource loaded after preload');
+    }
+    const monsterSpriteSheet = spriteSheetFromGridImageSource(monsterAssets.sheetImageSource, monsterManifest);
+    const monsterIdleCell = monsterManifest.frames['walk_0'];
+    if (!monsterIdleCell) {
+      throw new Error('Expected monster sprite-ref frame "walk_0" (idle)');
+    }
+    const monsterIdleGraphic = monsterSpriteSheet.getSprite(monsterIdleCell.column, monsterIdleCell.row);
+    const monsterCharacterScale = scaleToTargetWidthPx(monsterIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
+
     /**
      * Shared world anchor: **bottom midpoint of the art cell** (cell edge), +Y down — same for floor and character
      * so horizontal footprint aligns; feet vs. rhombus are handled by art insets (`dimensions.ts`).
@@ -180,6 +213,20 @@ void engine
     merchantActor.graphics.anchor = vec(0.5, 1);
     merchantActor.graphics.use(merchantIdleGraphic);
     mainScene.add(merchantActor);
+
+    /** Stationary monster NPC — opposite quadrant from merchant so both stay readable on the grid. */
+    const monsterGx = 2;
+    const monsterGy = 7;
+    const monsterPos = gridCellBottomCenter(monsterGx, monsterGy);
+    const monsterFacesRight = monsterPos.x <= cellBottomCenter.x;
+    monsterActor = new Actor({
+      pos: monsterPos,
+      scale: vec(monsterFacesRight ? monsterCharacterScale : -monsterCharacterScale, monsterCharacterScale),
+      z: isoCharacterZFromWorldPos(monsterPos),
+    });
+    monsterActor.graphics.anchor = vec(0.5, 1);
+    monsterActor.graphics.use(monsterIdleGraphic);
+    mainScene.add(monsterActor);
 
     const actor = new Actor({
       pos: cellBottomCenter,

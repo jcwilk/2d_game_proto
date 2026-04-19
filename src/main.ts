@@ -29,10 +29,20 @@ import {
   mergeActiveDirections,
 } from './input/directionalChrome';
 import { attachKeyboardDirections } from './input/keyboardDirections';
+import {
+  MONSTER_PROXIMITY_RANGE_WORLD_PX,
+  attachMonsterExclamationOverlay,
+} from './ui/monsterExclamationOverlay';
+import { attachMerchantProximityMenu } from './ui/merchantProximityMenu';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
   throw new Error('Missing #game-root element');
+}
+
+const gameCanvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
+if (!gameCanvas) {
+  throw new Error('Missing #game-canvas element');
 }
 
 const engine = createEngine({
@@ -147,6 +157,9 @@ void engine
     }
     const monsterIdleGraphic = monsterSpriteSheet.getSprite(monsterIdleCell.column, monsterIdleCell.row);
     const monsterCharacterScale = scaleToTargetWidthPx(monsterIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
+    const monsterSpriteHeightWorld = monsterIdleGraphic.height * monsterCharacterScale;
+    /** Logical px gap above sprite top for the “!” (clears head at current scale). */
+    const monsterExclamationAboveHeadPx = 12;
 
     /**
      * Shared world anchor: **bottom midpoint of the art cell** (cell edge), +Y down — same for floor and character
@@ -240,13 +253,55 @@ void engine
     /** Horizontal flip: left-facing until the player moves right again (vertical-only keeps last facing). */
     let facingRight = true;
 
+    /** World-space proximity for merchant UI — center-to-center using `Actor.pos` (feet anchor), same as monster proximity. */
+    const MERCHANT_PROXIMITY_RADIUS = 220;
+    let merchantPulseEnd = 0;
+
     const chrome = attachDirectionalChrome(root);
     const keyboard = attachKeyboardDirections();
+    const merchantMenu = attachMerchantProximityMenu(mainScene, {
+      canvas: gameCanvas,
+      viewportSize: VIEWPORT_SIZE,
+      proximityRadius: MERCHANT_PROXIMITY_RADIUS,
+      getPlayerFeet: () => ({ x: actor.pos.x, y: actor.pos.y }),
+      getMerchantFeet: () => ({ x: merchantActor.pos.x, y: merchantActor.pos.y }),
+      getMerchantMenuAnchorLogical: () => {
+        const spriteTopY = merchantActor.pos.y - merchantIdleGraphic.height * merchantCharacterScale;
+        return { x: merchantActor.pos.x, y: spriteTopY - 10 };
+      },
+      onAction: (action) => {
+        console.log(`[merchant] ${action}`);
+        merchantPulseEnd = performance.now() + 260;
+      },
+    });
+
+    const monsterExclamation = attachMonsterExclamationOverlay({
+      canvas: gameCanvas,
+      viewportSize: VIEWPORT_SIZE,
+      rangeWorldPx: MONSTER_PROXIMITY_RANGE_WORLD_PX,
+      getPlayerPos: () => ({ x: actor.pos.x, y: actor.pos.y }),
+      getMonster: () => monsterActor,
+      getMonsterLabelWorldPos: () => {
+        const m = monsterActor;
+        if (!m) {
+          return null;
+        }
+        return {
+          x: m.pos.x,
+          y: m.pos.y - monsterSpriteHeightWorld - monsterExclamationAboveHeadPx,
+        };
+      },
+    });
+
     const chromeMoveSub = mainScene.on('preupdate', () => {
       const merged = mergeActiveDirections(chrome.getActiveDirections(), keyboard.getActiveDirections());
       const v = chromeMoveVelocityFromActiveDirections(merged, CHROME_MOVE_SPEED);
       actor.vel = vec(v.x, v.y);
       actor.z = isoCharacterZFromWorldPos(actor.pos);
+      const now = performance.now();
+      const pulse = now < merchantPulseEnd;
+      const mScale = merchantCharacterScale * (pulse ? 1.1 : 1);
+      merchantActor.scale = vec(merchantFacesRight ? mScale : -mScale, mScale);
       if (v.x > 0) {
         facingRight = true;
       } else if (v.x < 0) {
@@ -262,10 +317,13 @@ void engine
         walkAnim.pause();
         walkAnim.goToFrame(0);
       }
+      monsterExclamation.sync();
     });
 
     if (import.meta.hot) {
       import.meta.hot.dispose(() => {
+        merchantMenu.close();
+        monsterExclamation.close();
         chrome.detach();
         keyboard.detach();
         chromeMoveSub.close();

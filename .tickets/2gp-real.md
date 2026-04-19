@@ -1,6 +1,6 @@
 ---
 id: 2gp-real
-status: open
+status: closed
 deps: [2gp-6rdo]
 links: []
 created: 2026-04-19T19:45:00Z

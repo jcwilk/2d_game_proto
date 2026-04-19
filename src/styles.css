@@ -103,6 +103,60 @@ body {
   overflow: hidden;
 }
 
+/*
+ * DOM overlays on the playfield (see specs/viewport-square-dpad-chrome.md — menu is DOM).
+ * Stack (low → high): canvas (0) < monster “!” marker (2gp-real) < merchant action row (this file).
+ * Monster exclamation must use pointer-events: none so it never blocks clicks on the merchant menu.
+ */
+#game-canvas-overlay.game-canvas-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Above canvas; below nothing else until monster layer is added at z-index 10 */
+  z-index: 20;
+}
+
+.merchant-action-menu {
+  position: fixed;
+  pointer-events: auto;
+  transform: translate(-50%, -100%);
+  margin-top: -4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.merchant-action-menu[hidden] {
+  display: none !important;
+}
+
+.merchant-action-menu__row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.merchant-action-menu__action {
+  font: inherit;
+  font-size: clamp(0.65rem, 2.1cqmin, 0.85rem);
+  line-height: 1.1;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(15, 15, 25, 0.82);
+  color: #f4f4f8;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.merchant-action-menu__action:active {
+  background: rgba(40, 80, 140, 0.9);
+}
+
 #game-controls {
   flex: 0 0 auto;
   display: flex;
@@ -196,4 +250,22 @@ body {
   max-height: 100%;
   background-repeat: no-repeat;
   pointer-events: none;
+}
+
+/*
+ * Monster proximity “!” — non-interactive; **z-index** below `#game-canvas-overlay` (20) so merchant actions stay on top.
+ */
+.monster-exclamation-overlay {
+  position: fixed;
+  z-index: 10;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  margin-top: -4px;
+  font-size: clamp(1.25rem, 4cqmin, 2rem);
+  font-weight: 800;
+  color: #ffeb3b;
+  text-shadow:
+    0 0 2px #000,
+    0 1px 2px #000;
+  line-height: 1;
 }

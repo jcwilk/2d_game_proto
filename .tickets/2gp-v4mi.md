@@ -1,6 +1,6 @@
 ---
 id: 2gp-v4mi
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T19:45:00Z

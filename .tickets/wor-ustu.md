@@ -1,6 +1,6 @@
 ---
 id: wor-ustu
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T16:37:27Z

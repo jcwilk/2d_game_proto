@@ -23,8 +23,8 @@ node --experimental-strip-types path/to/script.ts
 | **`generate:raster`** | `tools/fal-raster-generate.mjs` |
 | **`dpad-workflow`** | `tools/dpad-workflow.mjs` |
 | **`mock:dpad-workflow`** | `tools/dpad-workflow.mjs --mode mock` (same as `npm run dpad-workflow -- --mode mock`) |
-| **`analyze:png`** | `tools/png-analyze.mjs` |
-| **`qa:vision`** | `tools/openai-vision-qa.mjs` |
+| **`analyze:png`** | `node --experimental-strip-types tools/png-analyze.ts` |
+| **`qa:vision`** | `tools/openai-vision-qa.ts` (via `node --experimental-strip-types`) |
 
 **`npm test`** runs Vitest (`vitest run`) and picks up **`tools/**/*.test.ts`** and **`tools/**/*.test.mjs`** via **`vitest.config.ts`** `test.include` (alongside `src/**/*.test.ts`). No separate **`test:tools`** script is required for discoverability. See [Vitest coverage (tools)](#vitest-coverage-tools) below.
 
@@ -101,7 +101,7 @@ See **`../.cursor/plans/project-implementation-deep-dive.md`** §E.3.1 for `imag
 
 **Troubleshooting:** If the API returns **403 Forbidden**, run the script again: it prints the JSON **`detail`** from fal (the raw client often only showed `Forbidden`). A common case is **exhausted balance** — add credits at [fal.ai/dashboard/billing](https://fal.ai/dashboard/billing). Confirm the key works with the [authentication docs](https://fal.ai/docs/model-apis/authentication) curl example (`fal-ai/flux/schnell`).
 
-## `png-analyze.mjs`
+## `png-analyze.ts`
 
 Deterministic PNG checks for CI and **fal → measure** loops (**§E.5**, **§E.5.1**): width/height, file size, alpha coverage with a **256-bin histogram**, axis-aligned bbox of pixels with alpha **> 0**, and optional **grid projection** vs `--sprite-width` / `--sprite-height` (remainder mod cell size, divisibility, mean luma edge energy on internal grid lines).
 
@@ -117,7 +117,7 @@ Example (uses checked-in grid fixture):
 npm run analyze:png -- src/art/fixtures/sample-grid-atlas.png --sprite-width 32 --sprite-height 32
 ```
 
-## `openai-vision-qa.mjs`
+## `openai-vision-qa.ts`
 
 Optional **semantic** QA on a raster using **OpenAI Chat Completions** only (REST via `fetch` — no `openai` SDK in this repo). Inputs include a **base64 data URL** image; outputs are **structured JSON** (`response_format` **json_schema**, `strict: true`) for machine-readable fields aligned with §E.5.1.
 

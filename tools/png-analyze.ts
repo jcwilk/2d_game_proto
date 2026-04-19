@@ -6,11 +6,11 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { analyzePngBuffer } from "./png-analyze-metrics.mjs";
+import { analyzePngBuffer } from "./png-analyze-metrics.ts";
 
-function printHelp() {
+function printHelp(): void {
   const lines = [
-    "Usage: node tools/png-analyze.mjs <image.png> [--sprite-width W] [--sprite-height H]",
+    "Usage: node --experimental-strip-types tools/png-analyze.ts <image.png> [--sprite-width W] [--sprite-height H]",
     "",
     "Prints JSON: dimensions, file size, alpha coverage + 256-bin histogram, opaque-pixel bbox,",
     "and optional grid projection vs cell size (remainders, divisibility, mean edge energy on internal grid lines).",
@@ -25,17 +25,13 @@ function printHelp() {
   console.log(lines.join("\n"));
 }
 
-/**
- * @param {string[]} argv
- */
-function parseArgs(argv) {
-  /** @type {{ imagePath: string; spriteWidth?: number; spriteHeight?: number }} */
-  const out = { imagePath: "" };
+function parseArgs(argv: string[]): { imagePath: string; spriteWidth?: number; spriteHeight?: number } {
+  const out: { imagePath: string; spriteWidth?: number; spriteHeight?: number } = { imagePath: "" };
   if (argv.length <= 2) {
     throw new Error("Missing image path");
   }
   for (let i = 2; i < argv.length; i++) {
-    const a = argv[i];
+    const a = argv[i]!;
     switch (a) {
       case "--help":
       case "-h":
@@ -81,8 +77,8 @@ function parseArgs(argv) {
   return out;
 }
 
-function main() {
-  let opts;
+function main(): void {
+  let opts: ReturnType<typeof parseArgs>;
   try {
     opts = parseArgs(process.argv);
   } catch (e) {
@@ -93,15 +89,15 @@ function main() {
   }
 
   const imagePath = resolve(process.cwd(), opts.imagePath);
-  let buffer;
+  let buffer: Buffer;
   try {
     buffer = readFileSync(imagePath);
-  } catch (e) {
+  } catch {
     console.error(`Failed to read file: ${imagePath}`);
     process.exit(2);
   }
 
-  let result;
+  let result: ReturnType<typeof analyzePngBuffer>;
   try {
     result = analyzePngBuffer(buffer, {
       spriteWidth: opts.spriteWidth,

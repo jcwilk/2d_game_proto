@@ -10,7 +10,7 @@ import {
   computeAlphaStats,
   computeGridProjection,
   computeOpaqueBbox,
-} from "./png-analyze-metrics.mjs";
+} from "./png-analyze-metrics.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

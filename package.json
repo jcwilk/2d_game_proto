@@ -14,8 +14,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tools/tsconfig.json",
     "generate:raster": "node tools/fal-raster-generate.mjs",
-    "analyze:png": "node tools/png-analyze.mjs",
-    "qa:vision": "node tools/openai-vision-qa.mjs",
+    "analyze:png": "node --experimental-strip-types tools/png-analyze.ts",
+    "qa:vision": "node --experimental-strip-types tools/openai-vision-qa.ts",
     "mock:dpad-workflow": "node tools/dpad-workflow.mjs --mode mock",
     "dpad-workflow": "node tools/dpad-workflow.mjs",
     "generate:spritesheet": "node tools/generate-spritesheet.mjs"

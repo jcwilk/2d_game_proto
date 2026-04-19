@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * QA bridge: run `tools/png-analyze.mjs` against a PNG and write stdout JSON to a sidecar file.
+ * QA bridge: run `tools/png-analyze.ts` (via `node --experimental-strip-types`) against a PNG and write stdout JSON to a sidecar file.
  * Mirrors `runPngAnalyze` in `tools/dpad-workflow.mjs` (paths, argv, exit propagation, stdout capture).
  *
  * **Repo root:** this file lives at `tools/sprite-generation/qa/analyze-bridge.mjs`. The bridge resolves
- * the analyzer script as `join(repoRoot, "tools", "png-analyze.mjs")` where `repoRoot` is three
+ * the analyzer script as `join(repoRoot, "tools", "png-analyze.ts")` where `repoRoot` is three
  * `dirname` steps from `import.meta.url` (`qa` → `sprite-generation` → `tools` → repository root).
  */
 import { execFileSync } from "node:child_process";
@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..", "..");
 
 function pngAnalyzeScriptPath() {
-  return join(REPO_ROOT, "tools", "png-analyze.mjs");
+  return join(REPO_ROOT, "tools", "png-analyze.ts");
 }
 
 /**
@@ -27,9 +27,13 @@ function pngAnalyzeScriptPath() {
  */
 export function runPngAnalyzeBridge(absPngPath, absJsonOut, spriteWidth, spriteHeight) {
   const pngAnalyze = pngAnalyzeScriptPath();
-  const out = execFileSync(process.execPath, [pngAnalyze, absPngPath, "--sprite-width", String(spriteWidth), "--sprite-height", String(spriteHeight)], {
-    encoding: "utf8",
-  });
+  const out = execFileSync(
+    process.execPath,
+    ["--experimental-strip-types", pngAnalyze, absPngPath, "--sprite-width", String(spriteWidth), "--sprite-height", String(spriteHeight)],
+    {
+      encoding: "utf8",
+    },
+  );
   writeFileSync(absJsonOut, out, "utf8");
 }
 

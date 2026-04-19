@@ -1,6 +1,6 @@
 ---
 id: 2gp-veak
-status: open
+status: closed
 deps: [2gp-gwjc]
 links: []
 created: 2026-04-19T03:02:23Z
@@ -11,7 +11,7 @@ parent: 2gp-czux
 ---
 # PNG analyze stack → TypeScript (paths + analyze-bridge contract)
 
-Convert **tools/png-analyze.mjs**, **tools/png-analyze-metrics.mjs**, and **tools/png-analyze-metrics.test.mjs** to **.ts**. Update **package.json** scripts and any spawn/exec callers.
+Migrate **tools/png-analyze** (CLI), **tools/png-analyze-metrics**, and **tools/png-analyze-metrics.test** from **.mjs** to **.ts**. Update **package.json** scripts and any spawn/exec callers.
 
 **Ownership split with `2gp-bdeg` (B5):** this ticket owns **zero** stale **png-analyze\*.mjs** entrypoint references and correct spawn argv / golden strings in bridge tests (**analyze-bridge.spawn.test.mjs**, **analyze-bridge.integration.test.mjs**) while the bridge **implementation file** may still be **.mjs**. **`2gp-bdeg`** owns migrating **qa/analyze-bridge** implementation and tests to **.ts** without re-breaking entrypoints established here.
 

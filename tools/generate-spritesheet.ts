@@ -13,10 +13,10 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { formatFalClientError } from "./sprite-generation/generators/fal.ts";
-import { log } from "./sprite-generation/logging.ts";
-import { runPipeline } from "./sprite-generation/pipeline.ts";
-import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.ts";
+import { log } from "./sprite-generation/logging.ts";
+import { runPipeline, type PipelinePreset } from "./sprite-generation/pipeline.ts";
+import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.ts";
 import {
   buildRenameDryRunPlan,
   formatRenameDryRunPlan,
@@ -25,11 +25,24 @@ import {
 import { PRESETS, resolveRepoRoot } from "./sprite-generation/presets/registry.ts";
 
 const REPO_ROOT = resolveRepoRoot(import.meta.url);
-const PROVENANCE_TOOL = "tools/generate-spritesheet.mjs";
+const PROVENANCE_TOOL = "tools/generate-spritesheet.ts";
 const PROVENANCE_VERSION = 1;
 
+const CLI_INVOCATION = "node --experimental-strip-types tools/generate-spritesheet.ts";
+
+interface PresetModuleExports {
+  createPreset: (opts: {
+    outBase: string;
+    provenanceTool: string;
+    provenanceVersion: number;
+  }) => PipelinePreset;
+  DEFAULT_FAL_ENDPOINT: string;
+  TILE_SIZE: number;
+  CHROMA_TOLERANCE_DEFAULT?: number;
+}
+
 /** Repo-root `.env` for fal keys; skipped if missing. Does not override vars already in `process.env`. */
-function loadRepoDotenv() {
+function loadRepoDotenv(): void {
   const p = join(REPO_ROOT, ".env");
   if (existsSync(p)) {
     process.loadEnvFile(p);
@@ -39,25 +52,27 @@ function loadRepoDotenv() {
 /** Fallback when a preset module omits `CHROMA_TOLERANCE_DEFAULT` (matches dpad-workflow default). */
 const FALLBACK_CHROMA_TOLERANCE = 72;
 
+export type CliRunMode = "mock" | "live";
+export type PipelineRunMode = "mock" | "generate";
+
 /**
  * Map CLI `--mode mock|live` to `runPipeline` mode. **`live` → `generate`** (single place).
- *
- * @param {'mock' | 'live'} cliMode
- * @returns {'mock' | 'generate'}
  */
-export function mapCliModeToPipelineMode(cliMode) {
+export function mapCliModeToPipelineMode(cliMode: CliRunMode): PipelineRunMode {
   if (cliMode === "live") return "generate";
   if (cliMode === "mock") return "mock";
   throw new Error(`mapCliModeToPipelineMode: expected mock|live, got ${JSON.stringify(cliMode)}`);
 }
 
-/**
- * @param {string[]} argvSlice argv after `run`
- * @returns {{ asset?: string; mode?: 'mock' | 'live'; outBase?: string; strategy?: 'sheet' | 'per-tile' }}
- */
-export function parseRunArgs(argvSlice) {
-  /** @type {{ asset?: string; mode?: 'mock' | 'live'; outBase?: string; strategy?: 'sheet' | 'per-tile' }} */
-  const opts = {};
+export interface ParsedRunArgs {
+  asset?: string;
+  mode?: CliRunMode;
+  outBase?: string;
+  strategy?: "sheet" | "per-tile";
+}
+
+export function parseRunArgs(argvSlice: string[]): ParsedRunArgs {
+  const opts: ParsedRunArgs = {};
   for (let i = 0; i < argvSlice.length; i++) {
     const a = argvSlice[i];
     const next = () => {
@@ -69,21 +84,25 @@ export function parseRunArgs(argvSlice) {
       case "--asset":
         opts.asset = next();
         break;
-      case "--mode":
-        opts.mode = /** @type {'mock'|'live'} */ (next());
-        if (opts.mode !== "mock" && opts.mode !== "live") {
+      case "--mode": {
+        const m = next();
+        if (m !== "mock" && m !== "live") {
           throw new Error('--mode must be "mock" or "live"');
         }
+        opts.mode = m;
         break;
+      }
       case "--out-base":
         opts.outBase = next();
         break;
-      case "--strategy":
-        opts.strategy = /** @type {'sheet'|'per-tile'} */ (next());
-        if (opts.strategy !== "sheet" && opts.strategy !== "per-tile") {
+      case "--strategy": {
+        const s = next();
+        if (s !== "sheet" && s !== "per-tile") {
           throw new Error('--strategy must be "sheet" or "per-tile"');
         }
+        opts.strategy = s;
         break;
+      }
       default:
         throw new Error(`Unknown argument: ${a} (use: generate-spritesheet help run)`);
     }
@@ -92,36 +111,35 @@ export function parseRunArgs(argvSlice) {
 }
 
 /**
- * @param {string} outBaseRaw
- * @returns {string} Absolute out directory (repo-relative segments resolved from repo root)
+ * @returns Absolute out directory (repo-relative segments resolved from repo root)
  */
-function resolveOutBase(outBaseRaw) {
+function resolveOutBase(outBaseRaw: string): string {
   if (outBaseRaw.startsWith("/") || /^[A-Za-z]:[\\/]/.test(outBaseRaw)) {
     return resolve(outBaseRaw);
   }
   return resolve(REPO_ROOT, outBaseRaw);
 }
 
-function parseHexRgb(hex) {
+function parseHexRgb(hex: string): { r: number; g: number; b: number } {
   const s = String(hex).trim();
   const m = /^#?([0-9a-fA-F]{6})$/.exec(s);
-  if (!m) throw new Error(`invalid hex color: ${hex}`);
-  const n = Number.parseInt(m[1], 16);
+  const g = m?.[1];
+  if (!g) throw new Error(`invalid hex color: ${hex}`);
+  const n = Number.parseInt(g, 16);
   return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
 }
 
-/**
- * @param {string} assetId
- * @param {string} outBaseAbs
- * @param {'mock' | 'generate'} pipelineMode
- * @param {'sheet' | 'per-tile'} strategy
- */
-async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
-  const entry = PRESETS[/** @type {keyof typeof PRESETS} */ (assetId)];
+async function runForAsset(
+  assetId: string,
+  outBaseAbs: string,
+  pipelineMode: PipelineRunMode,
+  strategy: "sheet" | "per-tile",
+): Promise<void> {
+  const entry = PRESETS[assetId as keyof typeof PRESETS];
   if (!entry) {
     throw new Error(`unknown asset: ${JSON.stringify(assetId)} (see: list)`);
   }
-  const mod = await import(entry.presetModuleHref);
+  const mod = (await import(entry.presetModuleHref)) as PresetModuleExports;
   const preset = mod.createPreset({
     outBase: outBaseAbs,
     provenanceTool: PROVENANCE_TOOL,
@@ -129,8 +147,8 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
   });
 
   const chromaTolerance =
-    "CHROMA_TOLERANCE_DEFAULT" in mod
-      ? /** @type {number} */ (mod.CHROMA_TOLERANCE_DEFAULT)
+    "CHROMA_TOLERANCE_DEFAULT" in mod && mod.CHROMA_TOLERANCE_DEFAULT !== undefined
+      ? mod.CHROMA_TOLERANCE_DEFAULT
       : FALLBACK_CHROMA_TOLERANCE;
 
   const baseOpts = {
@@ -153,8 +171,8 @@ async function runForAsset(assetId, outBaseAbs, pipelineMode, strategy) {
   });
 }
 
-function printHelpGeneral() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs <command> [options]
+function printHelpGeneral(): void {
+  console.log(`Usage: ${CLI_INVOCATION} <command> [options]
 
 Commands:
   run      Generate sprites (requires --asset and --mode mock|live)
@@ -165,17 +183,17 @@ Commands:
   help     Show help (try: help run)
 
 Examples:
-  node tools/generate-spritesheet.mjs run --asset <id> --mode mock
-  node tools/generate-spritesheet.mjs run --asset <id> --mode live
-  node tools/generate-spritesheet.mjs info --asset <id>
+  ${CLI_INVOCATION} run --asset <id> --mode mock
+  ${CLI_INVOCATION} run --asset <id> --mode live
+  ${CLI_INVOCATION} info --asset <id>
 
 If .env exists at the repo root, it is loaded automatically (FAL_KEY, etc.). Existing
 environment variables are not overwritten. You can still use node --env-file=... if needed.
 `);
 }
 
-function printHelpRun() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs run --asset <id> --mode mock|live [options]
+function printHelpRun(): void {
+  console.log(`Usage: ${CLI_INVOCATION} run --asset <id> --mode mock|live [options]
 
 Required:
   --asset <id>           Asset id from the registry (see: list)
@@ -191,28 +209,28 @@ Environment (live):
 `);
 }
 
-function printHelpList() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs list
+function printHelpList(): void {
+  console.log(`Usage: ${CLI_INVOCATION} list
 
 Prints registered asset ids and their default output directories (registry).
 `);
 }
 
-function printHelpStatus() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs status
+function printHelpStatus(): void {
+  console.log(`Usage: ${CLI_INVOCATION} status
 
 Per asset: manifest and sheet presence, generationRecipe.mode when present,
 and staleness (git timestamps preset vs art, else mtime, else unknown).
 `);
 }
 
-function printHelpInfo() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs info --asset <id> [options]
+function printHelpInfo(): void {
+  console.log(`Usage: ${CLI_INVOCATION} info --asset <id> [options]
 
 Shows one asset: git-tracked paths under public/art/<id>/, on-disk manifest /
 sprite-ref / sheet sizes, and a loaded-preset summary (frame list, sheet grid,
 truncated prompt excerpts). Prompt text comes from createPreset() in memory, not
-by parsing the preset `.ts` file as text.
+by parsing the preset \`.ts\` file as text.
 
 Required:
   --asset <id>           Registry asset id (see: list)
@@ -223,8 +241,8 @@ Optional:
 `);
 }
 
-function printHelpRename() {
-  console.log(`Usage: node tools/generate-spritesheet.mjs rename --dry-run --from <slug> --to <slug>
+function printHelpRename(): void {
+  console.log(`Usage: ${CLI_INVOCATION} rename --dry-run --from <slug> --to <slug>
 
 Prints a migration plan (directory renames, preset module path, registry notes,
 and candidate file references). Does not modify the repo. Blocklisted and
@@ -237,10 +255,7 @@ Required:
 `);
 }
 
-/**
- * @param {string | undefined} topic
- */
-function printHelp(topic) {
+function printHelp(topic: string | undefined): void {
   if (!topic || topic === "help") {
     printHelpGeneral();
     return;
@@ -268,11 +283,9 @@ function printHelp(topic) {
 }
 
 /**
- * @param {string} repoRoot
- * @param {string} relFromRepo
- * @returns {number | null} Unix ms, or null if unavailable
+ * @returns Unix ms, or null if unavailable
  */
-function gitLastCommitTimeMs(repoRoot, relFromRepo) {
+function gitLastCommitTimeMs(repoRoot: string, relFromRepo: string): number | null {
   try {
     const out = execFileSync("git", ["log", "-1", "--format=%ct", "--", relFromRepo], {
       cwd: repoRoot,
@@ -288,11 +301,7 @@ function gitLastCommitTimeMs(repoRoot, relFromRepo) {
   }
 }
 
-/**
- * @param {string} absPath
- * @returns {number | null}
- */
-function safeMtimeMs(absPath) {
+function safeMtimeMs(absPath: string): number | null {
   try {
     if (!existsSync(absPath)) return null;
     return statSync(absPath).mtimeMs;
@@ -301,12 +310,7 @@ function safeMtimeMs(absPath) {
   }
 }
 
-/**
- * @param {string} presetRel
- * @param {string[]} artRelPaths
- * @returns {'stale' | 'fresh' | 'unknown'}
- */
-function computeStale(repoRoot, presetRel, artRelPaths) {
+function computeStale(repoRoot: string, presetRel: string, artRelPaths: string[]): "stale" | "fresh" | "unknown" {
   const tPresetGit = gitLastCommitTimeMs(repoRoot, presetRel);
   const tArtsGit = artRelPaths.map((p) => gitLastCommitTimeMs(repoRoot, p));
   const maxArtGit = Math.max(...tArtsGit.map((t) => (t == null ? -Infinity : t)));
@@ -323,16 +327,16 @@ function computeStale(repoRoot, presetRel, artRelPaths) {
   return tPresetM > maxArtM ? "stale" : "fresh";
 }
 
-async function cmdList() {
-  for (const id of Object.keys(PRESETS)) {
-    const e = PRESETS[/** @type {keyof typeof PRESETS} */ (id)];
-    console.log(`${id}\tdefaultOutBase=${e.defaultOutBase}\tdefaultStrategy=${e.defaultStrategy}`);
+async function cmdList(): Promise<void> {
+  for (const id of Object.keys(PRESETS) as (keyof typeof PRESETS)[]) {
+    const e = PRESETS[id]!;
+    console.log(`${String(id)}\tdefaultOutBase=${e.defaultOutBase}\tdefaultStrategy=${e.defaultStrategy}`);
   }
 }
 
-async function cmdStatus() {
-  for (const id of Object.keys(PRESETS)) {
-    const e = PRESETS[/** @type {keyof typeof PRESETS} */ (id)];
+async function cmdStatus(): Promise<void> {
+  for (const id of Object.keys(PRESETS) as (keyof typeof PRESETS)[]) {
+    const e = PRESETS[id]!;
     const manifestPath = join(e.defaultOutBase, e.manifestRelative);
     const sheetPath = join(e.defaultOutBase, e.sheetBasename);
     const hasManifest = existsSync(manifestPath);
@@ -343,7 +347,7 @@ async function cmdStatus() {
       try {
         const { readFile } = await import("node:fs/promises");
         const raw = await readFile(manifestPath, "utf8");
-        const j = JSON.parse(raw);
+        const j = JSON.parse(raw) as { generationRecipe?: { mode?: unknown } };
         const m = j?.generationRecipe?.mode;
         modeLabel = m === undefined || m === null ? "—" : String(m);
       } catch {
@@ -359,19 +363,28 @@ async function cmdStatus() {
     const stale = computeStale(REPO_ROOT, presetRel, [artManifestRel, artSheetRel]);
 
     console.log(
-      `${id}: manifest=${hasManifest ? "yes" : "no"} sheet=${hasSheet ? "yes" : "no"} generationRecipe.mode=${modeLabel} stale=${stale}`,
+      `${String(id)}: manifest=${hasManifest ? "yes" : "no"} sheet=${hasSheet ? "yes" : "no"} generationRecipe.mode=${modeLabel} stale=${stale}`,
     );
   }
 }
 
-/**
- * @param {string[]} argv
- */
-async function cmdInfo(argv) {
+interface ParsedInfoCli {
+  asset?: string;
+  outBase?: string;
+  prompts: boolean;
+}
+
+interface ParsedRenameCli {
+  dryRun: boolean;
+  from?: string;
+  to?: string;
+}
+
+async function cmdInfo(argv: string[]): Promise<void> {
   const slice = argv.slice(3);
-  let parsed;
+  let parsed: ParsedInfoCli;
   try {
-    parsed = parseInfoArgs(slice);
+    parsed = parseInfoArgs(slice) as ParsedInfoCli;
   } catch (e) {
     console.error(`error: ${e instanceof Error ? e.message : e}`);
     printHelpInfo();
@@ -383,14 +396,14 @@ async function cmdInfo(argv) {
     process.exit(1);
   }
 
-  const entry = PRESETS[/** @type {keyof typeof PRESETS} */ (parsed.asset)];
+  const entry = PRESETS[parsed.asset as keyof typeof PRESETS];
   if (!entry) {
     console.error(`error: unknown asset: ${JSON.stringify(parsed.asset)}`);
     process.exit(1);
   }
 
   const outBaseAbs = parsed.outBase ? resolveOutBase(parsed.outBase) : entry.defaultOutBase;
-  const mod = await import(entry.presetModuleHref);
+  const mod = (await import(entry.presetModuleHref)) as PresetModuleExports;
   const preset = mod.createPreset({
     outBase: outBaseAbs,
     provenanceTool: PROVENANCE_TOOL,
@@ -404,11 +417,11 @@ async function cmdInfo(argv) {
   console.log(lines.join("\n"));
 }
 
-async function cmdRename(argv) {
+async function cmdRename(argv: string[]): Promise<void> {
   const slice = argv.slice(3);
-  let parsed;
+  let parsed: ParsedRenameCli;
   try {
-    parsed = parseRenameArgs(slice);
+    parsed = parseRenameArgs(slice) as ParsedRenameCli;
   } catch (e) {
     console.error(`error: ${e instanceof Error ? e.message : e}`);
     printHelpRename();
@@ -434,7 +447,7 @@ async function cmdRename(argv) {
   console.log(formatRenameDryRunPlan(plan));
 }
 
-async function cmdRun(argv) {
+async function cmdRun(argv: string[]): Promise<void> {
   const slice = argv.slice(3);
   let parsed;
   try {
@@ -455,7 +468,7 @@ async function cmdRun(argv) {
     process.exit(1);
   }
 
-  const entry = PRESETS[/** @type {keyof typeof PRESETS} */ (parsed.asset)];
+  const entry = PRESETS[parsed.asset as keyof typeof PRESETS];
   if (!entry) {
     console.error(`error: unknown asset: ${JSON.stringify(parsed.asset)}`);
     process.exit(1);
@@ -485,7 +498,7 @@ async function cmdRun(argv) {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   loadRepoDotenv();
   const argv = process.argv;
   const cmd = argv[2];

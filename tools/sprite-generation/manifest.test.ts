@@ -96,7 +96,7 @@ describe("manifest builder", () => {
       falExtrasPerTile: FAL_EXTRAS_TILE,
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: null,
-      provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      provenance: { tool: "tools/dpad-workflow.ts", version: 3 },
       pngBasename: "dpad.png",
       specsNaming: "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame dpad.png",
     });
@@ -110,7 +110,7 @@ describe("manifest builder", () => {
     expect(m.createdAt).toBe(CREATED_AT);
     expect(m.workflow).toBe("mock (triangles)");
     expect(m.frames).toEqual([]);
-    expect(m.provenance).toEqual({ tool: "tools/dpad-workflow.mjs", version: 3 });
+    expect(m.provenance).toEqual({ tool: "tools/dpad-workflow.ts", version: 3 });
 
     const specs = m.specs;
     const framePreset = specs["framePreset"] as { id: string; outSubdir: string }[];
@@ -182,7 +182,7 @@ describe("manifest builder", () => {
       falExtrasPerTile: FAL_EXTRAS_TILE,
       falExtrasSheet: FAL_EXTRAS_TILE,
       seed: 1084367636,
-      provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      provenance: { tool: "tools/dpad-workflow.ts", version: 3 },
       pngBasename: "dpad.png",
     });
 
@@ -226,7 +226,7 @@ describe("manifest builder", () => {
       falExtrasPerTile: null,
       falExtrasSheet: DPAD_FAL_EXTRAS_SHEET,
       seed: null,
-      provenance: { tool: "tools/dpad-workflow.mjs", version: 3 },
+      provenance: { tool: "tools/dpad-workflow.ts", version: 3 },
       pngBasename: "dpad.png",
     });
 
@@ -274,7 +274,7 @@ describe("manifest builder", () => {
       falExtrasPerTile: null,
       falExtrasSheet: DPAD_FAL_EXTRAS_SHEET,
       seed: null,
-      provenance: { tool: "tools/dpad-workflow.mjs", version: 4 },
+      provenance: { tool: "tools/dpad-workflow.ts", version: 4 },
       pngBasename: "dpad.png",
     });
 

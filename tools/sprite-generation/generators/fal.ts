@@ -1,6 +1,6 @@
 /**
  * fal.ai client helpers: credentials, image size parsing, downloads, and subscribe→buffer.
- * Aligns with `tools/fal-raster-generate.ts` / `tools/dpad-workflow.mjs` behavior.
+ * Aligns with `tools/fal-raster-generate.ts` / `tools/dpad-workflow.ts` behavior.
  *
  * **Observability:** Before each `subscribe()`, we log a **JSON-serializable, redacted copy** of the
  * full `input` object (`redactFalInputForLog`). After the result URL is downloaded, we decode **PNG

@@ -1,6 +1,6 @@
 /**
  * QA bridge: run `tools/png-analyze.ts` (via `node --experimental-strip-types`) against a PNG and write stdout JSON to a sidecar file.
- * Mirrors `runPngAnalyze` in `tools/dpad-workflow.mjs` (paths, argv, exit propagation, stdout capture).
+ * Mirrors `runPngAnalyze` in `tools/dpad-workflow.ts` (paths, argv, exit propagation, stdout capture).
  *
  * **Repo root:** this file lives at `tools/sprite-generation/qa/analyze-bridge.ts`. The bridge resolves
  * the analyzer script as `join(repoRoot, "tools", "png-analyze.ts")` where `repoRoot` is three

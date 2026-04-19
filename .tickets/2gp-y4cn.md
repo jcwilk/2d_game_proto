@@ -1,6 +1,6 @@
 ---
 id: 2gp-y4cn
-status: open
+status: closed
 deps: [2gp-veak, 2gp-1os4, 2gp-47nd, 2gp-myah, 2gp-bdeg, 2gp-9ykt, 2gp-hrpb, 2gp-e5lc]
 links: []
 created: 2026-04-19T03:02:23Z

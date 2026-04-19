@@ -2,7 +2,7 @@
  * Isometric open-floor tile preset — **1×4** horizontal strip of rhombus floor variants (`gridFrameKeys` under `public/art/isometric-open-floor/`).
  *
  * Each cell is **W×(W/2)** px (width = footprint **1m**, height = foreshortened band) — see **`ISO_FLOOR_TEXTURE_WIDTH_PX`** /
- * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`gameDimensions.ts`** / **`src/dimensions.ts`**. The rhombus is **flush to all four
+ * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`src/dimensions.ts`** (via **`gameDimensions.ts`**). The rhombus is **flush to all four
  * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.ts`**.
  *
  * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.

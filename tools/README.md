@@ -14,7 +14,7 @@ node --experimental-strip-types path/to/script.ts
 
 - **Typecheck:** `npm run typecheck` runs the root program (`tsc --noEmit` for `src/`, Vite/Vitest configs) and **`tsc --noEmit -p tools/tsconfig.json`** for `tools/**/*.ts` under **`module` / `moduleResolution`: `NodeNext`** (Node ESM), extended from the root strict options.
 - **Imports from `src/`:** Tools and tests may import app modules with relative paths (e.g. `../../src/art/atlasTypes.ts`). Those files are pulled into the tools program via the import graph; resolution follows **`tools/tsconfig.json`**.
-- **Vitest vs `tsc`:** Vitest runs `tools/**/*.test.ts` through Vite’s resolver (merged with `vite.config.ts`). If a module ever resolves differently than `tsc` with `NodeNext`, document the exception here—today relative imports and `node_modules` align for the smoke and existing `.mjs` tests.
+- **Vitest vs `tsc`:** Vitest runs `tools/**/*.test.ts` through Vite’s resolver (merged with `vite.config.ts`). If a module ever resolves differently than `tsc` with `NodeNext`, document the exception here—today relative imports and `node_modules` align for the smoke and existing tool tests.
 
 ## npm scripts (entry points)
 
@@ -26,7 +26,7 @@ node --experimental-strip-types path/to/script.ts
 | **`analyze:png`** | `node --experimental-strip-types tools/png-analyze.ts` |
 | **`qa:vision`** | `tools/openai-vision-qa.ts` (via `node --experimental-strip-types`) |
 
-**`npm test`** runs Vitest (`vitest run`) and picks up **`tools/**/*.test.ts`** and **`tools/**/*.test.mjs`** via **`vitest.config.ts`** `test.include` (alongside `src/**/*.test.ts`). No separate **`test:tools`** script is required for discoverability. See [Vitest coverage (tools)](#vitest-coverage-tools) below.
+**`npm test`** runs Vitest (`vitest run`) and picks up **`tools/**/*.test.ts`** via **`vitest.config.ts`** `test.include` (alongside `src/**/*.test.ts`). No separate **`test:tools`** script is required for discoverability. See [Vitest coverage (tools)](#vitest-coverage-tools) below.
 
 Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-grid-atlas.png --sprite-width 32 --sprite-height 32`.
 
@@ -57,7 +57,7 @@ Supporting modules at the library root include **`manifest.ts`**, **`prompt.ts`*
 
 ### Vitest coverage (tools)
 
-- Tests live next to code as **`tools/**/*.test.ts`** and **`tools/**/*.test.mjs`** (and `src/**/*.test.ts` for app code). **`vitest.config.ts`** sets `test.include` accordingly; the **`.mjs`** glob stays until the last tools test is migrated off **`.mjs`** (tracked separately).
+- Tests live next to code as **`tools/**/*.test.ts`** (and `src/**/*.test.ts` for app code). **`vitest.config.ts`** sets `test.include` accordingly.
 - Tests use mocks, fixtures, and deterministic helpers — **no live image generation** in the test suite.
 
 ## fal vs OpenAI (roles)

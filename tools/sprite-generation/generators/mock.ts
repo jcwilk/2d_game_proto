@@ -227,7 +227,7 @@ export function walkPhaseFromFrameId(id: string): 0 | 1 | 2 | 3 {
 
 /**
  * Deterministic RGBA tile: simple “pixel” figure with four leg phases (mock walk cycle).
- * Cell **width:height = 2:5** (see **`CHARACTER_WALK_FRAME_*_PX`** in **`gameDimensions.mjs`**): width = floor footprint, height = 2.5× width.
+ * Cell **width:height = 2:5** (see **`CHARACTER_WALK_FRAME_*_PX`** in **`src/dimensions.ts`**): width = floor footprint, height = 2.5× width.
  *
  */
 export function renderCharacterWalkMockTileBuffer(frame: GeneratorFrame, tileWidth: number, tileHeight = tileWidth): Buffer {

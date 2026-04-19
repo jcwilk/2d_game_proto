@@ -1,9 +1,18 @@
 /**
  * Isometric open-floor tile preset — **1×4** horizontal strip of rhombus floor variants (`gridFrameKeys` under `public/art/isometric-open-floor/`).
  *
- * Each cell is **W×(W/2)** px (width = footprint **1m**, height = foreshortened band) — see **`ISO_FLOOR_TEXTURE_WIDTH_PX`** /
- * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`src/dimensions.ts`** (via **`gameDimensions.ts`**). The rhombus is **flush to all four
- * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.ts`**.
+ * ## World size (1m × 1m footprint) vs pixel cell **W×(W/2)**
+ *
+ * Canonical constants live in **`src/dimensions.ts`** (via **`gameDimensions.ts`**): **`TILE_WORLD_M`** = **1** (one ground tile
+ * along the isometric footprint axes), **`PX_PER_WORLD_M`** = **`TILE_FOOTPRINT_WIDTH_PX`** (**W** px per meter on those axes).
+ * A walkable **1m × 1m** ground cell therefore spans **W** px horizontally (left–right footprint) and, for depth, maps to **W** px
+ * along the other ground axis — which projects to **half** that in screen space for standard 2∶1 isometric floor art. The open-floor
+ * **texture cell** is **W×(W/2)** px: **`ISO_FLOOR_TEXTURE_WIDTH_PX`** = **W**, **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** = **`FLOOR_FORESHORTENED_HEIGHT_PX`**
+ * = **W/2**. That is the correct **foreshortening**: the rhombus’s vertical extent on screen is the projected depth of **1m**, not a
+ * second “0.5m world” band — **2m-tall** figures use **`CHARACTER_WALK_FRAME_HEIGHT_PX`** = **2.5W** (see **`FULL_VERTICAL_WORLD_M`**
+ * and **`FULL_HEIGHT_CELL_SCALE`** in **`dimensions.ts`**), i.e. **2m** of vertical world space in **2.5W** px at **W** px/m.
+ *
+ * The rhombus is **flush to all four cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.ts`**.
  *
  * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.
  *
@@ -48,10 +57,10 @@ export const KIND = "isometric_floor_tile_set";
 
 export const DEFAULT_STRATEGY = "sheet";
 
-/** Cell width (px) — 1m footprint. */
+/** Cell width (px) — **W** = {@link TILE_WORLD_M} on the isometric footprint (see **`PX_PER_WORLD_M`** in **`src/dimensions.ts`**). */
 export const TILE_WIDTH = ISO_FLOOR_TEXTURE_WIDTH_PX;
 
-/** Cell height (px) — half of width; matches foreshortened floor band. */
+/** Cell height (px) — **W/2**; screen-space height of the foreshortened **1m×1m** ground diamond (see module doc). */
 export const TILE_HEIGHT = ISO_FLOOR_TEXTURE_HEIGHT_PX;
 
 /** Pipeline **`tileSize`** = cell width (Excalibur scales from native width to {@link TILE_WIDTH} at runtime). */

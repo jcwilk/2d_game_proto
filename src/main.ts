@@ -43,7 +43,12 @@ import {
   playerCanAttackNpc,
   worldPointInNpcBounds,
 } from './game/npcCombat';
-import { monsterShouldChaseAndMelee, stepMonsterAggroAndReAggro } from './game/stuckAbility';
+import {
+  isAbilityReady,
+  monsterShouldChaseAndMelee,
+  stepMonsterAggroAndReAggro,
+  tryApplyStuckAtWorldCoords,
+} from './game/stuckAbility';
 import { distanceSquared } from './proximity/worldDistance';
 import {
   MONSTER_PROXIMITY_RANGE_WORLD_PX,
@@ -51,6 +56,7 @@ import {
 } from './ui/monsterExclamationOverlay';
 import { attachMerchantProximityMenu } from './ui/merchantProximityMenu';
 import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
+import { attachStuckOrbHud, loadStuckOrbSpriteRef } from './ui/stuckOrbHud';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -284,6 +290,8 @@ void engine
     let reAggroArmRequired = false;
     /** `performance.now()` until which the monster is stuck (`now < until`); 0 means not stuck. */
     let monsterStuckUntilMs = 0;
+    /** Stuck ability cooldown until this time; only advanced on successful apply (`'ok'`). */
+    let stuckCooldownUntilMs = 0;
 
     let lastMonsterAttackOnPlayer = 0;
     let lastMerchantAttackOnPlayer = 0;
@@ -305,6 +313,66 @@ void engine
 
     const chrome = attachDirectionalChrome(root);
     const keyboard = attachKeyboardDirections();
+
+    let stuckOrbHud: ReturnType<typeof attachStuckOrbHud> | undefined;
+    void loadStuckOrbSpriteRef()
+      .then((orbRef) => {
+        const hit = root.querySelector<HTMLElement>('#game-stuck-orb');
+        const sprite = hit?.querySelector<HTMLElement>('.game-stuck-orb-sprite');
+        if (!hit || !sprite) {
+          console.error('Missing #game-stuck-orb or .game-stuck-orb-sprite');
+          return;
+        }
+        stuckOrbHud = attachStuckOrbHud(orbRef, {
+          hitTarget: hit,
+          spriteElement: sprite,
+          getCanvas: () => gameCanvas,
+          viewportSize: VIEWPORT_SIZE,
+          isAbilityReady: () =>
+            playerHp > 0 && !monsterDefeated && isAbilityReady(performance.now(), stuckCooldownUntilMs),
+          onDrop: (wx, wy) => {
+            const now = performance.now();
+            const msx = Math.abs(merchantActor.scale.x);
+            const msy = Math.abs(merchantActor.scale.y);
+            const dropHitsMerchant =
+              !merchantDefeated &&
+              worldPointInNpcBounds(
+                wx,
+                wy,
+                merchantActor,
+                merchantIdleGraphic.width,
+                merchantIdleGraphic.height,
+                msx,
+                msy,
+              );
+            const r = tryApplyStuckAtWorldCoords({
+              nowMs: now,
+              stuckCooldownUntilMs,
+              monsterDefeated,
+              dropHitsMerchantBounds: dropHitsMerchant,
+              dropWorldX: wx,
+              dropWorldY: wy,
+              monsterNpc,
+              monsterGraphicWidth: monsterIdleGraphic.width,
+              monsterGraphicHeight: monsterIdleGraphic.height,
+              monsterScaleX: Math.abs(monsterNpc.scale.x),
+              monsterScaleY: Math.abs(monsterNpc.scale.y),
+              playerFeetX: actor.pos.x,
+              playerFeetY: actor.pos.y,
+            });
+            if (r.result === 'ok') {
+              monsterAggro = r.monsterAggro;
+              monsterStuckUntilMs = r.monsterStuckUntilMs;
+              reAggroArmRequired = r.reAggroArmRequired;
+              stuckCooldownUntilMs = r.stuckCooldownUntilMs;
+            }
+            return r;
+          },
+        });
+      })
+      .catch((err: unknown) => {
+        console.error('Stuck orb HUD failed to initialize', err);
+      });
 
     function merchantSpriteTopLogicalY(): number {
       const sy = Math.abs(merchantActor.scale.y);
@@ -583,6 +651,7 @@ void engine
 
     if (import.meta.hot) {
       import.meta.hot.dispose(() => {
+        stuckOrbHud?.detach();
         merchantMenu.close();
         pointerSub.unsubscribe();
         npcHpBars.close();

@@ -51,6 +51,8 @@ export type CreateIsoTileStripPresetOpts = CreatePresetOptsBase & {
   /** Defaults to open-floor-style sheet generate (single raster, crops). */
   sheetOnlyOutput?: boolean;
   sheetNativeRaster?: boolean;
+  sheetNormalizeToPreset?: boolean;
+  sheetNormalizeFit?: "crop" | "contain";
   fal?: PipelinePreset["fal"];
   qa?: PipelinePreset["qa"];
   postprocessSteps?: PipelinePreset["postprocessSteps"];
@@ -112,6 +114,8 @@ export function createIsoTileStripPreset(opts: CreateIsoTileStripPresetOpts): Pi
     sheetGridSize: frames.length,
     sheetOnlyOutput: opts.sheetOnlyOutput ?? true,
     sheetNativeRaster: opts.sheetNativeRaster ?? true,
+    ...(opts.sheetNormalizeToPreset != null ? { sheetNormalizeToPreset: opts.sheetNormalizeToPreset } : {}),
+    ...(opts.sheetNormalizeFit != null ? { sheetNormalizeFit: opts.sheetNormalizeFit } : {}),
     frameSheetCells: { ...frameSheetCells },
     specsNaming: opts.specsNaming,
     sheet: {

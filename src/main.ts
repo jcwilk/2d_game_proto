@@ -70,6 +70,8 @@ import { spawnHugHeartBurst } from './ui/hugHeartBurst';
 import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
 import { attachStuckOrbHud, loadStuckOrbSpriteRef } from './ui/stuckOrbHud';
 import { clientPointToWorldPoint } from './ui/screenOverlay';
+import { isoFractionalGridFromWorld, wallKey } from './isoGrid';
+import { createWallCellKeySet, ISO_WALL_GRID_CELLS } from './wallLayout';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -95,11 +97,13 @@ const characterAssets = createGridSheetLoader('art/avatar-character');
 const merchantAssets = createGridSheetLoader('art/merchant-character');
 const monsterAssets = createGridSheetLoader('art/monster-character');
 const floorAssets = createGridSheetLoader('art/isometric-open-floor');
+const wallAssets = createGridSheetLoader('art/isometric-basic-wall');
 const loader = mergeGridSheetLoaders(
   characterAssets,
   merchantAssets,
   monsterAssets,
   floorAssets,
+  wallAssets,
 );
 
 void engine
@@ -162,6 +166,29 @@ void engine
     const floorScale = scaleToTargetWidthPx(floorGraphic0.width, TILE_FOOTPRINT_WIDTH_PX);
     const characterScale = scaleToTargetWidthPx(leadWalkSprite.width, CHARACTER_WALK_FRAME_PX);
 
+    const wallFrameIds = ['wall_0', 'wall_1', 'wall_2', 'wall_3'] as const;
+    const wallRaw = wallAssets.spriteRefResource.data;
+    if (wallRaw == null) {
+      throw new Error('Expected isometric wall sprite-ref JSON after preload');
+    }
+    const wallManifest = parseGridFrameKeysManifestJson(wallRaw);
+    if (!wallAssets.sheetImageSource.isLoaded()) {
+      throw new Error('Expected wall sheet ImageSource loaded after preload');
+    }
+    const wallSpriteSheet = spriteSheetFromGridImageSource(wallAssets.sheetImageSource, wallManifest);
+    const wallGraphics = wallFrameIds.map((id) => {
+      const cell = wallManifest.frames[id];
+      if (!cell) {
+        throw new Error(`Missing wall sprite-ref frame ${JSON.stringify(id)}`);
+      }
+      return wallSpriteSheet.getSprite(cell.column, cell.row);
+    });
+    const wallGraphic0 = wallGraphics[0];
+    if (!wallGraphic0) {
+      throw new Error('Expected at least one wall graphic');
+    }
+    const wallScale = scaleToTargetWidthPx(wallGraphic0.width, TILE_FOOTPRINT_WIDTH_PX);
+
     const merchantRaw = merchantAssets.spriteRefResource.data;
     if (merchantRaw == null) {
       throw new Error('Expected merchant sprite-ref JSON after preload');
@@ -214,6 +241,15 @@ void engine
     const CHARACTER_Z_BASE = 1e7;
 
     const worldOriginCellBottom = cellBottomCenter;
+
+    const isoParams = {
+      cellBottomCenter: worldOriginCellBottom,
+      isoHalfW,
+      isoHalfH,
+      centerG,
+    } as const;
+
+    const wallCellKeys = createWallCellKeySet();
 
     function gridCellBottomCenter(gx: number, gy: number): typeof cellBottomCenter {
       return worldOriginCellBottom.add(
@@ -314,6 +350,19 @@ void engine
         }
         floorChunkActors.set(key, actors);
       }
+    }
+
+    for (const [wgx, wgy] of ISO_WALL_GRID_CELLS) {
+      const variantIndex = Math.floor(Math.random() * wallGraphics.length);
+      const wallGraphic = wallGraphics[variantIndex] ?? wallGraphic0;
+      const wallActor = new Actor({
+        pos: gridCellBottomCenter(wgx, wgy),
+        scale: vec(wallScale, wallScale),
+        z: wgx + wgy + 0.5,
+      });
+      wallActor.graphics.anchor = vec(0.5, 1);
+      wallActor.graphics.use(wallGraphic);
+      mainScene.add(wallActor);
     }
 
     /** Stationary merchant NPC — a few isometric steps from spawn so the player can walk over. */
@@ -666,7 +715,7 @@ void engine
       syncFloorChunksAround(actor.pos);
     });
 
-    const chromeMoveSub = mainScene.on('preupdate', () => {
+    const chromeMoveSub = mainScene.on('preupdate', (ev) => {
       const now = performance.now();
       const px = actor.pos.x;
       const py = actor.pos.y;
@@ -784,6 +833,15 @@ void engine
         : chromeMoveVelocityFromActiveDirections(merged, CHROME_MOVE_SPEED);
       if (playerDead) {
         v = vec(0, 0);
+      } else {
+        const dt = ev.elapsed / 1000;
+        const nextPos = actor.pos.add(vec(v.x * dt, v.y * dt));
+        const g = isoFractionalGridFromWorld(nextPos, isoParams);
+        const ngx = Math.round(g.gx);
+        const ngy = Math.round(g.gy);
+        if (wallCellKeys.has(wallKey(ngx, ngy))) {
+          v = vec(0, 0);
+        }
       }
       actor.vel = vec(v.x, v.y);
       actor.z = isoCharacterZFromWorldPos(actor.pos);

@@ -162,16 +162,16 @@ export function resizePngBufferBilinearPremultiplied(pngBuffer, targetW, targetH
 }
 
 /**
- * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform resize to exactly **`targetW`×`targetH`**
- * (bilinear or nearest per **`scaleFilter`**). See module comment (epic **2gp-p4js**).
+ * Uniform-scale **`pngBuffer`** to fit inside **`targetW`×`targetH`**, centered on **transparent** padding
+ * (no crop — preserves full width of wide strips when T2I aspect is wider than the preset).
  *
  * @param {Buffer} pngBuffer
- * @param {number} targetW  Preset sheet width (e.g. **`SHEET_WIDTH`**).
- * @param {number} targetH  Preset sheet height (e.g. **`SHEET_HEIGHT`**).
+ * @param {number} targetW
+ * @param {number} targetH
  * @param {{ scaleFilter?: 'nearest' | 'bilinear' }} [opts]
  * @returns {Buffer}
  */
-export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH, opts) {
+export function letterboxPngToSize(pngBuffer, targetW, targetH, opts) {
   const scaleFilter = opts?.scaleFilter ?? "bilinear";
   const resize =
     scaleFilter === "nearest" ? resizePngBufferNearest : resizePngBufferBilinearPremultiplied;
@@ -181,6 +181,57 @@ export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH, opts)
   const sh = src.height;
   if (sw === targetW && sh === targetH) {
     return pngBuffer;
+  }
+  const s = Math.min(targetW / sw, targetH / sh);
+  const nw = Math.max(1, Math.round(sw * s));
+  const nh = Math.max(1, Math.round(sh * s));
+  const scaled = resize(pngBuffer, nw, nh);
+  const mid = PNG.sync.read(scaled);
+  const dst = new PNG({ width: targetW, height: targetH, colorType: 6 });
+  dst.data.fill(0);
+  const x0 = Math.floor((targetW - nw) / 2);
+  const y0 = Math.floor((targetH - nh) / 2);
+  for (let y = 0; y < nh; y++) {
+    for (let x = 0; x < nw; x++) {
+      const si = (nw * y + x) << 2;
+      const di = (targetW * (y0 + y) + (x0 + x)) << 2;
+      dst.data[di] = mid.data[si];
+      dst.data[di + 1] = mid.data[si + 1];
+      dst.data[di + 2] = mid.data[si + 2];
+      dst.data[di + 3] = mid.data[si + 3];
+    }
+  }
+  return PNG.sync.write(dst);
+}
+
+/**
+ * Center-crop to **`targetW`/`targetH`** aspect ratio, then uniform resize to exactly **`targetW`×`targetH`**
+ * (bilinear or nearest per **`scaleFilter`**). See module comment (epic **2gp-p4js**).
+ *
+ * **`fit: 'contain'`** — letterbox (no side-crop); use when T2I **`aspect_ratio`** is wider than nominal
+ * sheet ratio (e.g. fal **4∶1** vs **8∶3**) so all four strip columns stay fully inside crops.
+ *
+ * @param {Buffer} pngBuffer
+ * @param {number} targetW  Preset sheet width (e.g. **`SHEET_WIDTH`**).
+ * @param {number} targetH  Preset sheet height (e.g. **`SHEET_HEIGHT`**).
+ * @param {{ scaleFilter?: 'nearest' | 'bilinear'; fit?: 'crop' | 'contain' }} [opts]
+ * @returns {Buffer}
+ */
+export function normalizeDecodedSheetToPreset(pngBuffer, targetW, targetH, opts) {
+  const scaleFilter = opts?.scaleFilter ?? "bilinear";
+  const fit = opts?.fit ?? "crop";
+  const resize =
+    scaleFilter === "nearest" ? resizePngBufferNearest : resizePngBufferBilinearPremultiplied;
+
+  const src = PNG.sync.read(pngBuffer);
+  const sw = src.width;
+  const sh = src.height;
+  if (sw === targetW && sh === targetH) {
+    return pngBuffer;
+  }
+
+  if (fit === "contain") {
+    return letterboxPngToSize(pngBuffer, targetW, targetH, { scaleFilter });
   }
 
   const targetAspect = targetW / targetH;

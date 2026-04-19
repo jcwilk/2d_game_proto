@@ -60,7 +60,7 @@ import {
   resolvePostprocessSteps,
   resolveSheetTilePostprocessSteps,
 } from "./pipeline-stages.ts";
-import { extractPngRegion } from "./postprocess/png-region.ts";
+import { extractPngRegion, normalizeDecodedSheetToPreset } from "./postprocess/png-region.ts";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.ts";
 import {
   DEFAULT_TILE_PNG_BASENAME,
@@ -134,6 +134,13 @@ export interface PipelinePreset {
   postprocessSteps?: PostprocessStepId[];
   specsNaming?: string;
   sheetNativeRaster?: boolean;
+  /**
+   * When true (sheet generate): after T2I/BRIA, bilinear-resize the sheet buffer to **`preset.sheet`** nominal
+   * **width×height** so **`sprite-ref`** matches game **`dimensions.ts`** cell aspect (e.g. fal **4∶1** vs halfHeight **8∶3**).
+   */
+  sheetNormalizeToPreset?: boolean;
+  /** When **`sheetNormalizeToPreset`**: **`crop`** (default) center-crops then scales; **`contain`** letterboxes so wide T2I output is not side-cropped. */
+  sheetNormalizeFit?: "crop" | "contain";
 }
 
 export interface PipelineOpts {
@@ -1077,7 +1084,22 @@ async function runGenerateSheetPath({
   let effH = sheetH;
   let effSheet: PipelinePresetSheet | ReturnType<typeof gridSheetFromRasterDimensions> = sheet;
 
-  if (png.width !== sheetW || png.height !== sheetH) {
+  const normalizeToPreset = Boolean(preset.sheetNormalizeToPreset);
+  if (normalizeToPreset && (png.width !== sheetW || png.height !== sheetH)) {
+    log("INFO", "sheet", "normalizing fal/BRIA raster to preset nominal dimensions (sheetNormalizeToPreset)", {
+      got: `${png.width}x${png.height}`,
+      nominalPreset: `${sheetW}x${sheetH}`,
+    });
+    buffer = normalizeDecodedSheetToPreset(buffer, sheetW, sheetH, {
+      scaleFilter: "bilinear",
+      fit: preset.sheetNormalizeFit ?? "crop",
+    });
+    png = PNG.sync.read(buffer);
+    effSheet = sheet;
+    effW = sheetW;
+    effH = sheetH;
+    effectiveSheetOverride = null;
+  } else if (png.width !== sheetW || png.height !== sheetH) {
     log("INFO", "sheet", "fal/BRIA dimensions differ from preset nominal; keeping native raster (no on-disk resize)", {
       got: `${png.width}x${png.height}`,
       nominalPreset: `${sheetW}x${sheetH}`,

@@ -5,10 +5,13 @@ import {
   ISO_FLOOR_TEXTURE_HEIGHT_PX,
   ISO_FLOOR_TEXTURE_WIDTH_PX,
   TILE_FOOTPRINT_WIDTH_PX,
-  halfHeightCell,
+  fullHeightCell,
   isoSquareCellSizePx,
 } from "../../gameDimensions.ts";
-import { NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO } from "../../generators/fal.ts";
+import {
+  NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO,
+  NANO_BANANA2_LOW_RESOLUTION,
+} from "../../generators/fal.ts";
 import {
   ASSET_ID,
   DEFAULT_FAL_ENDPOINT,
@@ -22,12 +25,12 @@ import {
 } from "./isometric-basic-wall.ts";
 
 describe("presets/isometric-basic-wall", () => {
-  it("cell footprint width matches open-floor / dimensions exports; height is halfHeight tier", () => {
+  it("cell footprint width matches open-floor / dimensions exports; height is fullHeight tier (~2m)", () => {
     expect(TILE_WIDTH).toBe(ISO_FLOOR_TEXTURE_WIDTH_PX);
     expect(TILE_WIDTH).toBe(TILE_FOOTPRINT_WIDTH_PX);
     expect(TILE_SIZE).toBe(TILE_WIDTH);
-    expect(TILE_HEIGHT).toBe(isoSquareCellSizePx("halfHeight"));
-    expect(TILE_HEIGHT).toBe(halfHeightCell.sizePx);
+    expect(TILE_HEIGHT).toBe(isoSquareCellSizePx("fullHeight"));
+    expect(TILE_HEIGHT).toBe(fullHeightCell.sizePx);
     expect(TILE_HEIGHT).toBeGreaterThan(ISO_FLOOR_TEXTURE_HEIGHT_PX);
   });
 
@@ -48,9 +51,10 @@ describe("presets/isometric-basic-wall", () => {
     const spriteRef = p.spriteRef as SpriteRefGridFrameKeys;
     expect(spriteRef.sheetImageRelativePath).toBe("art/isometric-basic-wall/sheet.png");
     expect(p.fal?.defaultEndpoint).toBe(DEFAULT_FAL_ENDPOINT);
+    expect(p.sheetNormalizeFit).toBe("contain");
     expect(p.fal?.falExtrasSheet).toMatchObject({
-      aspect_ratio: NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO,
-      resolution: "0.5K",
+      aspect_ratio: NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO,
+      resolution: NANO_BANANA2_LOW_RESOLUTION,
       expand_prompt: true,
       safety_tolerance: 2,
     });

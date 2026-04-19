@@ -92,6 +92,24 @@ describe("png-region", () => {
     expect(out.height).toBe(100);
   });
 
+  it("normalizeDecodedSheetToPreset fit contain letterboxes wide strip without horizontal crop (1024×256 → 640×200)", () => {
+    const png = new PNG({ width: 1024, height: 256, colorType: 6 });
+    png.data.fill(0);
+    png.data[0] = 77;
+    png.data[3] = 255;
+    const buf = PNG.sync.write(png);
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 640, 200, { fit: "contain" }));
+    expect(out.width).toBe(640);
+    expect(out.height).toBe(200);
+    const corners = [
+      out.data[0],
+      out.data[(out.width * 0 + (out.width - 1)) << 2],
+      out.data[(out.width * (out.height - 1)) << 2],
+      out.data[(out.width * out.height - 1) << 2],
+    ];
+    expect(corners.every((a) => a === 0)).toBe(true);
+  });
+
   it("extractPngRegion throws the same crop-bounds error as the monolith", () => {
     const png = new PNG({ width: 3, height: 3, colorType: 6 });
     png.data.fill(255);

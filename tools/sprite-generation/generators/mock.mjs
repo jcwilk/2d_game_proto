@@ -8,7 +8,7 @@ import { PNG } from "pngjs";
 import {
   CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX,
   CHARACTER_WALK_FRAME_HEIGHT_PX,
-} from "../gameDimensions.mjs";
+} from "../gameDimensions.ts";
 
 /**
  * Isometric floor rhombus in a **W×H** texture cell (**drawn in pixel space**): vertices flush with **edge midpoints**

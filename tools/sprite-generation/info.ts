@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * `generate-spritesheet info` — summarize a registry asset (git-tracked art files,
  * on-disk metadata, loaded preset + prompt excerpts).

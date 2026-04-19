@@ -45,10 +45,10 @@ const VISION_QA_SCHEMA = {
       "obvious_artifacts",
     ],
   },
-};
+} as const;
 
-function printHelp() {
-  console.log(`Usage: node tools/openai-vision-qa.mjs <image.png> [options]
+function printHelp(): void {
+  console.log(`Usage: node --experimental-strip-types tools/openai-vision-qa.ts <image.png> [options]
 
 Calls OpenAI Chat Completions with vision + JSON schema (structured outputs). Use after
 deterministic png-analyze metrics; see tools/README.md and plan §E.5.1.
@@ -63,10 +63,7 @@ Environment:
 `);
 }
 
-/**
- * @param {string} path
- */
-function mimeForPath(path) {
+function mimeForPath(path: string): string {
   const lower = path.toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
@@ -75,18 +72,21 @@ function mimeForPath(path) {
   return "application/octet-stream";
 }
 
-/**
- * @param {string[]} argv
- */
-function parseArgs(argv) {
-  /** @type {{ imagePath: string; prompt: string; detail: 'low' | 'high' }} */
-  const out = {
+type ParsedArgs = {
+  imagePath: string;
+  prompt: string;
+  detail: "low" | "high";
+};
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const out: ParsedArgs = {
     imagePath: "",
     prompt: "",
     detail: "low",
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
+    if (a === undefined) break;
     switch (a) {
       case "--help":
       case "-h":
@@ -94,13 +94,15 @@ function parseArgs(argv) {
         process.exit(0);
         break;
       case "--prompt": {
-        const v = argv[++i];
+        i += 1;
+        const v = argv[i];
         if (v === undefined) throw new Error("Missing value after --prompt");
         out.prompt = v;
         break;
       }
       case "--detail": {
-        const v = argv[++i];
+        i += 1;
+        const v = argv[i];
         if (v !== "low" && v !== "high") throw new Error("--detail must be low or high");
         out.detail = v;
         break;
@@ -120,8 +122,13 @@ const DEFAULT_USER_PROMPT =
   "Assess grid alignment cues, semantic fit for pixel/2D art, and obvious defects. " +
   "Be concise; scores are subjective QA only, not ground truth.";
 
-async function main() {
-  const key = process.env.OPENAI_API_KEY;
+type ChatCompletionResponse = {
+  choices?: Array<{ message?: { content?: string } }>;
+  usage?: unknown;
+};
+
+async function main(): Promise<void> {
+  const key = process.env["OPENAI_API_KEY"];
   if (!key || String(key).trim() === "") {
     console.log(
       "openai-vision-qa: skipped — OPENAI_API_KEY is unset (set it to run vision QA; see tools/README.md).",
@@ -129,7 +136,7 @@ async function main() {
     process.exit(0);
   }
 
-  let opts;
+  let opts: ParsedArgs;
   try {
     opts = parseArgs(process.argv);
   } catch (e) {
@@ -139,7 +146,7 @@ async function main() {
   }
 
   const imagePath = resolve(opts.imagePath);
-  let buf;
+  let buf: Buffer;
   try {
     buf = readFileSync(imagePath);
   } catch (e) {
@@ -152,7 +159,7 @@ async function main() {
   const mime = mimeForPath(imagePath);
   const dataUrl = `data:${mime};base64,${b64}`;
 
-  const model = process.env.OPENAI_VISION_MODEL?.trim() || DEFAULT_VISION_MODEL;
+  const model = process.env["OPENAI_VISION_MODEL"]?.trim() || DEFAULT_VISION_MODEL;
   const textPrompt = opts.prompt.trim() ? `${DEFAULT_USER_PROMPT}\n\n${opts.prompt}` : DEFAULT_USER_PROMPT;
 
   const t0 = Date.now();
@@ -191,15 +198,14 @@ async function main() {
     process.exit(2);
   }
 
-  /** @type {{ choices?: Array<{ message?: { content?: string } }>; usage?: object }} */
-  const data = await res.json();
+  const data = (await res.json()) as ChatCompletionResponse;
   const raw = data.choices?.[0]?.message?.content;
   if (typeof raw !== "string" || !raw.trim()) {
     console.error("error: empty completion content from OpenAI");
     process.exit(2);
   }
 
-  let parsed;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {

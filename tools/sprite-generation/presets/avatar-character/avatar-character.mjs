@@ -38,7 +38,7 @@ import {
   CHARACTER_WALK_FRAME_PX,
   CHARACTER_WALK_SHEET_HEIGHT_PX,
   CHARACTER_WALK_SHEET_WIDTH_PX,
-} from "../../gameDimensions.mjs";
+} from "../../gameDimensions.ts";
 import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */

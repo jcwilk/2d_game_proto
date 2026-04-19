@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
-import { log } from "./sprite-generation/logging.mjs";
+import { log } from "./sprite-generation/logging.ts";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
 import {

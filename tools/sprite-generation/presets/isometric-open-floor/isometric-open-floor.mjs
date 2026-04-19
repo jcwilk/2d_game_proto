@@ -28,7 +28,7 @@ import {
   ISO_FLOOR_FRAME_STYLE,
   ISO_FLOOR_SHEET_REWRITE_USER_SEED,
 } from "../../prompt.mjs";
-import { ISO_FLOOR_TEXTURE_HEIGHT_PX, ISO_FLOOR_TEXTURE_WIDTH_PX } from "../../gameDimensions.mjs";
+import { ISO_FLOOR_TEXTURE_HEIGHT_PX, ISO_FLOOR_TEXTURE_WIDTH_PX } from "../../gameDimensions.ts";
 import { sheetLayoutFromCropsRect } from "../../sheet-layout.mjs";
 
 export const ASSET_ID = "isometric-open-floor";

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import * as gd from '../tools/sprite-generation/gameDimensions.mjs';
+import * as gd from '../tools/sprite-generation/gameDimensions.js';
 import * as dim from './dimensions';
 
-describe('dimensions.ts ↔ gameDimensions.mjs sync', () => {
+describe('dimensions.ts ↔ gameDimensions.ts sync', () => {
   it('core world + footprint literals match', () => {
     expect(dim.TILE_WORLD_M).toBe(gd.TILE_WORLD_M);
     expect(dim.FULL_VERTICAL_WORLD_M).toBe(gd.FULL_VERTICAL_WORLD_M);

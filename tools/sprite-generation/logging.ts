@@ -27,13 +27,15 @@
  * ## Constraints
  *
  * No network, fal client, or filesystem access — only `console.log` with serializable `extra`.
- *
- * @param {'DEBUG'|'INFO'|'WARN'|'ERROR'} level
- * @param {string} step Short phase id, e.g. `init`, `fal:up`, `qa`
- * @param {string} message
- * @param {Record<string, unknown>} [extra] Optional structured fields (JSON-serializable)
  */
-export function log(level, step, message, extra) {
+export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR";
+
+export function log(
+  level: LogLevel,
+  step: string,
+  message: string,
+  extra?: Record<string, unknown>,
+): void {
   const ts = new Date().toISOString();
   const base = `[${ts}] [sprite-gen] [${level}] [${step}] ${message}`;
   if (extra && Object.keys(extra).length > 0) {

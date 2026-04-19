@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -9,7 +10,7 @@ import {
   isValidSlugShape,
   RENAME_TO_BLOCKLIST,
   validateRenameSlugs,
-} from "./rename-dry-run.mjs";
+} from "./rename-dry-run.ts";
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 
@@ -51,7 +52,8 @@ describe("rename-dry-run", () => {
 
   it("buildRenameDryRunPlan succeeds for first registry preset -> hud_<slug> with expected shape", () => {
     const registryIds = Object.keys(PRESETS);
-    const from = registryIds[0];
+    expect(registryIds.length).toBeGreaterThan(0);
+    const from = registryIds[0]!;
     const to = `hud_${from.replace(/-/g, "_")}`;
     const plan = buildRenameDryRunPlan(repoRoot, from, to, registryIds);
     expect(plan.ok).toBe(true);
@@ -59,10 +61,10 @@ describe("rename-dry-run", () => {
     expect(plan.from).toBe(from);
     expect(plan.to).toBe(to);
     expect(plan.directories).toHaveLength(2);
-    expect(plan.presetModule.from.replace(/\\/g, "/")).toContain(
+    expect(plan.presetModule!.from.replace(/\\/g, "/")).toContain(
       `tools/sprite-generation/presets/${from}/${from}.mjs`,
     );
-    expect(plan.candidateFiles.length).toBeGreaterThan(0);
+    expect(plan.candidateFiles!.length).toBeGreaterThan(0);
     const text = formatRenameDryRunPlan(plan);
     expect(text.startsWith(`rename dry-run: ${from} -> ${to}`)).toBe(true);
     expect(text).toContain("registry.mjs");

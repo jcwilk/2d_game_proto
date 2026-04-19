@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Dry-run planner for renaming a registry asset slug (preset + public art paths).
  * No filesystem writes; used by `generate-spritesheet rename --dry-run`.

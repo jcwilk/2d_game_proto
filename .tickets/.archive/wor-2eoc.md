@@ -1,6 +1,6 @@
 ---
 id: wor-2eoc
-status: open
+status: closed
 deps: [wor-0ply]
 links: []
 created: 2026-04-19T20:26:25Z
@@ -23,3 +23,9 @@ Place walls on a subset of cells (e.g. line or L-shape): **`pos = gridCellBottom
 
 Game loads with committed wall assets; visible wall sprites on chosen cells; bottom anchors align with floor grid; **`z`** strictly above same-cell floor; wall cell list is shared for collision (**`wor-a25k`**).
 
+
+## Notes
+
+**2026-04-19T20:47:11Z**
+
+Wall loader + ISO_WALL_GRID_CELLS cross + wall actors z=gx+gy+0.5. See wallLayout.ts, main.ts.

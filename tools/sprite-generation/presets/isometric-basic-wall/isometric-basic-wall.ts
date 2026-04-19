@@ -1,14 +1,16 @@
 /**
  * Isometric **basic wall** tile preset — **1×4** horizontal strip (`gridFrameKeys` under `public/art/isometric-basic-wall/`).
  *
- * Same **W** footprint as {@link isometric-open-floor} (**`ISO_FLOOR_TEXTURE_WIDTH_PX`**); cell height **`isoSquareCellSizePx("halfHeight")`** (taller than the floor strip). Uses **`createIsoTileStripPreset`**.
+ * Same **W** footprint as {@link isometric-open-floor} (**`ISO_FLOOR_TEXTURE_WIDTH_PX`**); cell height **`isoSquareCellSizePx("fullHeight")`** (**~2m** vertical — tall as a character / two stacked blocks). Uses **`createIsoTileStripPreset`**.
+ *
+ * **fal:** **`4:1`** is the widest supported strip ratio; **`sheetNormalizeToPreset`** + **`fit: 'contain'`** letterboxes to nominal sheet so **four** cells are not side-cropped.
  *
  * @see `../../README.md`
  */
 
 import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
-  NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO,
+  NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO,
   NANO_BANANA2_LOW_RESOLUTION,
 } from "../../generators/fal.ts";
 import type { GeneratorFrame } from "../../generators/types.ts";
@@ -19,9 +21,9 @@ import type { CreatePresetOptsBase } from "../../preset-contract.ts";
 import {
   ISO_WALL_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
   ISO_WALL_FALSPRITE_SHEET_SUBJECT,
-  ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION,
-  ISO_WALL_HALF_HEIGHT_FRAME_PROMPT_SUFFIX,
-  ISO_WALL_HALF_HEIGHT_FRAME_STYLE,
+  ISO_WALL_FRAME_COMPOSITION,
+  ISO_WALL_FRAME_PROMPT_SUFFIX,
+  ISO_WALL_FRAME_STYLE,
   ISO_WALL_SHEET_REWRITE_USER_SEED,
   buildIsometricWallStripSpritePrompt,
   interpolatePromptTemplate,
@@ -44,15 +46,15 @@ export const DEFAULT_STRATEGY = "sheet";
 /** Cell width (px) — 1m footprint, same as open-floor. */
 export const TILE_WIDTH = ISO_FLOOR_TEXTURE_WIDTH_PX;
 
-/** Cell height (px) — halfHeight tier square side (taller than floor strip). */
-export const TILE_HEIGHT = isoSquareCellSizePx("halfHeight");
+/** Cell height (px) — fullHeight tier (**~2m** vertical above floor band). */
+export const TILE_HEIGHT = isoSquareCellSizePx("fullHeight");
 
 export const TILE_SIZE = TILE_WIDTH;
 
 export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 
 export const ISO_WALL_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO,
+  aspect_ratio: NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO,
   resolution: NANO_BANANA2_LOW_RESOLUTION,
   expand_prompt: true,
   safety_tolerance: 2,
@@ -71,7 +73,7 @@ export const ISO_WALL_FRAMES: readonly GeneratorFrame[] = Object.freeze([
     id: "wall_0",
     outSubdir: "wall_0",
     promptVariant:
-      `Variation A of 4: clean cut stone blocks — same bottom floor rhombus + wall mass as other cells (${TILE_WIDTH}×${TILE_HEIGHT}px cell).`,
+      `Variation A of 4: clean cut stone blocks — solid ~2m block, front-facing mass (${TILE_WIDTH}×${TILE_HEIGHT}px cell).`,
   },
   {
     id: "wall_1",
@@ -125,11 +127,13 @@ export function createPreset(opts: CreateIsoWallPresetOpts): PipelinePreset {
     outBase,
     presetId: MANIFEST_PRESET_ID,
     kind: KIND,
-    tier: "halfHeight",
+    tier: "fullHeight",
+    sheetNormalizeToPreset: true,
+    sheetNormalizeFit: "contain",
     frames: ISO_WALL_FRAMES,
     prompt: {
-      frameStyle: ISO_WALL_HALF_HEIGHT_FRAME_STYLE,
-      frameComposition: ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION,
+      frameStyle: ISO_WALL_FRAME_STYLE,
+      frameComposition: ISO_WALL_FRAME_COMPOSITION,
       sheetSubject: ISO_WALL_FALSPRITE_SHEET_SUBJECT,
       sheetRewriteUserPrompt: ISO_WALL_SHEET_REWRITE_USER_SEED,
       sheetPromptBuilder: (ctx) => {
@@ -146,7 +150,7 @@ export function createPreset(opts: CreateIsoWallPresetOpts): PipelinePreset {
         const base = ctx.rewrittenBase && String(ctx.rewrittenBase).trim() ? String(ctx.rewrittenBase).trim() : subject;
         return buildIsometricWallStripSpritePrompt(base, ctx.sheetWidth, ctx.sheetHeight);
       },
-      framePromptSuffix: ISO_WALL_HALF_HEIGHT_FRAME_PROMPT_SUFFIX,
+      framePromptSuffix: ISO_WALL_FRAME_PROMPT_SUFFIX,
     },
     renderMockTileBuffer: (frame, c) =>
       renderIsometricWallMockTileBuffer(frame, c.tileWidth ?? TILE_WIDTH, c.tileHeight ?? TILE_HEIGHT),

@@ -1,6 +1,6 @@
 ---
 id: wor-a25k
-status: open
+status: closed
 deps: [wor-2eoc]
 links: []
 created: 2026-04-19T20:26:25Z
@@ -23,3 +23,9 @@ Document helpers beside **`gridCellBottomCenter`** or in **`src/isometricGrid.ts
 
 Player cannot enter wall **`(gx, gy)`** cells; non-wall movement unchanged; sliding along a wall does not oscillate or jitter at edges; uses the same wall set as sprite placement.
 
+
+## Notes
+
+**2026-04-19T20:47:11Z**
+
+isoFractionalGridFromWorld + Math.round; wallCellKeys from wallLayout; preupdate blocks vel into wall cells.

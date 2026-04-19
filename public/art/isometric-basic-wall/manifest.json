@@ -1,0 +1,194 @@
+{
+  "kind": "isometric_wall_tile_set",
+  "preset": "isometric_basic_wall",
+  "recipeId": "sprite-gen-isometric_basic_wall-sheet-v21-iso-floor-1x4-strip",
+  "createdAt": "2026-04-19T20:41:26.948Z",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 256×96px, txt2img → crop)",
+  "specs": {
+    "tileSize": {
+      "width": 64,
+      "height": 96
+    },
+    "framePreset": [
+      {
+        "id": "wall_0",
+        "outSubdir": "wall_0"
+      },
+      {
+        "id": "wall_1",
+        "outSubdir": "wall_1"
+      },
+      {
+        "id": "wall_2",
+        "outSubdir": "wall_2"
+      },
+      {
+        "id": "wall_3",
+        "outSubdir": "wall_3"
+      }
+    ],
+    "sheetSize": {
+      "width": 256,
+      "height": 96
+    },
+    "sheetCropMap": {
+      "wall_0": {
+        "x": 0,
+        "y": 0
+      },
+      "wall_1": {
+        "x": 64,
+        "y": 0
+      },
+      "wall_2": {
+        "x": 128,
+        "y": 0
+      },
+      "wall_3": {
+        "x": 192,
+        "y": 0
+      }
+    },
+    "imageSize": "256x96",
+    "naming": "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame wall PNGs",
+    "strategy": "sheet",
+    "chroma": {
+      "keyHex": "#FF00FF",
+      "keyRgb": {
+        "r": 255,
+        "g": 0,
+        "b": 255
+      },
+      "tolerance": 72,
+      "postProcess": "chromaKeyWithBorderFallback: Euclidean RGB distance vs key; prompt hex first; if <0.8% transparent, median corner-block RGB + higher tolerance"
+    },
+    "seedPolicyPerTile": null
+  },
+  "generationRecipe": {
+    "mode": "generate",
+    "endpoint": "fal-ai/nano-banana-2",
+    "seedRequested": null,
+    "falExtrasPerTile": null,
+    "falExtrasSheet": {
+      "aspect_ratio": "4:1",
+      "resolution": "0.5K",
+      "expand_prompt": true,
+      "safety_tolerance": 2
+    },
+    "note": "Real: one fal sheet job at 256x96, crop to 64×96px cells; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
+  },
+  "frames": [
+    {
+      "id": "wall_0",
+      "outSubdir": "wall_0",
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "wall_1",
+      "outSubdir": "wall_1",
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "64,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "wall_2",
+      "outSubdir": "wall_2",
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "128,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "wall_3",
+      "outSubdir": "wall_3",
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "192,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    }
+  ],
+  "provenance": {
+    "tool": "tools/generate-spritesheet.ts",
+    "version": 1
+  },
+  "generationResults": {
+    "wall_0": {
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "wall_1": {
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "64,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "wall_2": {
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "128,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "wall_3": {
+      "seedRequested": null,
+      "wallMs": 20586,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "192,0",
+      "alphaSource": "bria",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "_sheet": {
+      "wallMs": 20586,
+      "strategy": "sheet",
+      "alphaSource": "bria",
+      "t2iWallMs": 19405,
+      "briaWallMs": 1181,
+      "rewriteModel": "openai/gpt-4o-mini",
+      "rewrittenPromptFingerprint": "2d940caf33437498",
+      "rewriteWallMs": 3483
+    }
+  }
+}

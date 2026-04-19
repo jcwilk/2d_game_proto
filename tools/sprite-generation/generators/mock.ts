@@ -145,9 +145,6 @@ export function renderIsometricWallMockTileBuffer(frame: GeneratorFrame, tileWid
   const png = new PNG({ width: tileWidth, height: tileHeight, colorType: 6 });
   png.data.fill(0);
 
-  const colL = Math.max(0, Math.floor(tileWidth / 4));
-  const colR = Math.min(tileWidth, Math.ceil((tileWidth * 3) / 4));
-
   for (let y = 0; y < tileHeight; y++) {
     for (let x = 0; x < tileWidth; x++) {
       const i = (tileWidth * y + x) << 2;
@@ -165,8 +162,6 @@ export function renderIsometricWallMockTileBuffer(frame: GeneratorFrame, tileWid
         png.data[i + 3] = 0xff;
         continue;
       }
-
-      if (x < colL || x >= colR) continue;
 
       const n = ((x * 19 + y * 29 + variant * 101) & 0xff) - 128;
       const shade = Math.max(-14, Math.min(14, n >> 3));

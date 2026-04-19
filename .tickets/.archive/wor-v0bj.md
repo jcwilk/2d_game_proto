@@ -1,6 +1,6 @@
 ---
 id: wor-v0bj
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T20:26:14Z
@@ -14,3 +14,9 @@ Use the existing **halfHeight** preset **`isometric-basic-wall`**: same **W** fo
 
 Live-generate the spritesheet (**`wor-0ply`**), load walls and place actors (**`wor-2eoc`**), then block movement into occupied cells using the same **`(gx, gy)`** grid as floor placement — recover **`(gx, gy)`** from world position via the **full 2D linear inverse** of **`gridCellBottomCenter`** (both **`x`** and **`y`** contribute; not the **`y`**-only depth helper alone).
 
+
+## Notes
+
+**2026-04-19T20:47:29Z**
+
+Children wor-0ply, wor-2eoc, wor-a25k completed: wall art + normalize pipeline + game + collision.

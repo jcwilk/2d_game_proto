@@ -178,24 +178,24 @@ export const ISO_FLOOR_SHEET_REWRITE_USER_SEED =
   "One row of four isometric floor tiles; each cell is half as tall as wide; rhombus touches top, bottom, left, and right edge midpoints; four subtle surface variations; identical geometry for tiling. " +
   "No vertical gutters, panel frames, or outlines between columns — one continuous plain flat-color backdrop at shared cell boundaries (illustrated-game style, not chroma-key vocabulary).";
 
-/** Per-tile suffix for **halfHeight** isometric wall cells. Placeholders: `{cellWidth}`, `{cellHeight}`. */
-export const ISO_WALL_HALF_HEIGHT_FRAME_PROMPT_SUFFIX =
-  ` **CELL SHAPE:** Each cell is **{cellWidth}×{cellHeight}px** — **width** equals the **1m floor footprint**; **height** is **taller than the foreshortened floor band** (not a 2:1 floor strip). ` +
-  `**BOTTOM ANCHOR:** The **lowest {cellWidth}/2 px** of the cell matches the **open-floor rhombus**: one foreshortened isometric ground diamond **flush to the bottom, left, and right cell edges** (bottom vertex on bottom-center, left/right on side midpoints at the **floor** horizon), same horizontal footprint as floor tiles for seamless tiling. ` +
-  `**ABOVE:** A vertical **wall / occluder** mass rises in isometric three-quarter view (readable front plane + one side), stone or plaster, **no** walkable floor in the upper band — it occludes what is behind. ` +
-  `**FORBIDDEN:** a second full rhombus filling the tall cell; top-down-only view; characters; props sitting on the wall. No text or watermark.`;
+/** Per-tile suffix for **fullHeight** (~2m) isometric wall cells. Placeholders: `{cellWidth}`, `{cellHeight}`. */
+export const ISO_WALL_FRAME_PROMPT_SUFFIX =
+  ` **CELL SHAPE:** Each cell is **{cellWidth}×{cellHeight}px** — **width** = **1m** footprint; **height** ≈ **2.5×** width (**~2m** vertical above the floor band — like **two stacked blocks**, slightly taller than a full-body character). ` +
+  `**BOTTOM ANCHOR:** The **lowest {cellWidth}/2 px** matches the **open-floor rhombus** (flush bottom / sides). ` +
+  `**SOLID BLOCK / FRONT FACE:** The **wall masonry is a solid column filling this tile’s footprint** — it must read as **one continuous block**, **not** a thin wall rising from the **back** of the diamond with walkable floor in front. Place the **main vertical wall plane and corner on the viewer-facing (lower / toward-camera) side** of the cell: the mass rises from the **front** of the floor tile (bottom-of-screen / near edge), **not** from the rear horizon. **No** standing platform or “step” on the tile behind the wall. ` +
+  `**FORBIDDEN:** wall only along the far/back edge; top-down-only; characters. No text or watermark.`;
 
 /** Style line for wall tiles. Placeholders: `{cellWidth}`, `{cellHeight}`. */
-export const ISO_WALL_HALF_HEIGHT_FRAME_STYLE =
-  `Illustrated {cellWidth}×{cellHeight}px isometric **wall** cell — same ground footprint width as floor tiles, **taller** cell for vertical faces — painterly or soft cel-shaded, readable at small scale, not pixel art, not photoreal. `;
+export const ISO_WALL_FRAME_STYLE =
+  `Illustrated {cellWidth}×{cellHeight}px isometric **wall** cell — **~2m-tall** solid masonry (Minecraft-two-blocks read), same footprint width as floor — painterly or soft cel-shaded, readable at small scale, not pixel art, not photoreal. `;
 
 /**
  * Chroma + wall composition. Placeholders: `{chromaKeyHex}`, `{cellWidth}`, `{cellHeight}`.
  */
-export const ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION =
+export const ISO_WALL_FRAME_COMPOSITION =
   `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed — backdrop extends **flush to all four cell edges**. ` +
-  `**Lower band (bottom {cellWidth}/2 px of the cell):** exactly one foreshortened isometric **ground rhombus** matching open-floor geometry — **bottom** vertex on **bottom-edge center**, **left/right** vertices on the **midpoints of the left and right edges** of this band (floor horizon), **top** vertex on **top-edge center** of this band. ` +
-  `**Upper volume:** a single **wall** surface (corner or straight run) rising above that horizon in the **same** isometric camera as the floor — vertical enough to read as an occluder; **no** extra floor plane in the upper area. ` +
+  `**Lower band (bottom {cellWidth}/2 px):** exactly one foreshortened **ground rhombus** matching open-floor geometry. ` +
+  `**Upper volume (~2m):** a **solid wall block** — **viewer-facing** vertical faces (corner or straight run), **not** recessed to the back of the tile; tall enough to match **~2 character-height** in this projection. **No** extra walkable floor behind the wall mass. ` +
   `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the wall or floor (reserved for the flat backdrop only). ` +
   `No halo or color bleed from the backdrop into art; minimize pink, magenta, or purple fringing on edges.`;
 
@@ -203,20 +203,27 @@ export const ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION =
 export const ISO_WALL_FALSPRITE_SHEET_SUBJECT =
   `Illustrated isometric **wall** strip (not pixel art). ` +
   `One horizontal row of **four** cells: (1) clean ashlar; (2) light cracks; (3) mossy grout; (4) worn corner — ` +
-  `each cell **{cellWidth}×{cellHeight}**, **same** bottom-anchored floor rhombus + **taller** wall above, identical footprint width for tiling.`;
+  `each cell **{cellWidth}×{cellHeight}**, **~2m tall** solid block, **same** bottom floor rhombus + **front-facing** wall mass, identical footprint for tiling.`;
 
 export const ISO_WALL_SHEET_REWRITE_USER_SEED =
-  "One row of four isometric wall tiles; each cell uses the same **width** as floor tiles but is **taller** than the floor-only strip: the **bottom W/2 px** of the cell is the same flush-edge floor rhombus as open floor; above that a vertical wall face in three-quarter iso; four cosmetic masonry variations; identical bottom geometry for tiling. " +
+  "One row of four isometric wall tiles; **~2m tall** solid blocks (two-block Minecraft-style); bottom W/2 px = open-floor rhombus; **wall rises from the front (viewer-facing) edge of the tile**, not the back — full tile is blocked, no standing on the tile in front of the wall. Four cosmetic masonry variations; identical bottom geometry. " +
   "No vertical gutters between columns — one continuous flat-color backdrop at shared edges (illustrated-game style, not chroma-key vocabulary).";
 
 /** OpenRouter sheet rewrite for 1×4 isometric **wall** strip (tall cells). */
 export const ISO_WALL_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
   "You rewrite image-generation prompts for ONE horizontal strip sprite sheet: **four equal cells in a single row** (1×4, not 2×2). " +
-  "Preserve as non-negotiable: each cell is **rectangular** — **width** is the **floor footprint** (same as open-floor tiles); **height** is **greater** than half the width (taller than the 2:1 floor strip). " +
-  "Each cell has **one foreshortened ground rhombus** in the **bottom** portion matching **open-floor** geometry (flush to bottom and sides at the floor band); **above** that horizon, **one vertical wall / occluder** in isometric three-quarter view — **no** second walkable floor in the upper area. " +
-  "Same bottom geometry in all four cells; **plain uniform flat-color backdrop** outside the art (one calm solid hue, full bleed) — **do not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia; **no** gutters or divider lines between columns. " +
+  "Preserve as non-negotiable: each cell is **rectangular** — **width** is the **floor footprint**; **height** is **~2.5×** the width (**~2m** vertical world space — tall as a character). " +
+  "Each cell: **open-floor rhombus** in the **bottom** band; **above**, a **solid wall block** filling the tile — **main faces toward the viewer / front of the tile**, **not** a wall that only sits on the **back** edge of the diamond with empty walkable space in front. " +
+  "Same bottom geometry in all four cells; **plain uniform flat-color backdrop** outside the art — **do not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia; **no** gutters or divider lines between columns. " +
   "Improve: cohesive dark-fantasy masonry read, subtle variation between cells only — still clean 2D game tiles; keep edges clean with **no** pink/purple glow. " +
   "Output only the improved prompt text, no preamble.";
+
+/** @deprecated Use {@link ISO_WALL_FRAME_PROMPT_SUFFIX}. */
+export const ISO_WALL_HALF_HEIGHT_FRAME_PROMPT_SUFFIX = ISO_WALL_FRAME_PROMPT_SUFFIX;
+/** @deprecated Use {@link ISO_WALL_FRAME_STYLE}. */
+export const ISO_WALL_HALF_HEIGHT_FRAME_STYLE = ISO_WALL_FRAME_STYLE;
+/** @deprecated Use {@link ISO_WALL_FRAME_COMPOSITION}. */
+export const ISO_WALL_HALF_HEIGHT_FRAME_COMPOSITION = ISO_WALL_FRAME_COMPOSITION;
 
 /** OpenRouter sheet rewrite for 1×4 isometric floor strip. */
 export const ISO_FLOOR_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
@@ -309,7 +316,7 @@ export function buildIsometricFloorStripSpritePrompt(basePrompt: string, sheetWi
 }
 
 /**
- * Isometric **wall** **1×4** strip: four cells in one row; each cell **W×H** with **H > W/2** (taller than floor strip); floor rhombus anchored in bottom band.
+ * Isometric **wall** **1×4** strip: four cells in one row; each cell **W×~2.5W** (fullHeight, **~2m** vertical); floor rhombus in bottom band.
  *
  * @param {string} basePrompt  Rewritten or static material / variation block.
  * @param {number} sheetWidth  Total sheet width (px).
@@ -324,7 +331,7 @@ export function buildIsometricWallStripSpritePrompt(basePrompt: string, sheetWid
     "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
     "",
     `FORMAT: A single image, total canvas **${sheetWidth}×${sheetHeight}px**, containing **one horizontal row of four** equal cells (four columns, **one** row — a **1×4** strip).`,
-    `Each cell is **${cw}×${ch}px** — **width** matches the **1m isometric floor footprint**; **height** is **taller** than half the width (**not** a 2:1 floor-only cell).`,
+    `Each cell is **${cw}×${ch}px** — **width** = **1m** footprint; **height** ≈ **2.5×** width (**~2m** vertical — about **character height**, two stacked “blocks”).`,
     "Every cell must align perfectly on the grid with no gaps or overlap.",
     "",
     "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
@@ -335,7 +342,7 @@ export function buildIsometricWallStripSpritePrompt(basePrompt: string, sheetWid
     "",
     "GEOMETRY IN EVERY CELL (identical footprint):",
     `**Floor band (bottom **${floorBand}px** of each cell):** exactly ONE foreshortened isometric **ground rhombus** — same flush-edge diamond as **open-floor** tiles: bottom vertex on **bottom-edge center**, left/right vertices on **side midpoints** at the floor horizon, top vertex at the **top of this bottom band** (floor line).`,
-    "**Upper volume:** above that horizon, a **vertical wall face** (or corner) in **isometric three-quarter view** — reads as an **occluder**; no extra walkable floor plane in the upper area.",
+    "**Upper volume (~2m):** a **solid masonry block** filling the tile — **main wall faces and corner toward the viewer / front (bottom) of the isometric tile**, **not** a thin wall only along the **back** edge with empty walkable floor in front. The tile reads as **fully blocked**.",
     "Strong silhouette against a **plain solid flat-color** background outside the art (one uniform backdrop hue, full bleed, no gradients).",
     "",
     "BACKDROP AND EDGES (match illustrated-character policy — avoid greenscreen / chroma artifacts):",

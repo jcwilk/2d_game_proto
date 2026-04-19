@@ -194,9 +194,11 @@ export const NANO_BANANA2_SQUARE_ASPECT_RATIO = "1:1";
 /** Wide strip for 1×4 floor sheets (cell W×H with W = 4×H total → sheet aspect 8:1). */
 export const NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO = "8:1";
 /**
- * 1×4 **halfHeight** isometric wall strip: each cell **W×(1.5W)** → sheet **8W×3W/2** → aspect **16:3** (closest fal landscape enum to 8∶1.5).
+ * 1×4 isometric **wall** strip (fullHeight cell **W×2.5W** → sheet **4W×2.5W** ≈ **8∶5**). fal has no **8∶5** — use **`4:1`**; pipeline **`normalizeDecodedSheetToPreset`** with **`fit: 'contain'`** letterboxes to nominal sheet so **four columns are not side-cropped**.
  */
-export const NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO = "16:3";
+export const NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO = "4:1";
+/** @deprecated Use {@link NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO}. */
+export const NANO_BANANA2_HALF_HEIGHT_WALL_STRIP_ASPECT_RATIO = NANO_BANANA2_ISO_WALL_STRIP_ASPECT_RATIO;
 /**
  * 1×4 character walk sheet: each cell **width:height = 2:5**; full strip **width:height = 8:5** (e.g. 256×160).
  * fal **`fal-ai/nano-banana-2`** has no **8:5** enum — **`3:2`** is the closest supported landscape ratio; native output still drives **`sprite-ref`** when **`sheetNativeRaster`** is on.

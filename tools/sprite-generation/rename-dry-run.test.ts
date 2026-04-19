@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { PRESETS } from "./presets/registry.mjs";
+import { PRESETS } from "./presets/registry.ts";
 import {
   buildRenameDryRunPlan,
   formatRenameDryRunPlan,
@@ -62,12 +62,12 @@ describe("rename-dry-run", () => {
     expect(plan.to).toBe(to);
     expect(plan.directories).toHaveLength(2);
     expect(plan.presetModule!.from.replace(/\\/g, "/")).toContain(
-      `tools/sprite-generation/presets/${from}/${from}.mjs`,
+      `tools/sprite-generation/presets/${from}/${from}.ts`,
     );
     expect(plan.candidateFiles!.length).toBeGreaterThan(0);
     const text = formatRenameDryRunPlan(plan);
     expect(text.startsWith(`rename dry-run: ${from} -> ${to}`)).toBe(true);
-    expect(text).toContain("registry.mjs");
+    expect(text).toContain("registry.ts");
     expect(text).toContain("Candidate references");
   });
 });

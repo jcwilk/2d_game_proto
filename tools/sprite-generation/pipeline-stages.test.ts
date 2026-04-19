@@ -10,8 +10,7 @@ import {
   resolveSheetTilePostprocessSteps,
   runChromaKeyStage,
 } from "./pipeline-stages.ts";
-// @ts-expect-error TS7016 — preset module is still `.mjs` (see epic / registry TS migration)
-import { createPreset } from "./presets/dpad/dpad.mjs";
+import { createPreset } from "./presets/dpad/dpad.ts";
 
 describe("pipeline-stages", () => {
   it("DEFAULT_POSTPROCESS_STEPS_GENERATE is the chroma-only default", () => {

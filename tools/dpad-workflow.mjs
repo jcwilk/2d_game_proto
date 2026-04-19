@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * D-pad tile workflow CLI — **delegates** to **`createPreset`** (`presets/dpad/dpad.mjs`) +
+ * D-pad tile workflow CLI — **delegates** to **`createPreset`** (`presets/dpad/dpad.ts`) +
  * **`runPipeline`** (`sprite-generation/pipeline.ts`). See preset and pipeline docs for behavior.
  *
  * Modes: `--mode mock` (default) | `--mode generate` (fal; needs FAL_KEY).
  *
- * @see tools/sprite-generation/presets/dpad/dpad.mjs
+ * @see tools/sprite-generation/presets/dpad/dpad.ts
  * @see tools/sprite-generation/pipeline.ts
  */
 
@@ -23,7 +23,7 @@ import {
   SHEET_HEIGHT,
   SHEET_WIDTH,
   TILE_SIZE,
-} from "./sprite-generation/presets/dpad/dpad.mjs";
+} from "./sprite-generation/presets/dpad/dpad.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_BASE = join(__dirname, "..", "public", "art", "dpad");

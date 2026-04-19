@@ -1,8 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
-// @ts-expect-error TS7016 — co-located `dpad.mjs` preset; NodeNext does not bind `dpad.mjs.d.ts` for these specifiers.
-import { DPAD_SHEET_LAYOUT } from "../presets/dpad/dpad.mjs";
+import { DPAD_SHEET_LAYOUT } from "../presets/dpad/dpad.ts";
 import {
   defaultDpadShapeForFrame,
   generate,

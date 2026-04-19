@@ -20,7 +20,7 @@ function dpadSheetPublicUrl(): string {
   return base.endsWith('/') ? `${base}art/dpad/sheet.png` : `${base}/art/dpad/sheet.png`;
 }
 
-/** Row-major 2×2 sheet: up | down / left | right — matches `presets/dpad/dpad.mjs` `DPAD_FRAME_SHEET_CELLS`. */
+/** Row-major 2×2 sheet: up | down / left | right — matches `presets/dpad/dpad.ts` `DPAD_FRAME_SHEET_CELLS`. */
 const CHROME_SHEET_BG_POSITION: Record<Direction, string> = {
   up: '0% 0%',
   down: '100% 0%',

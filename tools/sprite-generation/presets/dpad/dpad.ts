@@ -34,8 +34,11 @@ import {
   NANO_BANANA2_LOW_RESOLUTION,
   NANO_BANANA2_SQUARE_ASPECT_RATIO,
 } from "../../generators/fal.ts";
+import type { GeneratorFrame } from "../../generators/types.ts";
 import { defaultDpadShapeForFrame } from "../../generators/mock.ts";
 import { buildRecipeId } from "../../manifest.ts";
+import type { PipelinePreset } from "../../pipeline.ts";
+import type { CreatePresetOptsBase } from "../../preset-contract.ts";
 import {
   buildDpadGridSpritePrompt,
   DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
@@ -46,13 +49,13 @@ import {
 } from "../../prompt.ts";
 import { sheetLayoutFromCrops } from "../../sheet-layout.ts";
 
-/** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
+/** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.ts`. */
 export const ASSET_ID = "dpad";
 
 /** Manifest `preset` field and `buildRecipeId` segment. */
 export const MANIFEST_PRESET_ID = "dpad_four_way";
 
-/** @type {typeof MANIFEST_PRESET_ID} Stable alias — same string as {@link MANIFEST_PRESET_ID}. */
+/** Stable alias — same string as {@link MANIFEST_PRESET_ID}. */
 export const DPAD_PRESET_ID = MANIFEST_PRESET_ID;
 
 /** Manifest `kind` for the four-way HUD tile set. */
@@ -61,7 +64,7 @@ export const KIND = "dpad_tile_set";
 /** Default CLI `--strategy` for registry / tooling. */
 export const DEFAULT_STRATEGY = "sheet";
 
-/** @type {typeof KIND} Stable alias — same string as {@link KIND}. */
+/** Stable alias — same string as {@link KIND}. */
 export const DPAD_KIND = KIND;
 
 /** Tile pixel size (width = height) for each d-pad direction cell (nominal; native fal/BRIA may differ when `sheetNativeRaster`). */
@@ -114,10 +117,8 @@ export const DPAD_TILE_MATERIAL_HINT =
 
 /**
  * D-pad preset: ordered frames (up → down → left → right in list; 2×2 row-major sheet cells).
- *
- * @type {readonly import('../../generators/types.ts').GeneratorFrame[]}
  */
-export const DPAD_FRAMES = Object.freeze([
+export const DPAD_FRAMES: readonly GeneratorFrame[] = Object.freeze([
   {
     id: "up",
     outSubdir: "up",
@@ -162,10 +163,8 @@ export const DPAD_FRAMES = Object.freeze([
 
 /**
  * Top-left origins in the 200×200 sheet (row-major: up, down / left, right).
- *
- * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
-export const SHEET_CROPS = Object.freeze({
+export const SHEET_CROPS: Readonly<Record<string, { x: number; y: number }>> = Object.freeze({
   up: { x: 0, y: 0 },
   down: { x: TILE_SIZE, y: 0 },
   left: { x: 0, y: TILE_SIZE },
@@ -174,10 +173,8 @@ export const SHEET_CROPS = Object.freeze({
 
 /**
  * Logical frame → grid cell (**column**, **row**) for **`sprite-ref.json`** (`gridFrameKeys`).
- *
- * @type {Readonly<Record<string, { column: number; row: number }>>}
  */
-export const DPAD_FRAME_SHEET_CELLS = Object.freeze({
+export const DPAD_FRAME_SHEET_CELLS: Readonly<Record<string, { column: number; row: number }>> = Object.freeze({
   up: { column: 0, row: 0 },
   down: { column: 1, row: 0 },
   left: { column: 0, row: 1 },
@@ -187,18 +184,15 @@ export const DPAD_FRAME_SHEET_CELLS = Object.freeze({
 /**
  * Mock `generateSheet` cell layout — **not** independent of **`SHEET_CROPS`**; same mapping as
  * **`sheetLayoutFromCrops`** in **`../../sheet-layout.ts`** so compositor placement matches crop extraction.
- *
- * @type {Readonly<Record<string, { x: number; y: number }>>}
  */
-export const DPAD_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE));
+export const DPAD_SHEET_LAYOUT: Readonly<Record<string, { x: number; y: number }>> = Object.freeze(
+  sheetLayoutFromCrops(SHEET_CROPS, TILE_SIZE),
+);
 
 /**
  * Same **`recipeId`** string **`runPipeline`** writes to **`manifest.json`** for this preset.
- *
- * @param {'mock'|'generate'} mode
- * @param {'per-tile'|'sheet'} [strategy] Required when `mode === 'generate'`.
  */
-export function recipeId(mode, strategy) {
+export function recipeId(mode: "mock" | "generate", strategy?: "per-tile" | "sheet"): string {
   return buildRecipeId({
     preset: MANIFEST_PRESET_ID,
     mode,
@@ -209,21 +203,12 @@ export function recipeId(mode, strategy) {
 /** @deprecated Prefer {@link recipeId}. */
 export const recipeIdForDpad = recipeId;
 
-/**
- * @typedef {object} CreateDpadPresetOpts
- * @property {string} outBase Absolute output root (e.g. `.../public/art/dpad`).
- * @property {string} [artUrlPrefix='art/dpad'] Site-root-relative prefix for sprite-ref `image` (no `public/`, no leading slash).
- * @property {string} [spriteRefJsonRelativePath='sprite-ref.json'] Written under `outBase`.
- * @property {string} [provenanceTool='tools/sprite-generation/presets/dpad/dpad.mjs']
- * @property {number} [provenanceVersion=1]
- */
+export type CreateDpadPresetOpts = CreatePresetOptsBase;
 
 /**
  * Full **`PipelinePreset`** for the D-pad workflow (pass to **`runPipeline`**).
- *
- * @param {CreateDpadPresetOpts} opts
  */
-export function createPreset(opts) {
+export function createPreset(opts: CreateDpadPresetOpts): PipelinePreset {
   const outBase = opts?.outBase;
   if (typeof outBase !== "string" || !outBase.trim()) {
     throw new Error("createPreset(dpad): outBase (non-empty string, absolute output directory) is required");
@@ -231,7 +216,7 @@ export function createPreset(opts) {
 
   const artUrlPrefix = opts.artUrlPrefix ?? "art/dpad";
   const spriteRefJsonRelativePath = opts.spriteRefJsonRelativePath ?? "sprite-ref.json";
-  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/dpad/dpad.mjs";
+  const provenanceTool = opts.provenanceTool ?? "tools/sprite-generation/presets/dpad/dpad.ts";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
   for (const f of DPAD_FRAMES) {
@@ -243,7 +228,7 @@ export function createPreset(opts) {
   return {
     presetId: MANIFEST_PRESET_ID,
     kind: KIND,
-    frames: DPAD_FRAMES,
+    frames: [...DPAD_FRAMES],
     outBase,
     tileSize: TILE_SIZE,
     sheetGridSize: 2,

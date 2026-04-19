@@ -10,7 +10,7 @@ import {
   mapCliModeToPipelineMode,
   parseRunArgs,
 } from "./generate-spritesheet.mjs";
-import { PRESETS } from "./sprite-generation/presets/registry.mjs";
+import { PRESETS } from "./sprite-generation/presets/registry.ts";
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 /** First registry key (sorted slugs) — avoids pinning CLI smoke tests to one production asset. */
@@ -96,7 +96,7 @@ describe("generate-spritesheet CLI", () => {
     const r = runCliStatus(["rename", "--dry-run", "--from", FIRST_PRESET, "--to", toSlug]);
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(new RegExp(`^rename dry-run: ${FIRST_PRESET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> ${toSlug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m"));
-    expect(r.stdout).toContain("registry.mjs");
+    expect(r.stdout).toContain("registry.ts");
     expect(r.stdout).toContain("Candidate references");
     expect(r.stdout).toContain("--apply is not available");
   });

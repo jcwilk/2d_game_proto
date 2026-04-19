@@ -2,7 +2,7 @@
  * Isometric open-floor tile preset — **1×4** horizontal strip of rhombus floor variants (`gridFrameKeys` under `public/art/isometric-open-floor/`).
  *
  * Each cell is **W×(W/2)** px (width = footprint **1m**, height = foreshortened band) — see **`ISO_FLOOR_TEXTURE_WIDTH_PX`** /
- * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`gameDimensions.mjs`** / **`src/dimensions.ts`**. The rhombus is **flush to all four
+ * **`ISO_FLOOR_TEXTURE_HEIGHT_PX`** in **`gameDimensions.ts`** / **`src/dimensions.ts`**. The rhombus is **flush to all four
  * cell edges** (vertices on edge midpoints); see **`isoFloorRhombusVerticesRect`** in **`generators/mock.ts`**.
  *
  * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.
@@ -16,8 +16,11 @@ import {
   NANO_BANANA2_FLOOR_STRIP_ASPECT_RATIO,
   NANO_BANANA2_LOW_RESOLUTION,
 } from "../../generators/fal.ts";
+import type { GeneratorFrame } from "../../generators/types.ts";
 import { renderIsometricFloorMockTileBuffer } from "../../generators/mock.ts";
 import { buildRecipeId } from "../../manifest.ts";
+import type { PipelinePreset } from "../../pipeline.ts";
+import type { CreatePresetOptsBase } from "../../preset-contract.ts";
 import {
   buildIsometricFloorStripSpritePrompt,
   interpolatePromptTemplate,
@@ -68,10 +71,7 @@ export const ISO_FLOOR_FAL_EXTRAS_PER_TILE = {
 export const QA_SPRITE_W = 16;
 export const QA_SPRITE_H = Math.max(8, Math.round(TILE_HEIGHT / 4));
 
-/**
- * @type {readonly import('../../generators/types.ts').GeneratorFrame[]}
- */
-export const ISO_FLOOR_FRAMES = Object.freeze([
+export const ISO_FLOOR_FRAMES: readonly GeneratorFrame[] = Object.freeze([
   {
     id: "floor_0",
     outSubdir: "floor_0",
@@ -98,27 +98,25 @@ export const ISO_FLOOR_FRAMES = Object.freeze([
   },
 ]);
 
-export const SHEET_CROPS = Object.freeze({
+export const SHEET_CROPS: Readonly<Record<string, { x: number; y: number }>> = Object.freeze({
   floor_0: { x: 0, y: 0 },
   floor_1: { x: TILE_WIDTH, y: 0 },
   floor_2: { x: TILE_WIDTH * 2, y: 0 },
   floor_3: { x: TILE_WIDTH * 3, y: 0 },
 });
 
-export const ISO_FLOOR_FRAME_SHEET_CELLS = Object.freeze({
+export const ISO_FLOOR_FRAME_SHEET_CELLS: Readonly<Record<string, { column: number; row: number }>> = Object.freeze({
   floor_0: { column: 0, row: 0 },
   floor_1: { column: 1, row: 0 },
   floor_2: { column: 2, row: 0 },
   floor_3: { column: 3, row: 0 },
 });
 
-export const ISO_FLOOR_SHEET_LAYOUT = Object.freeze(sheetLayoutFromCropsRect(SHEET_CROPS, TILE_WIDTH, TILE_HEIGHT));
+export const ISO_FLOOR_SHEET_LAYOUT: Readonly<Record<string, { x: number; y: number }>> = Object.freeze(
+  sheetLayoutFromCropsRect(SHEET_CROPS, TILE_WIDTH, TILE_HEIGHT),
+);
 
-/**
- * @param {'mock'|'generate'} mode
- * @param {'per-tile'|'sheet'} [strategy]
- */
-export function recipeId(mode, strategy) {
+export function recipeId(mode: "mock" | "generate", strategy?: "per-tile" | "sheet"): string {
   return buildRecipeId({
     preset: MANIFEST_PRESET_ID,
     mode,
@@ -126,19 +124,9 @@ export function recipeId(mode, strategy) {
   });
 }
 
-/**
- * @typedef {object} CreateIsoFloorPresetOpts
- * @property {string} outBase
- * @property {string} [artUrlPrefix='art/isometric-open-floor']
- * @property {string} [spriteRefJsonRelativePath='sprite-ref.json']
- * @property {string} [provenanceTool]
- * @property {number} [provenanceVersion]
- */
+export type CreateIsoFloorPresetOpts = CreatePresetOptsBase;
 
-/**
- * @param {CreateIsoFloorPresetOpts} opts
- */
-export function createPreset(opts) {
+export function createPreset(opts: CreateIsoFloorPresetOpts): PipelinePreset {
   const outBase = opts?.outBase;
   if (typeof outBase !== "string" || !outBase.trim()) {
     throw new Error("createPreset(isometric-open-floor): outBase (non-empty string, absolute output directory) is required");
@@ -147,7 +135,7 @@ export function createPreset(opts) {
   const artUrlPrefix = opts.artUrlPrefix ?? "art/isometric-open-floor";
   const spriteRefJsonRelativePath = opts.spriteRefJsonRelativePath ?? "sprite-ref.json";
   const provenanceTool =
-    opts.provenanceTool ?? "tools/sprite-generation/presets/isometric-open-floor/isometric-open-floor.mjs";
+    opts.provenanceTool ?? "tools/sprite-generation/presets/isometric-open-floor/isometric-open-floor.ts";
   const provenanceVersion = opts.provenanceVersion ?? 1;
 
   for (const f of ISO_FLOOR_FRAMES) {
@@ -159,7 +147,7 @@ export function createPreset(opts) {
   return {
     presetId: MANIFEST_PRESET_ID,
     kind: KIND,
-    frames: ISO_FLOOR_FRAMES,
+    frames: [...ISO_FLOOR_FRAMES],
     outBase,
     tileSize: TILE_SIZE,
     tileHeight: TILE_HEIGHT,

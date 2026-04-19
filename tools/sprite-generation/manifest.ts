@@ -28,11 +28,16 @@ export const RECIPE_VERSION_PER_TILE = "v5-corner-chroma";
 /** Bump when sheet fal + crop + alpha contract changes (flux/chroma vs nano-banana + BRIA matting). */
 export const RECIPE_VERSION_SHEET = "v21-iso-floor-1x4-strip";
 
+export interface BuildRecipeIdCtx {
+  preset: string;
+  mode: "mock" | "generate";
+  strategy?: "per-tile" | "sheet";
+}
+
 /**
- * @param {{ preset: string; mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet' }} ctx
- * @returns {string}
+ * @returns Recipe id string for manifest versioning.
  */
-export function buildRecipeId(ctx) {
+export function buildRecipeId(ctx: BuildRecipeIdCtx): string {
   const { preset, mode } = ctx;
   const base = `sprite-gen-${preset}`;
   if (mode === "mock") {
@@ -48,10 +53,15 @@ export function buildRecipeId(ctx) {
   throw new Error(`buildRecipeId: need strategy when mode is generate (got ${String(strategy)})`);
 }
 
-/**
- * @param {{ mode: 'mock' | 'generate'; strategy?: 'per-tile' | 'sheet'; endpoint: string | null; sheetWidth: number; sheetHeight: number }} p
- */
-function buildWorkflowLabel(p) {
+interface BuildWorkflowLabelInput {
+  mode: "mock" | "generate";
+  strategy?: "per-tile" | "sheet";
+  endpoint: string | null;
+  sheetWidth: number;
+  sheetHeight: number;
+}
+
+function buildWorkflowLabel(p: BuildWorkflowLabelInput): string {
   if (p.mode === "mock") return "mock (triangles)";
   if (p.mode === "generate" && p.strategy === "sheet") {
     return `fal sheet (${p.endpoint}, ${p.sheetWidth}×${p.sheetHeight}px, txt2img → crop)`;
@@ -62,18 +72,17 @@ function buildWorkflowLabel(p) {
   return "mock (triangles)";
 }
 
-/**
- * @param {{
- *   mode: 'mock' | 'generate';
- *   strategy?: 'per-tile' | 'sheet';
- *   chromaKeyHex: string;
- *   tileSize: number;
- *   tileHeight?: number;
- *   sheetWidth: number;
- *   sheetHeight: number;
- * }} p
- */
-function buildRecipeNote(p) {
+interface BuildRecipeNoteInput {
+  mode: "mock" | "generate";
+  strategy?: "per-tile" | "sheet";
+  chromaKeyHex: string;
+  tileSize: number;
+  tileHeight?: number;
+  sheetWidth: number;
+  sheetHeight: number;
+}
+
+function buildRecipeNote(p: BuildRecipeNoteInput): string {
   if (p.mode === "mock") {
     return "Mock: geometry from pngjs triangles, not T2I.";
   }
@@ -91,38 +100,35 @@ function buildRecipeNote(p) {
   );
 }
 
-/**
- * Initial manifest before per-frame results (empty `frames` / `generationResults` content except structure).
- *
- * @param {{
- *   kind: string;
- *   preset: string;
- *   recipeId: string;
- *   createdAt: string;
- *   frames: Array<{ id: string; outSubdir: string }>;
- *   mode: 'mock' | 'generate';
- *   strategy?: 'per-tile' | 'sheet';
- *   endpoint: string | null;
- *   imageSize: string;
- *   tileSize: number;
- *   tileHeight?: number;
- *   sheetSize?: number;
- *   sheetWidth?: number;
- *   sheetHeight?: number;
- *   sheetCropMap?: Record<string, { x: number; y: number }>;
- *   chromaKeyHex: string;
- *   chromaTolerance: number;
- *   keyRgbForManifest: { r: number; g: number; b: number } | null;
- *   falExtrasPerTile: Record<string, unknown> | null;
- *   falExtrasSheet: Record<string, unknown> | null;
- *   seed?: number | null;
- *   provenance: { tool: string; version: number };
- *   pngBasename: string;
- *   specsNaming?: string | null;
- * }} input
- * @returns {Record<string, unknown>}
- */
-export function buildInitialManifest(input) {
+export interface BuildInitialManifestInput {
+  kind: string;
+  preset: string;
+  recipeId: string;
+  createdAt: string;
+  frames: Array<{ id: string; outSubdir?: string }>;
+  mode: "mock" | "generate";
+  strategy?: "per-tile" | "sheet";
+  endpoint: string | null;
+  imageSize: string;
+  tileSize: number;
+  tileHeight?: number;
+  sheetSize?: number;
+  sheetWidth?: number;
+  sheetHeight?: number;
+  sheetCropMap?: Record<string, { x: number; y: number }>;
+  chromaKeyHex: string;
+  chromaTolerance: number;
+  keyRgbForManifest: { r: number; g: number; b: number } | null;
+  falExtrasPerTile: Record<string, unknown> | null;
+  falExtrasSheet: Record<string, unknown> | null;
+  seed?: number | null;
+  provenance: { tool: string; version: number };
+  pngBasename: string;
+  specsNaming?: string | null;
+}
+
+/** Initial manifest before per-frame results (empty `frames` / `generationResults` content except structure). */
+export function buildInitialManifest(input: BuildInitialManifestInput): Record<string, unknown> {
   const {
     kind,
     preset,
@@ -171,8 +177,7 @@ export function buildInitialManifest(input) {
     sheetHeight: sheetH,
   });
 
-  /** @type {Record<string, unknown>} */
-  const specs = {
+  const specs: Record<string, unknown> = {
     tileSize: { width: tileSize, height: tileHeightIn },
     framePreset: frames.map((f) => ({ id: f.id, outSubdir: f.outSubdir })),
     ...(mode === "generate" && strategy === "sheet" && sheetCropMap
@@ -195,8 +200,7 @@ export function buildInitialManifest(input) {
       : {}),
   };
 
-  /** @type {Record<string, unknown>} */
-  const generationRecipe = {
+  const generationRecipe: Record<string, unknown> = {
     mode,
     endpoint: mode === "generate" ? endpoint : null,
     seedRequested: seed ?? null,

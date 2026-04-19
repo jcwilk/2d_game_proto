@@ -10,7 +10,7 @@ vi.mock("node:child_process", () => ({
 
 import { execFileSync } from "node:child_process";
 
-import { getPngAnalyzeScriptPathForTests, runPngAnalyzeBridge } from "./analyze-bridge.mjs";
+import { getPngAnalyzeScriptPathForTests, runPngAnalyzeBridge } from "./analyze-bridge.ts";
 
 describe("analyze-bridge spawn argv", () => {
   afterEach(() => {

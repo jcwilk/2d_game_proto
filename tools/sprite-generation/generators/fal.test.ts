@@ -1,8 +1,9 @@
-import { ApiError } from "@fal-ai/client";
+import { ApiError, type FalClient } from "@fal-ai/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PNG } from "pngjs";
 
+import type { LogFn } from "./types.ts";
 import {
   assertPngBufferDimensions,
   BRIA_BACKGROUND_REMOVE_ENDPOINT,
@@ -28,7 +29,15 @@ import {
   shouldUseBriaSheetMatting,
   NANO_BANANA2_DEFAULT_ASPECT_RATIO,
   NANO_BANANA2_DEFAULT_RESOLUTION,
-} from "./fal.mjs";
+} from "./fal.ts";
+
+function mockSubscribe(fn: ReturnType<typeof vi.fn>): FalClient["subscribe"] {
+  return fn as unknown as FalClient["subscribe"];
+}
+
+function mockFetchFn(fn: ReturnType<typeof vi.fn>): typeof fetch {
+  return fn as unknown as typeof fetch;
+}
 
 describe("sprite-generation fal helpers (no network)", () => {
   afterEach(() => {
@@ -80,7 +89,7 @@ describe("sprite-generation fal helpers (no network)", () => {
       userPrompt: "user",
       systemPrompt: "sys",
       model: "openai/gpt-4o-mini",
-      falSubscribe: subscribe,
+      falSubscribe: mockSubscribe(subscribe),
       quiet: true,
     });
     expect(r.text).toBe("rewritten prompt");
@@ -97,7 +106,7 @@ describe("sprite-generation fal helpers (no network)", () => {
       image: { url: "https://v3.fal.media/out.png", width: 100, height: 100 },
     });
     expect(p.url).toBe("https://v3.fal.media/out.png");
-    expect(p.image0.width).toBe(100);
+    expect(p.image0["width"]).toBe(100);
   });
 
   it("parseFalImageSubscribeResult reads images[0].url from fixture-shaped data", () => {
@@ -108,7 +117,7 @@ describe("sprite-generation fal helpers (no network)", () => {
     const p = parseFalImageSubscribeResult(fixture);
     expect(p.url).toBe("https://cdn.example.com/n.png");
     expect(p.seed).toBe(42);
-    expect(p.image0.width).toBe(400);
+    expect(p.image0["width"]).toBe(400);
   });
 
   it("redactFalInputForLog hides data URIs and prompt body", () => {
@@ -119,20 +128,20 @@ describe("sprite-generation fal helpers (no network)", () => {
       control_lora_image_url: "data:image/png;base64,AAAA",
       api_token: "x",
     });
-    expect(r.prompt).toEqual({ length: 13, sha256Hex16: hashPromptForLog("secret phrase") });
-    expect(r.system_prompt).toEqual({ length: 13, sha256Hex16: hashPromptForLog("system hidden") });
-    expect(String(r.control_lora_image_url)).toContain("data-uri");
-    expect(String(r.control_lora_image_url)).toContain("payloadChars=");
-    expect(r.api_token).toBe("<redacted>");
-    expect(r.image_size).toEqual({ width: 400, height: 100 });
+    expect(r["prompt"]).toEqual({ length: 13, sha256Hex16: hashPromptForLog("secret phrase") });
+    expect(r["system_prompt"]).toEqual({ length: 13, sha256Hex16: hashPromptForLog("system hidden") });
+    expect(String(r["control_lora_image_url"])).toContain("data-uri");
+    expect(String(r["control_lora_image_url"])).toContain("payloadChars=");
+    expect(r["api_token"]).toBe("<redacted>");
+    expect(r["image_size"]).toEqual({ width: 400, height: 100 });
   });
 
   it("redactFalInputForLog treats any *_url string like control image URLs", () => {
     const r = redactFalInputForLog({
       image_url: "https://example.com/secret.png?token=abc",
     });
-    expect(String(r.image_url)).toContain("host=example.com");
-    expect(String(r.image_url)).not.toContain("token=");
+    expect(String(r["image_url"])).toContain("host=example.com");
+    expect(String(r["image_url"])).not.toContain("token=");
   });
 
   it("assertPngBufferDimensions passes on exact WxH and throws with stage label on mismatch", () => {
@@ -198,14 +207,14 @@ describe("sprite-generation fal helpers (no network)", () => {
       ok: true,
       arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
     }));
-    const out = await downloadToBuffer("https://example.com/a.png", fetchMock);
+    const out = await downloadToBuffer("https://example.com/a.png", mockFetchFn(fetchMock));
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(Buffer.compare(out, buf)).toBe(0);
   });
 
   it("falSubscribeToBuffer downloads image via mocked subscribe + fetch", async () => {
-    const logs = [];
-    const log = (level, step, message, extra) => {
+    const logs: Array<{ level: string; step: string; message: string; extra?: Record<string, unknown> }> = [];
+    const log: LogFn = (level, step, message, extra) => {
       logs.push({ level, step, message, extra });
     };
     const subscribe = vi.fn(async () => ({
@@ -231,8 +240,8 @@ describe("sprite-generation fal helpers (no network)", () => {
       seed: 1,
       quiet: true,
       log,
-      falSubscribe: subscribe,
-      fetch: fetchMock,
+      falSubscribe: mockSubscribe(subscribe),
+      fetch: mockFetchFn(fetchMock),
     });
 
     expect(r.buffer.equals(pngBytes)).toBe(true);
@@ -241,16 +250,16 @@ describe("sprite-generation fal helpers (no network)", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(r.wallMs).toBeGreaterThanOrEqual(0);
     const done = logs.find((x) => x.message === "subscribe() done");
-    expect(done?.extra?.pngDecodedPx).toEqual({ width: 1, height: 1, decode: "pngjs" });
-    expect(done?.extra?.requestedImageSize).toEqual({ width: 256, height: 256 });
+    expect(done?.extra?.["pngDecodedPx"]).toEqual({ width: 1, height: 1, decode: "pngjs" });
+    expect(done?.extra?.["requestedImageSize"]).toEqual({ width: 256, height: 256 });
     const req = logs.find((x) => x.message === "subscribe() request input (redacted)");
-    expect(req?.extra?.image_size).toEqual({ width: 256, height: 256 });
-    expect(req?.extra?.prompt).toMatchObject({ length: 4, sha256Hex16: expect.any(String) });
+    expect(req?.extra?.["image_size"]).toEqual({ width: 256, height: 256 });
+    expect(req?.extra?.["prompt"]).toMatchObject({ length: 4, sha256Hex16: expect.any(String) });
   });
 
   it("falSubscribeToBuffer for fal-ai/nano-banana-2 sends aspect_ratio and resolution, not image_size", async () => {
-    const captured = [];
-    const subscribe = vi.fn(async (_ep, opts) => {
+    const captured: unknown[] = [];
+    const subscribe = vi.fn(async (_ep: string, opts: { input: unknown }) => {
       captured.push(opts.input);
       return {
         data: {
@@ -274,20 +283,20 @@ describe("sprite-generation fal helpers (no network)", () => {
       prompt: "sheet prompt",
       imageSize: "400x100",
       quiet: true,
-      falSubscribe: subscribe,
-      fetch: fetchMock,
+      falSubscribe: mockSubscribe(subscribe),
+      fetch: mockFetchFn(fetchMock),
     });
 
     expect(subscribe).toHaveBeenCalledWith(
       "fal-ai/nano-banana-2",
       expect.objectContaining({ input: expect.any(Object) }),
     );
-    const input = captured[0];
-    expect(input.aspect_ratio).toBe(NANO_BANANA2_DEFAULT_ASPECT_RATIO);
-    expect(input.resolution).toBe(NANO_BANANA2_DEFAULT_RESOLUTION);
-    expect(input.output_format).toBe("png");
-    expect(input.num_images).toBe(1);
-    expect(input.image_size).toBeUndefined();
+    const input = captured[0] as Record<string, unknown>;
+    expect(input["aspect_ratio"]).toBe(NANO_BANANA2_DEFAULT_ASPECT_RATIO);
+    expect(input["resolution"]).toBe(NANO_BANANA2_DEFAULT_RESOLUTION);
+    expect(input["output_format"]).toBe("png");
+    expect(input["num_images"]).toBe(1);
+    expect(input["image_size"]).toBeUndefined();
     expect("image_size" in input).toBe(false);
   });
 
@@ -311,13 +320,15 @@ describe("sprite-generation fal helpers (no network)", () => {
       imageSize: "256x256",
       quiet: true,
       falExtraInput: { aspect_ratio: "1:1", resolution: "2K" },
-      falSubscribe: subscribe,
-      fetch: fetchMock,
+      falSubscribe: mockSubscribe(subscribe),
+      fetch: mockFetchFn(fetchMock),
     });
 
-    const input = subscribe.mock.calls[0][1].input;
-    expect(input.aspect_ratio).toBe("1:1");
-    expect(input.resolution).toBe("2K");
+    const firstCall = subscribe.mock.calls[0] as unknown as [string, { input: Record<string, unknown> }] | undefined;
+    expect(firstCall).toBeDefined();
+    const input = firstCall![1].input;
+    expect(input["aspect_ratio"]).toBe("1:1");
+    expect(input["resolution"]).toBe("2K");
   });
 
   it("falSubscribeImageToBuffer accepts pre-built input and uses parseFalImageSubscribeResult", async () => {
@@ -344,8 +355,8 @@ describe("sprite-generation fal helpers (no network)", () => {
         output_format: "png",
       },
       quiet: true,
-      falSubscribe: subscribe,
-      fetch: fetchMock,
+      falSubscribe: mockSubscribe(subscribe),
+      fetch: mockFetchFn(fetchMock),
     });
     expect(r.buffer.length).toBeGreaterThan(0);
     expect(subscribe).toHaveBeenCalledOnce();
@@ -359,15 +370,15 @@ describe("sprite-generation fal helpers (no network)", () => {
       endpoint: "fal-ai/flux/dev",
       input: { prompt: "x", image_size: { width: 1, height: 1 }, num_images: 1, output_format: "png" },
       quiet: true,
-      falSubscribe: subscribe,
+      falSubscribe: mockSubscribe(subscribe),
     });
     expect(r.imageUrl).toBe("https://cdn.example.com/only-url.png");
     expect(r.seed).toBe(3);
   });
 
   it("falSubscribeBriaBackgroundRemoveToBuffer calls BRIA endpoint with image_url", async () => {
-    const captured = [];
-    const subscribe = vi.fn(async (ep, opts) => {
+    const captured: Array<{ ep: string; input: Record<string, unknown> }> = [];
+    const subscribe = vi.fn(async (ep: string, opts: { input: Record<string, unknown> }) => {
       captured.push({ ep, input: opts.input });
       return {
         data: { image: { url: "https://cdn.example.com/matted.png", width: 2, height: 2 } },
@@ -386,15 +397,15 @@ describe("sprite-generation fal helpers (no network)", () => {
     await falSubscribeBriaBackgroundRemoveToBuffer({
       imageUrl: "https://cdn.example.com/in.png",
       quiet: true,
-      falSubscribe: subscribe,
-      fetch: fetchMock,
+      falSubscribe: mockSubscribe(subscribe),
+      fetch: mockFetchFn(fetchMock),
     });
 
     expect(subscribe).toHaveBeenCalledWith(
       BRIA_BACKGROUND_REMOVE_ENDPOINT,
       expect.objectContaining({ input: expect.any(Object) }),
     );
-    expect(captured[0].input.image_url).toBe("https://cdn.example.com/in.png");
+    expect(captured[0]!.input["image_url"]).toBe("https://cdn.example.com/in.png");
     expect(fetchMock).toHaveBeenCalled();
   });
 });

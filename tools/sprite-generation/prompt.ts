@@ -4,7 +4,15 @@
  * can vary without editing frame lists.
  */
 
-/** @typedef {{ tileSize: number; chromaKeyHex: string; sheetSize?: number; sheetWidth?: number; sheetHeight?: number; cellWidth?: number; cellHeight?: number }} PromptCtx */
+export interface PromptCtx {
+  tileSize: number;
+  chromaKeyHex: string;
+  sheetSize?: number;
+  sheetWidth?: number;
+  sheetHeight?: number;
+  cellWidth?: number;
+  cellHeight?: number;
+}
 
 export const DEFAULT_CHROMA_KEY_HEX = "#FF00FF";
 
@@ -112,13 +120,13 @@ export const CHARACTER_SHEET_REWRITE_SYSTEM_PROMPT =
   "Improve: vivid but coherent clothing and skin tones, material read, subtle personality, and clear readable poses — still a 2D game sprite, not a full illustration or photoreal render. " +
   "Output only the improved prompt text, no preamble.";
 
-const FALSPRITE_NUM_WORDS = /** @type {Record<number, string>} */ ({
+const FALSPRITE_NUM_WORDS: Record<number, string> = {
   2: "two",
   3: "three",
   4: "four",
   5: "five",
   6: "six",
-});
+};
 
 /**
  * Mirrors [falsprite `buildSpritePrompt`](https://github.com/lovisdotio/falsprite/blob/main/lib/fal.mjs): technical grid + motion block, then **`basePrompt`** as "CHARACTER AND ANIMATION DIRECTION".
@@ -184,7 +192,7 @@ export const ISO_FLOOR_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
  * @param {number} [gridSize=2]  N for an N×N cell grid.
  * @returns {string}
  */
-export function buildIsometricFloorGridSpritePrompt(basePrompt, gridSize = 2) {
+export function buildIsometricFloorGridSpritePrompt(basePrompt: string, gridSize = 2): string {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
   return [
     "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
@@ -219,7 +227,7 @@ export function buildIsometricFloorGridSpritePrompt(basePrompt, gridSize = 2) {
  * @param {number} sheetHeight  Total sheet height (px) — equals one cell height.
  * @returns {string}
  */
-export function buildIsometricFloorStripSpritePrompt(basePrompt, sheetWidth, sheetHeight) {
+export function buildIsometricFloorStripSpritePrompt(basePrompt: string, sheetWidth: number, sheetHeight: number): string {
   const cw = Math.round(sheetWidth / 4);
   const ch = Math.round(sheetHeight);
   return [
@@ -260,7 +268,7 @@ export function buildIsometricFloorStripSpritePrompt(basePrompt, sheetWidth, she
   ].join("\n");
 }
 
-export function buildDpadGridSpritePrompt(basePrompt, gridSize = 2) {
+export function buildDpadGridSpritePrompt(basePrompt: string, gridSize = 2): string {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
   return [
     "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
@@ -284,7 +292,7 @@ export function buildDpadGridSpritePrompt(basePrompt, gridSize = 2) {
   ].join("\n");
 }
 
-export function buildFalspriteStyleSpritePrompt(basePrompt, gridSize = 4) {
+export function buildFalspriteStyleSpritePrompt(basePrompt: string, gridSize = 4): string {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "four";
   return [
     "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
@@ -336,7 +344,7 @@ export function buildFalspriteStyleSpritePrompt(basePrompt, gridSize = 4) {
  * @param {number} sheetHeight  Nominal sheet height (px), e.g. one frame height.
  * @returns {string}
  */
-export function buildCharacterWalkStripSpritePrompt(basePrompt, sheetWidth, sheetHeight) {
+export function buildCharacterWalkStripSpritePrompt(basePrompt: string, sheetWidth: number, sheetHeight: number): string {
   const cw = Math.round(sheetWidth / 4);
   const ch = Math.round(sheetHeight);
   return [
@@ -394,7 +402,7 @@ export function buildCharacterWalkStripSpritePrompt(basePrompt, sheetWidth, shee
  * @param {{ layout?: 'grid' | 'strip' }} [opts]  **`strip`** — single horizontal row (1×N), **not** “one beat per row” of a square grid.
  * @returns {string}
  */
-export function buildFalspriteSheetRewriteSystemPrompt(gridSize = 4, opts) {
+export function buildFalspriteSheetRewriteSystemPrompt(gridSize = 4, opts?: { layout?: "grid" | "strip" }): string {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "four";
   const choreography =
     opts?.layout === "strip"
@@ -431,7 +439,7 @@ export const CHARACTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
  * @param {string} template
  * @param {PromptCtx} ctx
  */
-export function interpolatePromptTemplate(template, ctx) {
+export function interpolatePromptTemplate(template: string, ctx: PromptCtx): string {
   let s = String(template);
   if (ctx.tileSize !== undefined) s = s.replaceAll("{tileSize}", String(ctx.tileSize));
   if (ctx.sheetSize !== undefined) s = s.replaceAll("{sheetSize}", String(ctx.sheetSize));
@@ -456,18 +464,28 @@ export function interpolatePromptTemplate(template, ctx) {
  * @param {number} [params.cellHeight]
  * @param {string} [params.suffix] — appended after subject; defaults to dpad frame suffix for parity with dpad-workflow
  */
-export function buildPrompt({
-  tileSize,
-  chromaKeyHex,
-  style,
-  composition,
-  subject,
-  suffix = DPAD_FRAME_PROMPT_SUFFIX,
-  cellWidth,
-  cellHeight,
-}) {
+export function buildPrompt(params: {
+  tileSize: number;
+  chromaKeyHex?: string;
+  style: string;
+  composition: string;
+  subject: string;
+  suffix?: string;
+  cellWidth?: number;
+  cellHeight?: number;
+}): string {
+  const {
+    tileSize,
+    chromaKeyHex,
+    style,
+    composition,
+    subject,
+    suffix = DPAD_FRAME_PROMPT_SUFFIX,
+    cellWidth,
+    cellHeight,
+  } = params;
   const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
-  const ctx = /** @type {PromptCtx} */ ({ tileSize, chromaKeyHex: bg });
+  const ctx: PromptCtx = { tileSize, chromaKeyHex: bg };
   if (cellWidth !== undefined) ctx.cellWidth = cellWidth;
   if (cellHeight !== undefined) ctx.cellHeight = cellHeight;
   return interpolatePromptTemplate(style, ctx) + interpolatePromptTemplate(composition, ctx) + subject + suffix;
@@ -485,17 +503,29 @@ export function buildPrompt({
  * @param {string} params.composition — may include `{chromaKeyHex}`
  * @param {string} params.subject
  */
-export function buildSheetPrompt({ sheetSize, sheetWidth, sheetHeight, chromaKeyHex, style, composition, subject }) {
+export function buildSheetPrompt(params: {
+  sheetSize?: number;
+  sheetWidth?: number;
+  sheetHeight?: number;
+  chromaKeyHex?: string;
+  style: string;
+  composition: string;
+  subject: string;
+}): string {
+  const { sheetSize, sheetWidth, sheetHeight, chromaKeyHex, style, composition, subject } = params;
   const bg = chromaKeyHex || DEFAULT_CHROMA_KEY_HEX;
   const sw = sheetWidth ?? sheetSize;
   const sh = sheetHeight ?? sheetSize;
+  if (sw === undefined || sh === undefined) {
+    throw new Error("buildSheetPrompt: need sheetWidth+sheetHeight and/or sheetSize");
+  }
   const ss = sheetSize ?? sw;
-  const ctx = /** @type {PromptCtx} */ ({
+  const ctx: PromptCtx = {
     tileSize: ss,
     sheetSize: ss,
     sheetWidth: sw,
     sheetHeight: sh,
     chromaKeyHex: bg,
-  });
+  };
   return interpolatePromptTemplate(style, ctx) + interpolatePromptTemplate(composition, ctx) + subject;
 }

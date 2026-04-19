@@ -3,6 +3,7 @@
  * Geometry is injectable via `shapeForFrame` so non–D-pad presets can swap shapes without forking this module.
  */
 
+import type { Buffer } from "node:buffer";
 import { PNG } from "pngjs";
 
 import {
@@ -10,16 +11,19 @@ import {
   CHARACTER_WALK_FRAME_HEIGHT_PX,
 } from "../gameDimensions.ts";
 
+import type { GenerateResult, GeneratorFrame, MockGeneratorConfig } from "./types.ts";
+
+type Point = { x: number; y: number };
+
 /**
  * Isometric floor rhombus in a **W×H** texture cell (**drawn in pixel space**): vertices flush with **edge midpoints**
  * — top on top-edge center, bottom on bottom-edge center, left/right on side-edge midpoints. With **H = W/2** this is
  * the natural foreshortened ground diamond (matches `src/dimensions.ts` open-floor cell).
- *
- * @param {number} tileWidth
- * @param {number} tileHeight
- * @returns {{ top: { x: number; y: number }; right: { x: number; y: number }; bottom: { x: number; y: number }; left: { x: number; y: number } }}
  */
-export function isoFloorRhombusVerticesRect(tileWidth, tileHeight) {
+export function isoFloorRhombusVerticesRect(
+  tileWidth: number,
+  tileHeight: number,
+): { top: Point; right: Point; bottom: Point; left: Point } {
   if (tileWidth < 4 || tileHeight < 2) {
     throw new Error(`isoFloorRhombusVerticesRect: need tileWidth>=4, tileHeight>=2, got ${tileWidth}×${tileHeight}`);
   }
@@ -36,12 +40,7 @@ export function isoFloorRhombusVerticesRect(tileWidth, tileHeight) {
   };
 }
 
-/**
- * @param {{ x: number; y: number }} p
- * @param {number} tileWidth
- * @param {number} tileHeight
- */
-export function pointInIsoFloorRhombusRect(p, tileWidth, tileHeight) {
+export function pointInIsoFloorRhombusRect(p: Point, tileWidth: number, tileHeight: number): boolean {
   const { top: t, right: r, bottom: b, left: l } = isoFloorRhombusVerticesRect(tileWidth, tileHeight);
   return pointInTriangle(p, t, r, b) || pointInTriangle(p, t, l, b);
 }
@@ -50,12 +49,8 @@ export function pointInIsoFloorRhombusRect(p, tileWidth, tileHeight) {
  * Mock isometric open-floor tile: transparent outside rhombus, stone fill inside, variant `floor_0`…`floor_3`.
  * Cell is **`tileWidth`×`tileHeight`** (typically **2:1** wide:tall); rhombus flush to all four edges.
  *
- * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {number} tileWidth
- * @param {number} tileHeight
- * @returns {import('node:buffer').Buffer}
  */
-export function renderIsometricFloorMockTileBuffer(frame, tileWidth, tileHeight) {
+export function renderIsometricFloorMockTileBuffer(frame: GeneratorFrame, tileWidth: number, tileHeight: number): Buffer {
   const m = /^floor_(\d)$/.exec(frame.id);
   if (!m) {
     throw new Error(`mock isometric floor: frame id must be floor_0..floor_3, got ${JSON.stringify(frame.id)}`);
@@ -72,7 +67,7 @@ export function renderIsometricFloorMockTileBuffer(frame, tileWidth, tileHeight)
     { r: 0x62, g: 0x56, b: 0x4a },
     { r: 0x58, g: 0x4e, b: 0x44 },
   ];
-  const base = bases[variant];
+  const base = bases[variant]!;
 
   const png = new PNG({ width: tileWidth, height: tileHeight, colorType: 6 });
   png.data.fill(0);
@@ -91,19 +86,19 @@ export function renderIsometricFloorMockTileBuffer(frame, tileWidth, tileHeight)
       png.data[i + 2] = Math.max(0, Math.min(255, base.b + shade));
       png.data[i + 3] = 0xff;
       if (variant === 1 && ((x + y + variant) & 0x1f) === 0) {
-        png.data[i] = Math.max(0, png.data[i] - 22);
-        png.data[i + 1] = Math.max(0, png.data[i + 1] - 18);
-        png.data[i + 2] = Math.max(0, png.data[i + 2] - 14);
+        png.data[i] = Math.max(0, (png.data[i] ?? 0) - 22);
+        png.data[i + 1] = Math.max(0, (png.data[i + 1] ?? 0) - 18);
+        png.data[i + 2] = Math.max(0, (png.data[i + 2] ?? 0) - 14);
       }
       if (variant === 2 && ((x * y + variant * 13) & 0x3f) < 4) {
-        png.data[i] = Math.min(255, png.data[i] + 12);
-        png.data[i + 1] = Math.min(255, png.data[i + 1] + 10);
-        png.data[i + 2] = Math.min(255, png.data[i + 2] + 8);
+        png.data[i] = Math.min(255, (png.data[i] ?? 0) + 12);
+        png.data[i + 1] = Math.min(255, (png.data[i + 1] ?? 0) + 10);
+        png.data[i + 2] = Math.min(255, (png.data[i + 2] ?? 0) + 8);
       }
       if (variant === 3 && y > (tileHeight * 2) / 3 && ((x + variant) & 7) < 3) {
-        png.data[i] = Math.max(0, png.data[i] - 14);
-        png.data[i + 1] = Math.max(0, png.data[i + 1] - 12);
-        png.data[i + 2] = Math.max(0, png.data[i + 2] - 10);
+        png.data[i] = Math.max(0, (png.data[i] ?? 0) - 14);
+        png.data[i + 1] = Math.max(0, (png.data[i + 1] ?? 0) - 12);
+        png.data[i + 2] = Math.max(0, (png.data[i + 2] ?? 0) - 10);
       }
     }
   }
@@ -111,8 +106,8 @@ export function renderIsometricFloorMockTileBuffer(frame, tileWidth, tileHeight)
   return PNG.sync.write(png);
 }
 
-export function pointInTriangle(p, a, b, c) {
-  const sign = (p1, p2, p3) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+export function pointInTriangle(p: Point, a: Point, b: Point, c: Point): boolean {
+  const sign = (p1: Point, p2: Point, p3: Point) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
   const d1 = sign(p, a, b);
   const d2 = sign(p, b, c);
   const d3 = sign(p, c, a);
@@ -121,12 +116,10 @@ export function pointInTriangle(p, a, b, c) {
   return !(hasNeg && hasPos);
 }
 
-/**
- * @param {'up'|'down'|'left'|'right'} dir
- * @param {number} [tileSize=256]
- * @returns {[{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }]}
- */
-export function triangleForDirection(dir, tileSize = 256) {
+export function triangleForDirection(
+  dir: "up" | "down" | "left" | "right",
+  tileSize = 256,
+): [Point, Point, Point] {
   const m = Math.max(4, Math.round((tileSize * 32) / 256));
   const cx = tileSize / 2;
   const cy = tileSize / 2;
@@ -160,11 +153,7 @@ export function triangleForDirection(dir, tileSize = 256) {
   }
 }
 
-/**
- * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {{ tileSize: number }} ctx
- */
-export function defaultDpadShapeForFrame(frame, ctx) {
+export function defaultDpadShapeForFrame(frame: GeneratorFrame, ctx: { tileSize: number }): [Point, Point, Point] {
   const id = frame.id;
   if (id !== "up" && id !== "down" && id !== "left" && id !== "right") {
     throw new Error(`mock: unsupported frame id for default D-pad shape: ${id}`);
@@ -172,14 +161,11 @@ export function defaultDpadShapeForFrame(frame, ctx) {
   return triangleForDirection(id, ctx.tileSize);
 }
 
-/**
- * @param {object} opts
- * @param {number} opts.tileSize
- * @param {[{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }]} opts.vertices
- * @param {{ r: number; g: number; b: number; a: number }} opts.fill
- * @returns {Buffer}
- */
-export function renderMockPngBuffer(opts) {
+export function renderMockPngBuffer(opts: {
+  tileSize: number;
+  vertices: [Point, Point, Point];
+  fill: { r: number; g: number; b: number; a: number };
+}): Buffer {
   const { tileSize, vertices, fill } = opts;
   const [a, b, c] = vertices;
   const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
@@ -206,13 +192,8 @@ export function renderMockPngBuffer(opts) {
 /**
  * High-contrast **white triangle on black** PNG (same geometry as **`triangleForDirection`** / mock raster).
  * Used by tests for pairwise distinguishability; not tied to a specific fal model.
- *
- * @param {object} opts
- * @param {number} opts.tileSize
- * @param {[{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }]} opts.vertices
- * @returns {Buffer}
  */
-export function renderTriangleSilhouetteTileBuffer(opts) {
+export function renderTriangleSilhouetteTileBuffer(opts: { tileSize: number; vertices: [Point, Point, Point] }): Buffer {
   const { tileSize, vertices } = opts;
   const [a, b, c] = vertices;
   const png = new PNG({ width: tileSize, height: tileSize, colorType: 6 });
@@ -231,13 +212,8 @@ export function renderTriangleSilhouetteTileBuffer(opts) {
   return PNG.sync.write(png);
 }
 
-/**
- * Walk-cycle phase index from preset frame id **`walk_0`** … **`walk_3`**.
- *
- * @param {string} id
- * @returns {0|1|2|3}
- */
-export function walkPhaseFromFrameId(id) {
+/** Walk-cycle phase index from preset frame id **`walk_0`** … **`walk_3`**. */
+export function walkPhaseFromFrameId(id: string): 0 | 1 | 2 | 3 {
   const m = /^walk_(\d)$/.exec(id);
   if (!m) {
     throw new Error(`mock character walk: frame id must be walk_0..walk_3, got ${JSON.stringify(id)}`);
@@ -246,33 +222,26 @@ export function walkPhaseFromFrameId(id) {
   if (n < 0 || n > 3 || !Number.isInteger(n)) {
     throw new Error(`mock character walk: invalid walk index in ${JSON.stringify(id)}`);
   }
-  return /** @type {0|1|2|3} */ (n);
+  return n as 0 | 1 | 2 | 3;
 }
 
 /**
  * Deterministic RGBA tile: simple “pixel” figure with four leg phases (mock walk cycle).
  * Cell **width:height = 2:5** (see **`CHARACTER_WALK_FRAME_*_PX`** in **`gameDimensions.mjs`**): width = floor footprint, height = 2.5× width.
  *
- * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {number} tileWidth
- * @param {number} [tileHeight]  Defaults to **`tileWidth`** (square) for tests that pass one size only.
- * @returns {import('node:buffer').Buffer}
  */
-export function renderCharacterWalkMockTileBuffer(frame, tileWidth, tileHeight = tileWidth) {
+export function renderCharacterWalkMockTileBuffer(frame: GeneratorFrame, tileWidth: number, tileHeight = tileWidth): Buffer {
   const fill = { r: 0x5a, g: 0x6f, b: 0x9e, a: 0xff };
   const leftDx = [-4, 0, 4, 0];
   const rightDx = [4, 0, -4, 0];
   /** `walk_0` = idle (symmetric feet); `walk_1`–`walk_3` map to three stride phases (see the walk cycle preset module). */
-  let ld;
-  let rd;
-  if (frame.id === "walk_0") {
-    ld = 0;
-    rd = 0;
-  } else {
+  let ld = 0;
+  let rd = 0;
+  if (frame.id !== "walk_0") {
     const ix = walkPhaseFromFrameId(frame.id);
     const phase = ix - 1;
-    ld = leftDx[phase];
-    rd = rightDx[phase];
+    ld = leftDx[phase] ?? 0;
+    rd = rightDx[phase] ?? 0;
   }
 
   const tw = tileWidth;
@@ -304,13 +273,7 @@ export function renderCharacterWalkMockTileBuffer(frame, tileWidth, tileHeight =
   const leftLegX = bx0 - 2 + ld;
   const rightLegX = bx0 + bw - legW + 2 + rd;
 
-  /**
-   * @param {number} x0
-   * @param {number} y0
-   * @param {number} w
-   * @param {number} h
-   */
-  const fillRect = (x0, y0, w, h) => {
+  const fillRect = (x0: number, y0: number, w: number, h: number) => {
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
         if (x < 0 || y < 0 || x >= tw || y >= th) continue;
@@ -333,16 +296,14 @@ export function renderCharacterWalkMockTileBuffer(frame, tileWidth, tileHeight =
 
 /**
  * One sheet PNG: each frame’s triangle at **`crops[id]`** (top-left px), same per-cell geometry as **`renderTriangleSilhouetteTileBuffer`**.
- *
- * @param {object} opts
- * @param {readonly { id: string }[]} opts.frames
- * @param {number} opts.tileSize
- * @param {Readonly<Record<string, { x: number; y: number }>>} opts.crops
- * @param {number} [opts.sheetWidth]
- * @param {number} [opts.sheetHeight]
- * @returns {Buffer}
  */
-export function renderTriangleSilhouetteSheetBuffer(opts) {
+export function renderTriangleSilhouetteSheetBuffer(opts: {
+  frames: readonly { id: string }[];
+  tileSize: number;
+  crops: Readonly<Record<string, { x: number; y: number }>>;
+  sheetWidth?: number;
+  sheetHeight?: number;
+}): Buffer {
   const { frames, tileSize, crops } = opts;
   let sheetW = opts.sheetWidth;
   let sheetH = opts.sheetHeight;
@@ -372,7 +333,8 @@ export function renderTriangleSilhouetteSheetBuffer(opts) {
 
   for (const f of frames) {
     const o = crops[f.id];
-    const id = /** @type {'up' | 'down' | 'left' | 'right'} */ (f.id);
+    if (!o) throw new Error(`renderTriangleSilhouetteSheetBuffer: missing crop for "${f.id}"`);
+    const id = f.id as "up" | "down" | "left" | "right";
     const vertices = triangleForDirection(id, tileSize);
     const [a, b, c] = vertices;
     for (let y = 0; y < tileSize; y++) {
@@ -390,15 +352,9 @@ export function renderTriangleSilhouetteSheetBuffer(opts) {
   return PNG.sync.write(png);
 }
 
-/**
- * Light 3×3 box blur on luminance (for tests / optional mask softening).
- *
- * @param {Buffer} buffer
- * @param {number} [passes=1]
- * @returns {Buffer}
- */
-export function softenTriangleMaskBuffer(buffer, passes = 1) {
-  let png = PNG.sync.read(buffer);
+/** Light 3×3 box blur on luminance (for tests / optional mask softening). */
+export function softenTriangleMaskBuffer(buffer: Buffer, passes = 1): Buffer {
+  let png: PNG = PNG.sync.read(buffer) as PNG;
   for (let pass = 0; pass < passes; pass++) {
     const next = new PNG({ width: png.width, height: png.height, colorType: 6 });
     for (let y = 0; y < png.height; y++) {
@@ -411,7 +367,7 @@ export function softenTriangleMaskBuffer(buffer, passes = 1) {
             const ny = y + dy;
             if (nx < 0 || ny < 0 || nx >= png.width || ny >= png.height) continue;
             const ii = (png.width * ny + nx) << 2;
-            sum += png.data[ii];
+            sum += png.data[ii] ?? 0;
             count++;
           }
         }
@@ -423,17 +379,12 @@ export function softenTriangleMaskBuffer(buffer, passes = 1) {
         next.data[i + 3] = 255;
       }
     }
-    png = next;
+    png = next as PNG;
   }
   return PNG.sync.write(png);
 }
 
-/**
- * @param {import('./types.mjs').GeneratorFrame} frame
- * @param {import('./types.mjs').MockGeneratorConfig} [config]
- * @returns {Promise<import('./types.mjs').GenerateResult>}
- */
-export async function generate(frame, config = {}) {
+export async function generate(frame: GeneratorFrame, config: MockGeneratorConfig = {}): Promise<GenerateResult> {
   const tileSize = config.tileSize ?? 256;
   const tileW = config.tileWidth ?? tileSize;
   const tileH = config.tileHeight ?? tileSize;
@@ -467,13 +418,9 @@ export async function generate(frame, config = {}) {
 /**
  * Composite frames into one sheet using **`sheetLayout`** (e.g. 2×2 or 1×4).
  * **`sheetLayout`** is required — derive from `preset.sheet.crops` and `tileSize` via
- * **`sheetLayoutFromCrops`** in **`../sheet-layout.mjs`** (pixel crop origins → cell coordinates).
- *
- * @param {import('./types.mjs').GeneratorFrame[]} frames
- * @param {import('./types.mjs').MockGeneratorConfig} config
- * @returns {Promise<import('./types.mjs').GenerateResult>}
+ * **`sheetLayoutFromCrops`** in **`../sheet-layout.ts`** (pixel crop origins → cell coordinates).
  */
-export async function generateSheet(frames, config = {}) {
+export async function generateSheet(frames: GeneratorFrame[], config: MockGeneratorConfig = {}): Promise<GenerateResult> {
   const tileSize = config.tileSize ?? 256;
   const tileW = config.tileWidth ?? tileSize;
   const tileH = config.tileHeight ?? tileSize;
@@ -502,6 +449,9 @@ export async function generateSheet(frames, config = {}) {
 
   for (const frame of frames) {
     const cell = layout[frame.id];
+    if (!cell) {
+      throw new Error(`mock generateSheet: missing sheet layout cell for frame id "${frame.id}"`);
+    }
     const { buffer } = await generate(frame, config);
     const tile = PNG.sync.read(buffer);
     if (tile.width !== tileW || tile.height !== tileH) {
@@ -513,10 +463,10 @@ export async function generateSheet(frames, config = {}) {
       for (let x = 0; x < tileW; x++) {
         const si = (tile.width * y + x) << 2;
         const di = (sheetWidth * (y0 + y) + (x0 + x)) << 2;
-        png.data[di] = tile.data[si];
-        png.data[di + 1] = tile.data[si + 1];
-        png.data[di + 2] = tile.data[si + 2];
-        png.data[di + 3] = tile.data[si + 3];
+        png.data[di] = tile.data[si]!;
+        png.data[di + 1] = tile.data[si + 1]!;
+        png.data[di + 2] = tile.data[si + 2]!;
+        png.data[di + 3] = tile.data[si + 3]!;
       }
     }
   }

@@ -1,6 +1,6 @@
 ---
 id: 2gp-bdeg
-status: open
+status: closed
 deps: [2gp-myah, 2gp-veak]
 links: []
 created: 2026-04-19T03:02:23Z

@@ -12,8 +12,8 @@
  *
  * @see `README.md` — T2I/chroma variance vs enforced grid geometry
  * @see `pipeline-stages.mjs` — `applyPostprocessPipeline`, chroma and other postprocess steps
- * @see `qa/analyze-bridge.mjs` — QA png-analyze bridge (`runPngAnalyzeBridge`)
- * @see `generators/types.mjs` — generator contracts
+ * @see `qa/analyze-bridge.ts` — QA png-analyze bridge (`runPngAnalyzeBridge`)
+ * @see `generators/types.ts` — generator contracts
  * @see `presets/dpad/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  *
  * ## Raster WxH (on-disk = model output)
@@ -45,17 +45,17 @@ import {
   rewritePromptViaOpenRouter,
   sameImageEndpointFamily,
   shouldUseBriaSheetMatting,
-} from "./generators/fal.mjs";
-import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
+} from "./generators/fal.ts";
+import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.ts";
 import { log } from "./logging.ts";
-import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
+import { buildInitialManifest, buildRecipeId } from "./manifest.ts";
 import {
   buildFalspriteStyleSpritePrompt,
   buildPrompt,
   buildSheetPrompt,
   DEFAULT_CHROMA_KEY_HEX,
   DPAD_FRAME_PROMPT_SUFFIX,
-} from "./prompt.mjs";
+} from "./prompt.ts";
 import {
   applyPostprocessPipeline,
   resolveGeneratorConfig,
@@ -63,9 +63,9 @@ import {
   resolveSheetTilePostprocessSteps,
 } from "./pipeline-stages.mjs";
 import { extractPngRegion } from "./postprocess/png-region.ts";
-import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
-import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
-import { sheetLayoutFromCrops, sheetLayoutFromCropsRect } from "./sheet-layout.mjs";
+import { runPngAnalyzeBridge } from "./qa/analyze-bridge.ts";
+import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.ts";
+import { sheetLayoutFromCrops, sheetLayoutFromCropsRect } from "./sheet-layout.ts";
 
 const DEFAULT_FAL_ENDPOINT = "fal-ai/flux/dev";
 
@@ -243,7 +243,7 @@ function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
  * @typedef {object} PipelinePreset
  * @property {string} presetId  Manifest `preset` field (e.g. `dpad_four_way`).
  * @property {string} kind  Manifest `kind` (e.g. `dpad_tile_set`).
- * @property {import('./generators/types.mjs').GeneratorFrame[]} frames
+ * @property {import('./generators/types.ts').GeneratorFrame[]} frames
  * @property {string} outBase  Absolute directory root for tiles + manifest + sprite-ref.
  * @property {number} tileSize
  * @property {number} [tileHeight]  When set with non-square **`preset.sheet`**, per-cell height for mock compositor + manifest (**width** = **`tileSize`**).
@@ -252,11 +252,11 @@ function resolveSheetRewriteUserPrompt(preset, sheetPrompt, sheetGridSize) {
  * @property {{ defaultEndpoint?: string; falExtrasPerTile?: Record<string, unknown> | null; falExtrasSheet?: Record<string, unknown> | null; sheetMatting?: 'auto' | 'bria' | 'none'; chromaAfterBria?: boolean; chromaFringeEdgeDist?: number; chromaSpillMaxDist?: number; sheetRewrite?: { enabled?: boolean; model?: string; systemPrompt?: string; temperature?: number; maxTokens?: number } }} fal
  * @property {{ spriteWidth: number; spriteHeight: number }} qa
  * @property {{ tool: string; version: number }} provenance
- * @property {import('./sprite-ref.mjs').SpriteGenPresetTiles['spriteRef']} spriteRef  Also **`gridFrameKeys`** variant (see **`sprite-ref.mjs`**).
+ * @property {import('./sprite-ref.ts').SpriteGenPresetTiles['spriteRef']} spriteRef  Also **`gridFrameKeys`** variant (see **`sprite-ref.ts`**).
  * @property {boolean} [sheetOnlyOutput]  When true: write **`sheet.png`** only (no per-frame PNGs under frame dirs).
  * @property {number} [sheetGridSize]  Falsprite N×N grid dimension (rewrite beat wording + prompt wrap).
  * @property {Record<string, { column: number; row: number }>} [frameSheetCells]  Required for **`spriteRef.kind === 'gridFrameKeys'`** when writing sprite-ref.
- * @property {import('./generators/types.mjs').MockGeneratorConfig} [generatorConfig]  Mock: merged via **`resolveGeneratorConfig`** into **`generate`** / **`generateSheet`** (e.g. **`shapeForFrame`**, **`sheetLayout`**).
+ * @property {import('./generators/types.ts').MockGeneratorConfig} [generatorConfig]  Mock: merged via **`resolveGeneratorConfig`** into **`generate`** / **`generateSheet`** (e.g. **`shapeForFrame`**, **`sheetLayout`**).
  * @property {string[]} [postprocessSteps]  Generate mode only: ordered ids from **`POSTPROCESS_REGISTRY`** in **`pipeline-stages.mjs`** (default **`['chromaKey']`**). Mock mode ignores this.
  * @property {string} [specsNaming]  Optional override for manifest **`specs.naming`** (else derived from resolved PNG basename).
  * @property {boolean} [sheetNativeRaster]  Legacy no-op for sheet generate (native dimensions are always kept when they differ from nominal **`preset.sheet`**). Mock/tests may still read this flag.

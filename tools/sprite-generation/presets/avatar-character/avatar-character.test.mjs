@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../../manifest.mjs";
-import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.mjs";
+import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../../manifest.ts";
+import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.ts";
 import {
   CHARACTER_FALSPRITE_SHEET_SUBJECT,
   CHARACTER_FRAME_SHEET_CELLS,

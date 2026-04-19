@@ -26,16 +26,16 @@
  *
  * @see `../../README.md`
  * @see `../../pipeline.mjs`
- * @see `../../manifest.mjs` — `buildRecipeId`
+ * @see `../../manifest.ts` — `buildRecipeId`
  */
 
 import {
   NANO_BANANA2_DEFAULT_RESOLUTION,
   NANO_BANANA2_LOW_RESOLUTION,
   NANO_BANANA2_SQUARE_ASPECT_RATIO,
-} from "../../generators/fal.mjs";
-import { defaultDpadShapeForFrame } from "../../generators/mock.mjs";
-import { buildRecipeId } from "../../manifest.mjs";
+} from "../../generators/fal.ts";
+import { defaultDpadShapeForFrame } from "../../generators/mock.ts";
+import { buildRecipeId } from "../../manifest.ts";
 import {
   buildDpadGridSpritePrompt,
   DPAD_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT,
@@ -43,8 +43,8 @@ import {
   DPAD_FRAME_COMPOSITION,
   DPAD_FRAME_PROMPT_SUFFIX,
   DPAD_FRAME_STYLE,
-} from "../../prompt.mjs";
-import { sheetLayoutFromCrops } from "../../sheet-layout.mjs";
+} from "../../prompt.ts";
+import { sheetLayoutFromCrops } from "../../sheet-layout.ts";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.mjs`. */
 export const ASSET_ID = "dpad";
@@ -115,7 +115,7 @@ export const DPAD_TILE_MATERIAL_HINT =
 /**
  * D-pad preset: ordered frames (up → down → left → right in list; 2×2 row-major sheet cells).
  *
- * @type {readonly import('../../generators/types.mjs').GeneratorFrame[]}
+ * @type {readonly import('../../generators/types.ts').GeneratorFrame[]}
  */
 export const DPAD_FRAMES = Object.freeze([
   {
@@ -186,7 +186,7 @@ export const DPAD_FRAME_SHEET_CELLS = Object.freeze({
 
 /**
  * Mock `generateSheet` cell layout — **not** independent of **`SHEET_CROPS`**; same mapping as
- * **`sheetLayoutFromCrops`** in **`../../sheet-layout.mjs`** so compositor placement matches crop extraction.
+ * **`sheetLayoutFromCrops`** in **`../../sheet-layout.ts`** so compositor placement matches crop extraction.
  *
  * @type {Readonly<Record<string, { x: number; y: number }>>}
  */

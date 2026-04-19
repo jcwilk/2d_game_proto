@@ -10,7 +10,7 @@ import {
   DPAD_SHEET_STYLE,
   DPAD_SHEET_SUBJECT,
   interpolatePromptTemplate,
-} from "./prompt.mjs";
+} from "./prompt.ts";
 
 describe("sprite-generation prompt", () => {
   it("interpolatePromptTemplate fills tileSize, sheetSize, sheetWidth/Height, chromaKeyHex", () => {

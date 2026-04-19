@@ -19,7 +19,7 @@ export type Direction = 'up' | 'down' | 'left' | 'right';
  * Short taps can begin/end between simulation ticks; keep direction active briefly so a tap
  * always produces at least one movement update.
  */
-export const DEFAULT_TAP_LATCH_MS = 160;
+export const DEFAULT_TAP_LATCH_MS = 80;
 
 export interface DirectionPointerCounts {
   up: number;

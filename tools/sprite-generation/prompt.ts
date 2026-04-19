@@ -352,6 +352,66 @@ export function buildIsometricWallStripSpritePrompt(basePrompt: string, sheetWid
   ].join("\n");
 }
 
+/** Per-tile style for drag orb HUD. Placeholders: `{tileSize}`. */
+export const DRAG_ORB_FRAME_STYLE =
+  `Stylized {tileSize}px square 2D HUD ability orb (game UI, not photoreal) — soft glassy or stone-inlay disk, readable at small touch size. `;
+
+/**
+ * Chroma backdrop for per-tile mock/live parity. Placeholders: `{chromaKeyHex}`.
+ */
+export const DRAG_ORB_FRAME_COMPOSITION =
+  `The entire background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients, no vignette, no border frame. ` +
+  `Exactly one circular orb glyph centered in the cell — crisp silhouette; subtle inner highlight OK. ` +
+  `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta in the orb (reserved for the keyable background). `;
+
+/** Seed line for sheet rewrite + default sheet subject interpolation. */
+export const DRAG_ORB_FALSPRITE_SHEET_SUBJECT =
+  `Drag-to-stuck HUD orb strip: **four equal square cells in one horizontal row (1×4, row-major)**. ` +
+  `(1) **idle** — calm dormant orb; (2–4) **activation** — same orb with escalating energy (inner glow, expanding ring, brief burst read) — same palette and silhouette family, still one centered disk per cell.`;
+
+export const DRAG_ORB_SHEET_REWRITE_USER_SEED =
+  "One row of four square HUD cells: a draggable stuck-ability orb; frame 1 calm idle; frames 2–4 short activation flourish (rings/light), same character of icon, no separate objects per cell. " +
+  "No gutters between columns — continuous flat backdrop at shared edges (game HUD style).";
+
+/** OpenRouter sheet rewrite — **1×4** square HUD orb strip (not 2×2, not character walk). */
+export const DRAG_ORB_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
+  "You rewrite image-generation prompts for ONE horizontal strip sprite sheet: **four equal square cells in a single row** (1×4, row-major left-to-right, not 2×2). " +
+  "Preserve: one **draggable HUD orb** affordance — cell (1) idle/rest; cells (2–4) sequential **activation** beats after a successful use (clearer energy, ring, or pulse), same orb identity and palette across all four; stylized flat 2D game UI, not photoreal. " +
+  "Plain uniform flat-color backdrop (full bleed) — **do not** mention chroma keys, greenscreen, or bright magenta/fuchsia; **no** gutters or divider lines between columns. " +
+  "Output only the improved prompt text, no preamble.";
+
+/**
+ * **1×4** HUD drag orb strip: four square cells; matches **`horizontalStripCrops`** row-major frame order.
+ */
+export function buildHudDragOrbStripSpritePrompt(basePrompt: string, sheetWidth: number, sheetHeight: number): string {
+  const cw = Math.round(sheetWidth / 4);
+  const ch = Math.round(sheetHeight);
+  return [
+    "STRICT TECHNICAL REQUIREMENTS FOR THIS IMAGE:",
+    "",
+    `FORMAT: A single image, total canvas **${sheetWidth}×${sheetHeight}px**, containing **one horizontal row of four** equal **square** cells (four columns, **one** row — a **1×4** strip).`,
+    `Each cell is **${cw}×${ch}px** (width equals height).`,
+    "Every cell must align perfectly on the grid with no gaps or overlap.",
+    "",
+    "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
+    "no watermarks, no signatures, no UI chrome beyond the orb glyph.",
+    "FORBIDDEN: a 2×2 grid; a second row of panels; walk-cycle characters.",
+    "",
+    "CONSISTENCY: The same orb design language, palette, and material in every cell — only the activation energy read differs in cells 2–4.",
+    "",
+    "PANEL FLOW (row-major, left to right):",
+    "(1) **idle** — ready / draggable rest state.",
+    "(2–4) **activation sequence** — escalating flourish on successful apply; still one centered orb per cell.",
+    "",
+    "BACKDROP AND EDGES: one **uniform flat-color** backdrop, full bleed, no gradients — **do not** describe chroma keys, greenscreen, matting, or bright magenta/fuchsia; the orb glyph must **not** use the same hue as the flat backdrop.",
+    "",
+    "SEAMS: one continuous strip — **no** vertical gutters, rules, or framed panels between columns.",
+    "",
+    "HUD ORB DIRECTION:",
+    basePrompt,
+  ].join("\n");
+}
+
 export function buildDpadGridSpritePrompt(basePrompt: string, gridSize = 2): string {
   const w = FALSPRITE_NUM_WORDS[gridSize] ?? "two";
   return [

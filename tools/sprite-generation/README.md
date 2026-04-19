@@ -27,6 +27,8 @@ To add a **new** walk-cycle NPC (same **1×N** strip machinery as **`avatar-char
 
 For a full in-repo example of “forked” identity on shared lib geometry, see **`presets/merchant-character/merchant-character.ts`**.
 
+**Drag-to-stuck HUD orb** (four frames, **`specs/drag-stun-hud.md`**): preset **`hud-drag-orb`** — **`MANIFEST_PRESET_ID`** **`hud_drag_orb`**, committed art under **`public/art/hud-drag-orb/`** (`sheet.png` + **`sprite-ref.json`** with **`gridFrameKeys`**; stable frame keys **`idle`**, **`activate_1`**, **`activate_2`**, **`activate_3`** in a **1×4** row-major strip). Verify with **`npm run generate:spritesheet -- list`** and **`run --asset hud-drag-orb --mode mock`**.
+
 ## Local harness: `npm run mock:dpad-workflow`
 
 The **primary** local command for the four-direction D-pad layout is **`npm run mock:dpad-workflow`**, which runs **`node --experimental-strip-types tools/dpad-workflow.ts --mode mock`**. It needs **no** `FAL_KEY` and **no** network; output is deterministic mock geometry suitable for CI and iteration.

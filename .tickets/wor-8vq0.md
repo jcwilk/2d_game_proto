@@ -1,6 +1,6 @@
 ---
 id: wor-8vq0
-status: open
+status: closed
 deps: [wor-98q7]
 links: []
 created: 2026-04-19T20:34:59Z
@@ -27,3 +27,9 @@ Add a new **`tools/sprite-generation`** preset module (**`presets/<assetId>/`** 
 - Recipe runs in **mock** or documented **generate** path; art outputs checked in **or** generation steps documented.
 - **Four** frames addressable from runtime by **stable ids** in **`sprite-ref.json`** (documented in module comments).
 - Dimensions + frame order match what **wor-98q7** / **wor-0814** assume for animation.
+
+## Notes
+
+**2026-04-19T20:48:44Z**
+
+Implemented presets/hud-drag-orb (ASSET_ID hud-drag-orb, MANIFEST_PRESET_ID hud_drag_orb): 1×4 strip, gridFrameKeys sprite-ref with idle + activate_1..3; mock tile renderer; fal 4:1 sheet extras; README cross-link. Ran mock generate to public/art/hud-drag-orb/.

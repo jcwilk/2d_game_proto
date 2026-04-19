@@ -180,6 +180,86 @@ export function renderIsometricWallMockTileBuffer(frame: GeneratorFrame, tileWid
   return PNG.sync.write(png);
 }
 
+/**
+ * Mock **drag-to-stuck HUD orb** tile: four square cells for **`hud-drag-orb`** preset.
+ * Frame ids **`idle`**, **`activate_1`**, **`activate_2`**, **`activate_3`** — row-major strip indices 0–3 per **`specs/drag-stun-hud.md`**.
+ */
+export function renderHudDragOrbMockTileBuffer(frame: GeneratorFrame, tileWidth: number, tileHeight: number): Buffer {
+  const allowed = new Set(["idle", "activate_1", "activate_2", "activate_3"]);
+  if (!allowed.has(frame.id)) {
+    throw new Error(
+      `mock hud drag orb: frame id must be idle | activate_1 | activate_2 | activate_3, got ${JSON.stringify(frame.id)}`,
+    );
+  }
+  if (tileWidth < 8 || tileHeight < 8) {
+    throw new Error(`mock hud drag orb: need tile >= 8×8, got ${tileWidth}×${tileHeight}`);
+  }
+
+  const cx = (tileWidth / 2) | 0;
+  const cy = (tileHeight / 2) | 0;
+  const baseR = Math.max(4, Math.min(tileWidth, tileHeight) / 3);
+  const png = new PNG({ width: tileWidth, height: tileHeight, colorType: 6 });
+  png.data.fill(0);
+
+  const dist = (x: number, y: number) => Math.hypot(x - cx, y - cy);
+
+  const fills: Record<string, { r: number; g: number; b: number }> = {
+    idle: { r: 0x4a, g: 0x7a, b: 0xa8 },
+    activate_1: { r: 0x52, g: 0x86, b: 0xb8 },
+    activate_2: { r: 0x5c, g: 0x92, b: 0xc6 },
+    activate_3: { r: 0x66, g: 0x9e, b: 0xd4 },
+  };
+  const fill = fills[frame.id]!;
+
+  for (let y = 0; y < tileHeight; y++) {
+    for (let x = 0; x < tileWidth; x++) {
+      const i = (tileWidth * y + x) << 2;
+      const d = dist(x, y);
+      let alpha = 0;
+      let r = fill.r;
+      let g = fill.g;
+      let b = fill.b;
+
+      if (d <= baseR) {
+        alpha = 255;
+        const edge = 1 - d / baseR;
+        const hi = Math.round(28 * edge);
+        r = Math.min(255, r + hi);
+        g = Math.min(255, g + hi);
+        b = Math.min(255, b + hi);
+      }
+
+      if (frame.id !== "idle") {
+        const phase = frame.id === "activate_1" ? 1 : frame.id === "activate_2" ? 2 : 3;
+        const rRing = baseR + 2 + phase * 2;
+        const thick = 2;
+        if (Math.abs(d - rRing) < thick) {
+          alpha = 255;
+          r = Math.min(255, r + 40);
+          g = Math.min(255, g + 50);
+          b = Math.min(255, b + 60);
+        }
+      }
+
+      if (frame.id === "activate_3" && d > baseR + 6 && d < baseR + 14 && ((x + y) & 3) === 0) {
+        alpha = Math.max(alpha, 220);
+        r = Math.min(255, r + 30);
+        g = Math.min(255, g + 40);
+        b = Math.min(255, b + 50);
+      }
+
+      if (alpha > 0) {
+        png.data[i] = r;
+        png.data[i + 1] = g;
+        png.data[i + 2] = b;
+        png.data[i + 3] = alpha;
+      }
+    }
+  }
+
+  return PNG.sync.write(png);
+}
+
 export function pointInTriangle(p: Point, a: Point, b: Point, c: Point): boolean {
   const sign = (p1: Point, p2: Point, p3: Point) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
   const d1 = sign(p, a, b);

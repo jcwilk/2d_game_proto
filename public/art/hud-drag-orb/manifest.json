@@ -1,0 +1,143 @@
+{
+  "kind": "hud_drag_orb_strip",
+  "preset": "hud_drag_orb",
+  "recipeId": "sprite-gen-hud_drag_orb-mock-v4-iso-floor-1x4-half-cell",
+  "createdAt": "2026-04-19T20:48:04.024Z",
+  "workflow": "mock (triangles)",
+  "specs": {
+    "tileSize": {
+      "width": 100,
+      "height": 100
+    },
+    "framePreset": [
+      {
+        "id": "idle",
+        "outSubdir": "idle"
+      },
+      {
+        "id": "activate_1",
+        "outSubdir": "activate_1"
+      },
+      {
+        "id": "activate_2",
+        "outSubdir": "activate_2"
+      },
+      {
+        "id": "activate_3",
+        "outSubdir": "activate_3"
+      }
+    ],
+    "imageSize": "100x100",
+    "naming": "sheet.png + sprite-ref.json (gridFrameKeys); drag orb 1×4 strip"
+  },
+  "generationRecipe": {
+    "mode": "mock",
+    "endpoint": null,
+    "seedRequested": null,
+    "falExtrasPerTile": null,
+    "falExtrasSheet": null,
+    "note": "Mock: geometry from pngjs triangles, not T2I."
+  },
+  "frames": [
+    {
+      "id": "idle",
+      "outSubdir": "idle",
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "activate_1",
+      "outSubdir": "activate_1",
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "100,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "activate_2",
+      "outSubdir": "activate_2",
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "200,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    {
+      "id": "activate_3",
+      "outSubdir": "activate_3",
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "300,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    }
+  ],
+  "provenance": {
+    "tool": "tools/generate-spritesheet.ts",
+    "version": 1
+  },
+  "generationResults": {
+    "idle": {
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "0,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "activate_1": {
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "100,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "activate_2": {
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "200,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "activate_3": {
+      "wallMs": 30,
+      "seedRequested": null,
+      "fromSheet": true,
+      "sheetOnly": true,
+      "cropOrigin": "300,0",
+      "chromaApplied": false,
+      "chromaKeySource": null,
+      "notes": []
+    },
+    "_sheet": {
+      "wallMs": 30,
+      "strategy": "sheet",
+      "mode": "mock",
+      "alphaSource": "none"
+    }
+  }
+}

@@ -21,24 +21,25 @@ node --experimental-strip-types path/to/script.ts
 | Script (`npm run …`) | Node entry file |
 |---------------------|-------------------|
 | **`generate:raster`** | `tools/fal-raster-generate.ts` (`node --experimental-strip-types`) |
-| **`dpad-workflow`** | `tools/dpad-workflow.mjs` |
-| **`mock:dpad-workflow`** | `tools/dpad-workflow.mjs --mode mock` (same as `npm run dpad-workflow -- --mode mock`) |
+| **`generate:spritesheet`** | `tools/generate-spritesheet.ts` (`node --experimental-strip-types`) |
+| **`dpad-workflow`** | `tools/dpad-workflow.ts` (`node --experimental-strip-types`) |
+| **`mock:dpad-workflow`** | `tools/dpad-workflow.ts --mode mock` (same as `npm run dpad-workflow -- --mode mock`) |
 | **`analyze:png`** | `node --experimental-strip-types tools/png-analyze.ts` |
 | **`qa:vision`** | `tools/openai-vision-qa.ts` (via `node --experimental-strip-types`) |
 
-**`npm test`** runs Vitest (`vitest run`) and picks up **`tools/**/*.test.ts`** via **`vitest.config.ts`** `test.include` (alongside `src/**/*.test.ts`). No separate **`test:tools`** script is required for discoverability. See [Vitest coverage (tools)](#vitest-coverage-tools) below.
+**`npm test`** runs Vitest (`vitest run`) and picks up **`tools/**/*.test.ts`** via **`vitest.config.ts`** `test.include` (alongside `src/**/*.test.ts`); the **`2gp-y4cn`** stitch removed the legacy **`tools/**/*.test.mjs`** glob once tests were migrated. No separate **`test:tools`** script is required for discoverability. See [Vitest coverage (tools)](#vitest-coverage-tools) below.
 
 Pass CLI flags after `--`, e.g. `npm run analyze:png -- src/art/fixtures/sample-grid-atlas.png --sprite-width 32 --sprite-height 32`.
 
 ### `dpad-workflow` and mock pipeline
 
-**`dpad-workflow.mjs`** is the CLI for the D-pad tile workflow. Implementation lives under **[`tools/sprite-generation/`](sprite-generation/)**: it delegates to **`runPipeline`** ([`pipeline.mjs`](sprite-generation/pipeline.mjs)) and the D-pad preset **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** (`createPreset`). Manifest and outputs under `public/art/dpad/`, one PNG per direction, `png-analyze` QA via the sprite-generation stack, verbose STDOUT.
+**`dpad-workflow.ts`** is the CLI for the D-pad tile workflow. Implementation lives under **[`tools/sprite-generation/`](sprite-generation/)**: it delegates to **`runPipeline`** ([`pipeline.ts`](sprite-generation/pipeline.ts)) and the D-pad preset **[`presets/dpad/dpad.ts`](sprite-generation/presets/dpad/dpad.ts)** (`createPreset`). Manifest and outputs under `public/art/dpad/`, one PNG per direction, `png-analyze` QA via the sprite-generation stack, verbose STDOUT.
 
-- **`npm run dpad-workflow`** — `node tools/dpad-workflow.mjs` (default **`--mode mock`**).
-- **`npm run mock:dpad-workflow`** — `node tools/dpad-workflow.mjs --mode mock` (explicit mock entry point).
-- **`tools/mock-dpad-workflow.mjs`** — thin shim that spawns `dpad-workflow.mjs --mode mock`; prefer the npm scripts above.
+- **`npm run dpad-workflow`** — `node --experimental-strip-types tools/dpad-workflow.ts` (default **`--mode mock`**; matches **`package.json`**).
+- **`npm run mock:dpad-workflow`** — same runner with **`--mode mock`** (explicit mock entry point).
+- **`tools/mock-dpad-workflow.ts`** — thin shim that spawns **`dpad-workflow.ts`** in mock mode with the same **`node --experimental-strip-types`** argv prefix (**`2gp-gwjc`**); prefer the npm scripts above.
 
-**`--mode generate`** defaults to **`--strategy sheet`**: one fal image at **`preset.sheet`** size for the D-pad preset (**1×4** horizontal strip: **400×100** px with current `TILE_SIZE`, not 512² 2×2), then **deterministic crops** per **`presets/dpad/dpad.mjs`** → **`postprocessSteps`** (default **`['chromaKey']`**, shared with **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** in **`pipeline-stages.mjs`**) → four RGBA tiles under `public/art/dpad/`. **`--strategy per-tile`**: four fal calls. Canonical geometry, alpha pipeline, default **`chromaKeyHex`**, and verified fal endpoint ids are documented in **[`sprite-generation/README.md`](sprite-generation/README.md)** (Strategy, scope, and fal endpoints). See `--help`.
+**`--mode generate`** defaults to **`--strategy sheet`**: one fal image at **`preset.sheet`** size for the D-pad preset (**1×4** horizontal strip: **400×100** px with current `TILE_SIZE`, not 512² 2×2), then **deterministic crops** per **`presets/dpad/dpad.ts`** → **`postprocessSteps`** (default **`['chromaKey']`**, shared with **`DEFAULT_POSTPROCESS_STEPS_GENERATE`** in **`pipeline-stages.ts`**) → four RGBA tiles under `public/art/dpad/`. **`--strategy per-tile`**: four fal calls. Canonical geometry, alpha pipeline, default **`chromaKeyHex`**, and verified fal endpoint ids are documented in **[`sprite-generation/README.md`](sprite-generation/README.md)** (Strategy, scope, and fal endpoints). See `--help`.
 
 ## `tools/sprite-generation/` (sprite generation pipeline library)
 
@@ -46,14 +47,14 @@ Layout (Node-only; not shipped to the client bundle):
 
 ```text
 sprite-generation/
-  pipeline.mjs
+  pipeline.ts
   generators/          # fal, mock, shared types
   postprocess/         # e.g. chroma-key, png-region
   qa/                  # analysis bridges, integration hooks
   presets/             # workflow presets (e.g. dpad)
 ```
 
-Supporting modules at the library root include **`manifest.ts`**, **`prompt.ts`**, **`sprite-ref.ts`**, and **`logging.ts`**. The D-pad CLI wires these together; see **[`presets/dpad/dpad.mjs`](sprite-generation/presets/dpad/dpad.mjs)** for preset-specific defaults and **`dpad-workflow.mjs`** for the user-facing entry.
+Supporting modules at the library root include **`manifest.ts`**, **`prompt.ts`**, **`sprite-ref.ts`**, and **`logging.ts`**. Layout constants for isometric presets re-export **`src/dimensions.ts`** via **`gameDimensions.ts`** (stitch **`2gp-y4cn`**). The D-pad CLI wires these together; see **[`presets/dpad/dpad.ts`](sprite-generation/presets/dpad/dpad.ts)** for preset-specific defaults and **`dpad-workflow.ts`** for the user-facing entry.
 
 ### Vitest coverage (tools)
 

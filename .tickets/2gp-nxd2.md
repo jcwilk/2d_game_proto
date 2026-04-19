@@ -1,6 +1,6 @@
 ---
 id: 2gp-nxd2
-status: open
+status: closed
 deps: [2gp-y4cn]
 links: []
 created: 2026-04-19T03:02:23Z

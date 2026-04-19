@@ -10,19 +10,19 @@ This document is an implementation-ready plan to adopt the **same technology sta
 
 | Area | Location | Behavior today |
 |------|----------|------------------|
-| Default T2I | `pipeline.mjs` `DEFAULT_FAL_ENDPOINT` | `fal-ai/flux/dev` |
-| Single subscribe + download | `generators/fal.mjs` `falSubscribeToBuffer` | Builds **Flux-shaped** input: `prompt`, `image_size` (string or WxH), `num_images`, `output_format`; expects `data.images[0].url` |
-| Sheet path | `pipeline.mjs` `runGenerateSheetPath` | One `falSubscribeToBuffer` per run, `buildSheetPrompt` from `prompt.mjs`, then `normalizeDecodedSheetToPreset` → crops → `applyPostprocessPipeline` |
-| Dpad preset | `presets/dpad/dpad.mjs` | `SHEET_WIDTH`/`HEIGHT` = 400×100 (1×4 × `TILE_SIZE` 100); `fal.falExtrasSheet` = Flux-only knobs (`num_inference_steps`, `guidance_scale`, …) |
-| Alpha | `pipeline-stages.mjs` | Only `chromaKey` in `POSTPROCESS_REGISTRY`; README already mentions future BRIA-class steps |
+| Default T2I | `pipeline.ts` `DEFAULT_FAL_ENDPOINT` | `fal-ai/flux/dev` |
+| Single subscribe + download | `generators/fal.ts` `falSubscribeToBuffer` | Builds **Flux-shaped** input: `prompt`, `image_size` (string or WxH), `num_images`, `output_format`; expects `data.images[0].url` |
+| Sheet path | `pipeline.ts` `runGenerateSheetPath` | One `falSubscribeToBuffer` per run, `buildSheetPrompt` from `prompt.ts`, then `normalizeDecodedSheetToPreset` → crops → `applyPostprocessPipeline` |
+| Dpad preset | `presets/dpad/dpad.ts` | `SHEET_WIDTH`/`HEIGHT` = 400×100 (1×4 × `TILE_SIZE` 100); `fal.falExtrasSheet` = Flux-only knobs (`num_inference_steps`, `guidance_scale`, …) |
+| Alpha | `pipeline-stages.ts` | Only `chromaKey` in `POSTPROCESS_REGISTRY`; README already mentions future BRIA-class steps |
 
-**Pain driving this plan:** `flux/dev` + chroma produced weak visuals and fragile chroma (border fallback, magenta fringing called out in `prompt.mjs`).
+**Pain driving this plan:** `flux/dev` + chroma produced weak visuals and fragile chroma (border fallback, magenta fringing called out in `prompt.ts`).
 
 ---
 
 ## Target stack (FalSprite-aligned)
 
-Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
+Public FalSprite sources in the **upstream** FalSprite repository (see that project’s `lib/` and `api/` entrypoints) chain roughly:
 
 1. **Rewrite (optional):** `openrouter/router` on fal with a **model** string (e.g. `openai/gpt-4o-mini`), `prompt`, `system_prompt`, `max_tokens`, `temperature`—**one `FAL_KEY`**, no separate OpenRouter key in app code.
 2. **Image:** `fal-ai/nano-banana-2` with **`prompt`**, **`aspect_ratio`**, **`resolution`**, `num_images`, `output_format`, etc.—not Flux’s `image_size` tuple.
@@ -36,7 +36,7 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 
 | Responsibility | Adopt from FalSprite | Keep local |
 |----------------|----------------------|------------|
-| Prompt templates for dpad / sheet | Ideas only (wording, grid language); **no** need to copy `buildSpritePrompt` N×N | `prompt.mjs` + preset `prompt` fields; optional new **`preset prompt file`** that exports strings or a small JSON blob read by CLI |
+| Prompt templates for dpad / sheet | Ideas only (wording, grid language); **no** need to copy `buildSpritePrompt` N×N | `prompt.ts` + preset `prompt` fields; optional new **`preset prompt file`** that exports strings or a small JSON blob read by CLI |
 | LLM rewrite | Call pattern: `fal.subscribe("openrouter/router", { input })` | System/user prompts tuned for **HUD glyph** consistency; store defaults beside preset |
 | T2I | `fal-ai/nano-banana-2` + correct `aspect_ratio` / `resolution` | `runGenerateSheetPath` still owns one sheet → normalize → `extractPngRegion` crops |
 | Transparency | BRIA output URL → download → PNG with alpha | Optional **second** path: chroma-only when BRIA disabled or for A/B |
@@ -48,7 +48,7 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 
 ## Implementation phases
 
-### Phase A — Endpoint abstraction in `generators/fal.mjs`
+### Phase A — Endpoint abstraction in `generators/fal.ts`
 
 **Goal:** Stop assuming every model speaks Flux `image_size` + same response shape.
 
@@ -69,7 +69,7 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 - Wire **only** into **sheet** path first: `buildSheetPrompt` output → rewrite → **nano-banana** input prompt.
 - **Default off** for dpad milestone if using a **frozen preset prompt file**; enable for iteration.
 
-**Acceptance (Phase B):** Dry-run or logged path shows rewrite **skipped** when disabled; when enabled, add optional fields under **`generationResults._sheet`** (e.g. `rewriteModel`, `rewrittenPromptSha256`) — never log full prompt text at INFO; use `hashPromptForLog` from `generators/fal.mjs`.
+**Acceptance (Phase B):** Dry-run or logged path shows rewrite **skipped** when disabled; when enabled, add optional fields under **`generationResults._sheet`** (e.g. `rewriteModel`, `rewrittenPromptSha256`) — never log full prompt text at INFO; use `hashPromptForLog` from `generators/fal.ts`.
 
 ### Phase C — BRIA matting for sheet → tiles
 
@@ -84,20 +84,20 @@ Public FalSprite sources (`lib/fal.mjs`, `api/generate.mjs`) chain roughly:
 
 - **Placement:** Prefer a **sheet-level step inside `runGenerateSheetPath`** (after T2I URL, before per-tile `extractPngRegion` / chroma) so `POSTPROCESS_REGISTRY` stays **per-tile RGBA operations** (`chromaKey` only). A registry entry that runs once per sheet would be awkward; only add `briaAlpha` to `POSTPROCESS_REGISTRY` if you unify “sheet ops” and “tile ops” later.
 
-**Manifest:** Extend existing **`generationResults`** (see `pipeline.mjs` — results merge into `manifest.generationResults`). Add **`alphaSource`** on **`generationResults._sheet`** (`'bria' | 'chroma' | 'none'`) and optionally duplicate on each frame for quick grep; keep **`chromaKeySource`** for chroma path only.
+**Manifest:** Extend existing **`generationResults`** (see `pipeline.ts` — results merge into `manifest.generationResults`). Add **`alphaSource`** on **`generationResults._sheet`** (`'bria' | 'chroma' | 'none'`) and optionally duplicate on each frame for quick grep; keep **`chromaKeySource`** for chroma path only.
 
 **Acceptance (Phase C):** Dpad sheet run with BRIA enabled yields RGBA tiles; manifest shows `alphaSource: 'bria'` on `_sheet`.
 
-**Recipe version:** Bump **`RECIPE_VERSION_SHEET`** in `manifest.mjs` when sheet pipeline semantics change (nano-banana + BRIA vs flux + chroma).
+**Recipe version:** Bump **`RECIPE_VERSION_SHEET`** in `manifest.ts` when sheet pipeline semantics change (nano-banana + BRIA vs flux + chroma).
 
 ### Phase D — Preset and CLI wiring
 
-**Goal:** `presets/dpad/dpad.mjs` (or adjacent **`dpad-falsprite-preset.mjs`**) sets:
+**Goal:** `presets/dpad/dpad.ts` (or adjacent **`dpad-falsprite-preset.ts`**) sets:
 
 - `fal.defaultEndpoint: "fal-ai/nano-banana-2"` for sheet strategy.
 - **`fal.falExtrasSheet`** replaced or augmented with **nano-banana** fields (`aspect_ratio`, `resolution`, …)—**remove** Flux-only keys when endpoint is nano-banana to avoid silent ignores.
 
-**`falExtras` when `--endpoint` overrides default (required fix):** Today `pipeline.mjs` only merges `falExtrasSheet` / `falExtrasPerTile` when `endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)` (lines 246–247, 261–262). **Implement one of:**
+**`falExtras` when `--endpoint` overrides default (required fix):** Today `pipeline.ts` only merges `falExtrasSheet` / `falExtrasPerTile` when `endpoint === (preset.fal?.defaultEndpoint ?? DEFAULT_FAL_ENDPOINT)` (lines 246–247, 261–262). **Implement one of:**
 
 - **A)** `preset.fal.extrasByEndpoint: Record<string, Record<string, unknown>>` keyed by full endpoint id, merged when `opts.endpoint` matches; or  
 - **B)** Merge extras whenever the **endpoint family** matches (e.g. both `fal-ai/nano-banana-2`), derived from a small allowlist; or  
@@ -116,8 +116,8 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 | # | Criterion |
 |---|-----------|
 | M1.1 | **Sheet strategy** generates **one** 400×100 (or configured) sheet via **`fal-ai/nano-banana-2`** with **`aspect_ratio: "4:1"`** (or equivalent that yields four equal columns after normalize). |
-| M1.2 | **Preset** supplies style/composition/subject via existing `prompt.mjs` builders **or** a **checked-in preset prompt module** (hardcoded acceptable). |
-| M1.3 | **Four crops** match `SHEET_CROPS` in `presets/dpad/dpad.mjs`; `assertPngBufferDimensions` passes after normalize. |
+| M1.2 | **Preset** supplies style/composition/subject via existing `prompt.ts` builders **or** a **checked-in preset prompt module** (hardcoded acceptable). |
+| M1.3 | **Four crops** match `SHEET_CROPS` in `presets/dpad/dpad.ts`; `assertPngBufferDimensions` passes after normalize. |
 | M1.4 | **Alpha:** BRIA path **or** documented chroma fallback with **tunable** tolerance; no silent corner-median unless logged. |
 | M1.5 | **Manifest** records endpoint, timings, and alpha source; **no** merge to `main` required for completion. |
 
@@ -151,7 +151,7 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 
 ## Runbook (current repo; extend when flags land)
 
-**Live commands, flags (`--endpoint`, `--strategy`, `--keep-sheet`, …), env vars, and verified fal endpoint ids** are maintained in **`tools/sprite-generation/README.md`** (ADR + runbook). **`tools/dpad-workflow.mjs`** is the CLI entry; **`npm run mock:dpad-workflow`** is the no-network CI path; **`FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet`** exercises sheet generation with the preset default (`fal-ai/nano-banana-2`) and manifest `generationResults._sheet` fields (`alphaSource`, etc.). Update **README** when adding flags (e.g. `--matte bria`, `--rewrite`); keep this section as a pointer only.
+**Live commands, flags (`--endpoint`, `--strategy`, `--keep-sheet`, …), env vars, and verified fal endpoint ids** are maintained in **`tools/sprite-generation/README.md`** (ADR + runbook). **`tools/dpad-workflow.ts`** is the CLI entry (run with **`node --experimental-strip-types`**, **`2gp-gwjc`**); **`npm run mock:dpad-workflow`** is the no-network CI path; **`FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet`** exercises sheet generation with the preset default (`fal-ai/nano-banana-2`) and manifest `generationResults._sheet` fields (`alphaSource`, etc.). Update **README** when adding flags (e.g. `--matte bria`, `--rewrite`); keep this section as a pointer only.
 
 ---
 
@@ -159,4 +159,4 @@ Pick **A or B** for M1 so preset-tuned `aspect_ratio` / `resolution` survive `--
 
 - FalSprite: https://github.com/lovisdotio/falsprite  
 - fal model docs: `fal-ai/nano-banana-2`, `fal-ai/bria/background/remove`, `openrouter/router` (verify inputs on fal.ai OpenAPI)  
-- Local: `generators/fal.mjs`, `pipeline.mjs`, `presets/dpad/dpad.mjs`, `prompt.mjs`, `pipeline-stages.mjs`
+- Local: `generators/fal.ts`, `pipeline.ts`, `presets/dpad/dpad.ts`, `prompt.ts`, `pipeline-stages.ts`

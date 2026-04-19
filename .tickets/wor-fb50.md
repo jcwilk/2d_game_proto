@@ -1,6 +1,6 @@
 ---
 id: wor-fb50
-status: open
+status: closed
 deps: [wor-qtif]
 links: []
 created: 2026-04-19T16:37:37Z

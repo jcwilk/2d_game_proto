@@ -3,22 +3,23 @@ import type { Scene } from 'excalibur';
 import { isWithinProximity } from '../proximity/worldDistance';
 import { logicalGamePointToClientPoint } from './screenOverlay';
 
-export const MERCHANT_ACTION_LABELS = ['Attack', 'Talk', 'Trade', 'Hug'] as const;
-export type MerchantActionLabel = (typeof MERCHANT_ACTION_LABELS)[number];
+/** Peaceful interactions only — attack is canvas click on the NPC. */
+export const MERCHANT_PEACEFUL_ACTION_LABELS = ['Talk', 'Trade', 'Hug'] as const;
+export type MerchantPeacefulActionLabel = (typeof MERCHANT_PEACEFUL_ACTION_LABELS)[number];
 
 export interface MerchantProximityMenuOptions {
   canvas: HTMLCanvasElement;
   viewportSize: number;
-  /** World-space radius (same units as `Actor.pos`) for showing the menu. */
+  /** World-space radius for showing the menu. */
   proximityRadius: number;
   getPlayerFeet: () => { x: number; y: number };
   getMerchantFeet: () => { x: number; y: number };
-  /**
-   * Logical point for anchoring the menu (e.g. above the merchant’s head). Fixed camera: same space as
-   * `VIEWPORT_SIZE` canvas coordinates.
-   */
   getMerchantMenuAnchorLogical: () => { x: number; y: number };
-  onAction: (action: MerchantActionLabel) => void;
+  onAction: (action: MerchantPeacefulActionLabel) => void;
+  /** If false, menu stays hidden (e.g. after the player has attacked the shopkeeper). */
+  getPeacefulWithMerchant: () => boolean;
+  /** If false, merchant is gone — hide menu. */
+  getMerchantAlive: () => boolean;
 }
 
 export interface MerchantProximityMenuHandle {
@@ -26,8 +27,7 @@ export interface MerchantProximityMenuHandle {
 }
 
 /**
- * Horizontal row of actions above the merchant; only visible within {@link MerchantProximityMenuOptions.proximityRadius}.
- * The overlay root uses `pointer-events: none`; the row uses `pointer-events: auto` so the canvas stays playable.
+ * Horizontal row of peaceful actions above the merchant. Root uses `pointer-events: none`; row uses `auto`.
  */
 export function attachMerchantProximityMenu(
   scene: Scene,
@@ -47,12 +47,15 @@ export function attachMerchantProximityMenu(
   const row = document.createElement('div');
   row.className = 'merchant-action-menu__row';
 
-  for (const label of MERCHANT_ACTION_LABELS) {
+  for (const label of MERCHANT_PEACEFUL_ACTION_LABELS) {
     const control = document.createElement('span');
     control.className = 'merchant-action-menu__action';
     control.textContent = label;
     control.setAttribute('role', 'button');
     control.tabIndex = -1;
+    control.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+    });
     control.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -71,13 +74,17 @@ export function attachMerchantProximityMenu(
   wrap.appendChild(overlay);
 
   function sync(): void {
+    if (!options.getMerchantAlive()) {
+      menu.hidden = true;
+      return;
+    }
     const px = options.getPlayerFeet().x;
     const py = options.getPlayerFeet().y;
     const mx = options.getMerchantFeet().x;
     const my = options.getMerchantFeet().y;
     const near = isWithinProximity(px, py, mx, my, options.proximityRadius);
 
-    if (!near) {
+    if (!near || !options.getPeacefulWithMerchant()) {
       menu.hidden = true;
       return;
     }

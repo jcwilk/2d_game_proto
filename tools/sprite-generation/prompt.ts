@@ -106,7 +106,7 @@ export const CHARACTER_WALK_SHEET_COMPOSITION =
   `Entire image background is one flat solid screen color {chromaKeyHex} (pure magenta), full bleed, no gradients. ` +
   `One character per panel: same identity, outfit, and palette across all four — creative color, believable materials, light shading OK. ` +
   `Do not use {chromaKeyHex}, hot pink, fuchsia, or magenta on the character or cast shadows. ` +
-  `Same isometric three-quarter camera and per-cell framing (midline-centered; **top of head 10%** down from top; **soles 20%** up from bottom — mock pipeline) in every panel; four sequential walk-cycle poses; no text, no duplicate rows. `;
+  `Same isometric three-quarter camera and per-cell framing (midline-centered; **top of head 10%** down from top; **soles 20%** up from bottom — mock pipeline) in every panel; four sequential walk-cycle poses in **one** horizontal row only — **no** second horizontal band of figures (no stacked upper/lower tiers, no **2×4** grid, no eight-panel sheet); no text. `;
 
 /** Sheet subject line for falsprite T2I lives in the relevant walk-cycle preset module (`CHARACTER_FALSPRITE_SHEET_SUBJECT`). */
 
@@ -438,6 +438,9 @@ export function buildCharacterWalkStripSpritePrompt(basePrompt: string, sheetWid
     `Each cell is **${cw}×${ch}px** — **width:height = 2:5** (not square): width matches the floor footprint; height is **2.5×** that width (full-body figure).`,
     "Every cell must be the exact same dimensions, perfectly aligned, with no gaps or overlap.",
     "",
+    "SINGLE ROW ONLY (critical for cropping): The full canvas height is **one** walk-frame tall — **not** two half-height rows. **FORBIDDEN:** a **2×4** grid of figures; **eight** panels; **two** horizontal strips stacked vertically (upper row + lower row); four columns drawn twice at different vertical positions; any layout that splits the image into an upper and lower **register** of animation frames.",
+    "Each column uses the **entire** height for **one** pose — from the top edge of the sheet to the bottom edge of the sheet within that column.",
+    "",
     "FORBIDDEN: Absolutely no text, no numbers, no letters, no digits, no labels,",
     "no watermarks, no signatures, no UI elements anywhere in the image. The image must",
     "contain ONLY the character illustrations in the grid cells and nothing else.",
@@ -492,6 +495,12 @@ export function buildFalspriteSheetRewriteSystemPrompt(gridSize = 4, opts?: { la
     opts?.layout === "strip"
       ? `CHOREOGRAPHY: A ${w}-beat continuous animation loop that showcases this specific character's personality and abilities. Each beat is the next moment in the sequence, left to right in a single horizontal row. The last beat must transition seamlessly back into the first.`
       : `CHOREOGRAPHY: A ${w}-beat continuous animation loop that showcases this specific character's personality and abilities. Each beat is one row of the sheet. The last beat must transition seamlessly back into the first.`;
+  const stripRules =
+    opts?.layout === "strip"
+      ? [
+          "- The action reads as **one horizontal line** of poses — never as **two** parallel front/back rows, never as an **upper** tier and **lower** tier of four poses each.",
+        ]
+      : [];
   return [
     "You are an animation director and character designer for a sprite sheet pipeline.",
     "Given a character concept, you MUST return exactly two sections, nothing else:",
@@ -511,6 +520,7 @@ export function buildFalspriteSheetRewriteSystemPrompt(gridSize = 4, opts?: { la
     "- For locomotion (walk/run): strictly alternate left and right legs in each beat.",
     " Describe exact limb positions — which leg is forward, which is pushing off,",
     " which arm is swinging forward. Every beat must show a distinctly different leg configuration.",
+    ...stripRules,
   ].join("\n");
 }
 

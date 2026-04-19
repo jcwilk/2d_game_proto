@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCharacterWalkStripSpritePrompt,
   buildPrompt,
   buildSheetPrompt,
   DEFAULT_CHROMA_KEY_HEX,
@@ -86,5 +87,12 @@ describe("sprite-generation prompt", () => {
     expect(out).toContain("4x4 sheet on 1024px.");
     expect(out).toContain("#112233");
     expect(out).toContain("Panel order A B C D.");
+  });
+
+  it("buildCharacterWalkStripSpritePrompt forbids 2×4 layouts that break 1×4 crops", () => {
+    const out = buildCharacterWalkStripSpritePrompt("CHARACTER LINE.", 256, 160);
+    expect(out).toContain("SINGLE ROW ONLY");
+    expect(out).toContain("2×4");
+    expect(out).toContain("CHARACTER LINE.");
   });
 });

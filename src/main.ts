@@ -1,6 +1,6 @@
 import './styles.css';
 
-import { Actor, Animation, AnimationStrategy, Color, Scene, vec } from 'excalibur';
+import { Actor, Animation, AnimationStrategy, Color, PointerButton, Scene, vec } from 'excalibur';
 
 /** Scene character classification — player and NPC kinds (proximity UI, follow-on tickets). */
 export const CharacterKind = {
@@ -29,11 +29,27 @@ import {
   mergeActiveDirections,
 } from './input/directionalChrome';
 import { attachKeyboardDirections } from './input/keyboardDirections';
+import { subscribePointerInput } from './input/pointer';
+import {
+  ENEMY_ATTACK_COOLDOWN_MS,
+  ENEMY_CHASE_SPEED_WORLD_PX,
+  ENEMY_DAMAGE_TO_PLAYER,
+  ENEMY_MELEE_RANGE_WORLD_PX,
+  MONSTER_AGGRO_RADIUS_WORLD_PX,
+  NPC_ATTACK_DAMAGE,
+  NPC_ATTACK_RANGE_WORLD_PX,
+  NPC_DEFAULT_MAX_HP,
+  PLAYER_DEFAULT_MAX_HP,
+  playerCanAttackNpc,
+  worldPointInNpcBounds,
+} from './game/npcCombat';
+import { distanceSquared } from './proximity/worldDistance';
 import {
   MONSTER_PROXIMITY_RANGE_WORLD_PX,
   attachMonsterExclamationOverlay,
 } from './ui/monsterExclamationOverlay';
 import { attachMerchantProximityMenu } from './ui/merchantProximityMenu';
+import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -217,7 +233,7 @@ void engine
     const merchantGx = 7;
     const merchantGy = 2;
     const merchantPos = gridCellBottomCenter(merchantGx, merchantGy);
-    const merchantFacesRight = merchantPos.x <= cellBottomCenter.x;
+    let merchantFacesRight = merchantPos.x <= cellBottomCenter.x;
     const merchantActor = new Actor({
       pos: merchantPos,
       scale: vec(merchantFacesRight ? merchantCharacterScale : -merchantCharacterScale, merchantCharacterScale),
@@ -231,15 +247,16 @@ void engine
     const monsterGx = 2;
     const monsterGy = 7;
     const monsterPos = gridCellBottomCenter(monsterGx, monsterGy);
-    const monsterFacesRight = monsterPos.x <= cellBottomCenter.x;
-    monsterActor = new Actor({
+    let monsterFacesRight = monsterPos.x <= cellBottomCenter.x;
+    const monsterNpc = new Actor({
       pos: monsterPos,
       scale: vec(monsterFacesRight ? monsterCharacterScale : -monsterCharacterScale, monsterCharacterScale),
       z: isoCharacterZFromWorldPos(monsterPos),
     });
-    monsterActor.graphics.anchor = vec(0.5, 1);
-    monsterActor.graphics.use(monsterIdleGraphic);
-    mainScene.add(monsterActor);
+    monsterNpc.graphics.anchor = vec(0.5, 1);
+    monsterNpc.graphics.use(monsterIdleGraphic);
+    mainScene.add(monsterNpc);
+    monsterActor = monsterNpc;
 
     const actor = new Actor({
       pos: cellBottomCenter,
@@ -253,25 +270,182 @@ void engine
     /** Horizontal flip: left-facing until the player moves right again (vertical-only keeps last facing). */
     let facingRight = true;
 
-    /** World-space proximity for merchant UI — center-to-center using `Actor.pos` (feet anchor), same as monster proximity. */
-    const MERCHANT_PROXIMITY_RADIUS = 220;
-    let merchantPulseEnd = 0;
+    let merchantHp = NPC_DEFAULT_MAX_HP;
+    let monsterHp = NPC_DEFAULT_MAX_HP;
+    const npcMaxHp = NPC_DEFAULT_MAX_HP;
+
+    let playerHp = PLAYER_DEFAULT_MAX_HP;
+    const playerMaxHp = PLAYER_DEFAULT_MAX_HP;
+
+    /** Monster pursues after the player enters {@link MONSTER_AGGRO_RADIUS_WORLD_PX}. */
+    let monsterAggro = false;
+
+    let lastMonsterAttackOnPlayer = 0;
+    let lastMerchantAttackOnPlayer = 0;
+    let playerHitPulseEnd = 0;
+
+    /** While true, shopkeeper shows Talk / Trade / Hug when in range. Set false after the player attacks him. */
+    let merchantPeaceful = true;
+    let merchantDefeated = false;
+    let monsterDefeated = false;
+
+    const MERCHANT_MENU_PROXIMITY_RADIUS = 220;
+
+    let merchantHitPulseEnd = 0;
+    let monsterHitPulseEnd = 0;
+
+    /** Brief lunge toward target on attack (world px/s). */
+    let attackLungeEnd = 0;
+    let attackLungeVel = vec(0, 0);
 
     const chrome = attachDirectionalChrome(root);
     const keyboard = attachKeyboardDirections();
+
+    function merchantSpriteTopLogicalY(): number {
+      const sy = Math.abs(merchantActor.scale.y);
+      return merchantActor.pos.y - merchantIdleGraphic.height * sy;
+    }
+
+    function monsterSpriteTopLogicalY(): number {
+      const sy = Math.abs(monsterNpc.scale.y);
+      return monsterNpc.pos.y - monsterIdleGraphic.height * sy;
+    }
+
+    function playerSpriteTopLogicalY(): number {
+      const sy = Math.abs(actor.scale.y);
+      return actor.pos.y - leadWalkSprite!.height * sy;
+    }
+
+    const npcHpBars = attachNpcHpBarOverlay({
+      canvas: gameCanvas,
+      viewportSize: VIEWPORT_SIZE,
+      entries: [
+        {
+          id: 'merchant',
+          getHp: () => merchantHp,
+          getMaxHp: () => npcMaxHp,
+          isActive: () => !merchantDefeated,
+          getAnchorLogical: () => ({
+            x: merchantActor.pos.x,
+            y: merchantSpriteTopLogicalY() - 8,
+          }),
+        },
+        {
+          id: 'monster',
+          getHp: () => monsterHp,
+          getMaxHp: () => npcMaxHp,
+          isActive: () => !monsterDefeated,
+          getAnchorLogical: () => ({
+            x: monsterNpc.pos.x,
+            y: monsterSpriteTopLogicalY() - 8,
+          }),
+        },
+        {
+          id: 'player',
+          getHp: () => playerHp,
+          getMaxHp: () => playerMaxHp,
+          isActive: () => true,
+          getAnchorLogical: () => ({
+            x: actor.pos.x,
+            y: playerSpriteTopLogicalY() - 10,
+          }),
+        },
+      ],
+    });
+
     const merchantMenu = attachMerchantProximityMenu(mainScene, {
       canvas: gameCanvas,
       viewportSize: VIEWPORT_SIZE,
-      proximityRadius: MERCHANT_PROXIMITY_RADIUS,
+      proximityRadius: MERCHANT_MENU_PROXIMITY_RADIUS,
       getPlayerFeet: () => ({ x: actor.pos.x, y: actor.pos.y }),
       getMerchantFeet: () => ({ x: merchantActor.pos.x, y: merchantActor.pos.y }),
       getMerchantMenuAnchorLogical: () => {
-        const spriteTopY = merchantActor.pos.y - merchantIdleGraphic.height * merchantCharacterScale;
+        const spriteTopY = merchantActor.pos.y - merchantIdleGraphic.height * Math.abs(merchantActor.scale.y);
         return { x: merchantActor.pos.x, y: spriteTopY - 10 };
       },
+      getPeacefulWithMerchant: () => merchantPeaceful,
+      getMerchantAlive: () => !merchantDefeated,
       onAction: (action) => {
         console.log(`[merchant] ${action}`);
-        merchantPulseEnd = performance.now() + 260;
+        merchantHitPulseEnd = performance.now() + 260;
+      },
+    });
+
+    const pointerSub = subscribePointerInput(engine, {
+      onDown: (ev) => {
+        if (playerHp <= 0) {
+          return;
+        }
+        if (ev.button === PointerButton.Middle || ev.button === PointerButton.Right) {
+          return;
+        }
+        const wx = ev.worldPos.x;
+        const wy = ev.worldPos.y;
+        const px = actor.pos.x;
+        const py = actor.pos.y;
+
+        type Target = { tag: 'merchant' | 'monster'; cx: number; cy: number };
+        const hits: Target[] = [];
+
+        const msx = Math.abs(merchantActor.scale.x);
+        const msy = Math.abs(merchantActor.scale.y);
+        if (
+          !merchantDefeated &&
+          worldPointInNpcBounds(wx, wy, merchantActor, merchantIdleGraphic.width, merchantIdleGraphic.height, msx, msy) &&
+          playerCanAttackNpc(px, py, merchantActor.pos.x, merchantActor.pos.y, NPC_ATTACK_RANGE_WORLD_PX) &&
+          merchantHp > 0
+        ) {
+          const mcy = merchantActor.pos.y - (merchantIdleGraphic.height * msy) / 2;
+          hits.push({ tag: 'merchant', cx: merchantActor.pos.x, cy: mcy });
+        }
+
+        const nsx = Math.abs(monsterNpc.scale.x);
+        const nsy = Math.abs(monsterNpc.scale.y);
+        if (
+          !monsterDefeated &&
+          worldPointInNpcBounds(wx, wy, monsterNpc, monsterIdleGraphic.width, monsterIdleGraphic.height, nsx, nsy) &&
+          playerCanAttackNpc(px, py, monsterNpc.pos.x, monsterNpc.pos.y, NPC_ATTACK_RANGE_WORLD_PX) &&
+          monsterHp > 0
+        ) {
+          const ncy = monsterNpc.pos.y - (monsterIdleGraphic.height * nsy) / 2;
+          hits.push({ tag: 'monster', cx: monsterNpc.pos.x, cy: ncy });
+        }
+
+        if (hits.length === 0) {
+          return;
+        }
+
+        hits.sort(
+          (a, b) =>
+            distanceSquared(wx, wy, a.cx, a.cy) - distanceSquared(wx, wy, b.cx, b.cy),
+        );
+        const target = hits[0]!;
+        const targetActor = target.tag === 'merchant' ? merchantActor : monsterNpc;
+        const toTarget = vec(targetActor.pos.x - px, targetActor.pos.y - py);
+        if (toTarget.size > 1e-6) {
+          attackLungeVel = toTarget.normalize().scale(380);
+        } else {
+          attackLungeVel = vec(facingRight ? 380 : -380, 0);
+        }
+        attackLungeEnd = performance.now() + 130;
+
+        if (target.tag === 'merchant') {
+          merchantPeaceful = false;
+          merchantHp = Math.max(0, merchantHp - NPC_ATTACK_DAMAGE);
+          merchantHitPulseEnd = performance.now() + 220;
+          if (merchantHp <= 0) {
+            merchantActor.kill();
+            merchantDefeated = true;
+          }
+        } else {
+          monsterHp = Math.max(0, monsterHp - NPC_ATTACK_DAMAGE);
+          monsterHitPulseEnd = performance.now() + 220;
+          if (monsterHp <= 0) {
+            monsterNpc.kill();
+            monsterActor = undefined;
+            monsterDefeated = true;
+          }
+        }
       },
     });
 
@@ -294,20 +468,99 @@ void engine
     });
 
     const chromeMoveSub = mainScene.on('preupdate', () => {
+      const now = performance.now();
+      const px = actor.pos.x;
+      const py = actor.pos.y;
+      const aggroR2 = MONSTER_AGGRO_RADIUS_WORLD_PX * MONSTER_AGGRO_RADIUS_WORLD_PX;
+      const meleeR2 = ENEMY_MELEE_RANGE_WORLD_PX * ENEMY_MELEE_RANGE_WORLD_PX;
+      const playerDead = playerHp <= 0;
+
+      if (!monsterDefeated && !playerDead) {
+        const distSqM = distanceSquared(px, py, monsterNpc.pos.x, monsterNpc.pos.y);
+        if (!monsterAggro && distSqM <= aggroR2) {
+          monsterAggro = true;
+        }
+        if (monsterAggro) {
+          const mdx = px - monsterNpc.pos.x;
+          const mdy = py - monsterNpc.pos.y;
+          if (distSqM > 1) {
+            const toPlayer = vec(mdx, mdy).normalize();
+            monsterNpc.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
+            monsterFacesRight = mdx > 0;
+          } else {
+            monsterNpc.vel = vec(0, 0);
+          }
+          if (distSqM <= meleeR2 && now - lastMonsterAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS) {
+            playerHp = Math.max(0, playerHp - ENEMY_DAMAGE_TO_PLAYER);
+            lastMonsterAttackOnPlayer = now;
+            playerHitPulseEnd = now + 200;
+          }
+        } else {
+          monsterNpc.vel = vec(0, 0);
+        }
+      } else {
+        monsterNpc.vel = vec(0, 0);
+      }
+
+      if (!merchantDefeated && !playerDead) {
+        if (!merchantPeaceful) {
+          const edx = px - merchantActor.pos.x;
+          const edy = py - merchantActor.pos.y;
+          const distSqE = distanceSquared(px, py, merchantActor.pos.x, merchantActor.pos.y);
+          if (distSqE > 1) {
+            const toPlayer = vec(edx, edy).normalize();
+            merchantActor.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
+            merchantFacesRight = edx > 0;
+          } else {
+            merchantActor.vel = vec(0, 0);
+          }
+          if (distSqE <= meleeR2 && now - lastMerchantAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS) {
+            playerHp = Math.max(0, playerHp - ENEMY_DAMAGE_TO_PLAYER);
+            lastMerchantAttackOnPlayer = now;
+            playerHitPulseEnd = now + 200;
+          }
+        } else {
+          merchantActor.vel = vec(0, 0);
+        }
+      } else {
+        merchantActor.vel = vec(0, 0);
+      }
+
+      const lungeActive = now < attackLungeEnd;
       const merged = mergeActiveDirections(chrome.getActiveDirections(), keyboard.getActiveDirections());
-      const v = chromeMoveVelocityFromActiveDirections(merged, CHROME_MOVE_SPEED);
+      let v = lungeActive
+        ? attackLungeVel
+        : chromeMoveVelocityFromActiveDirections(merged, CHROME_MOVE_SPEED);
+      if (playerDead) {
+        v = vec(0, 0);
+      }
       actor.vel = vec(v.x, v.y);
       actor.z = isoCharacterZFromWorldPos(actor.pos);
-      const now = performance.now();
-      const pulse = now < merchantPulseEnd;
-      const mScale = merchantCharacterScale * (pulse ? 1.1 : 1);
-      merchantActor.scale = vec(merchantFacesRight ? mScale : -mScale, mScale);
+      if (!merchantDefeated) {
+        merchantActor.z = isoCharacterZFromWorldPos(merchantActor.pos);
+      }
+      if (!monsterDefeated) {
+        monsterNpc.z = isoCharacterZFromWorldPos(monsterNpc.pos);
+      }
+
+      if (!merchantDefeated) {
+        const merchantPulse = now < merchantHitPulseEnd;
+        const mScale = merchantCharacterScale * (merchantPulse ? 1.1 : 1);
+        merchantActor.scale = vec(merchantFacesRight ? mScale : -mScale, mScale);
+      }
+      if (!monsterDefeated) {
+        const monsterPulse = now < monsterHitPulseEnd;
+        const monScale = monsterCharacterScale * (monsterPulse ? 1.08 : 1);
+        monsterNpc.scale = vec(monsterFacesRight ? monScale : -monScale, monScale);
+      }
+      const playerPulse = now < playerHitPulseEnd;
+      const pScale = characterScale * (playerPulse ? 1.06 : 1);
       if (v.x > 0) {
         facingRight = true;
       } else if (v.x < 0) {
         facingRight = false;
       }
-      actor.scale = vec(facingRight ? characterScale : -characterScale, characterScale);
+      actor.scale = vec(facingRight ? pScale : -pScale, pScale);
       const moving = v.x * v.x + v.y * v.y > 1;
       if (moving) {
         if (!walkAnim.isPlaying) {
@@ -318,11 +571,14 @@ void engine
         walkAnim.goToFrame(0);
       }
       monsterExclamation.sync();
+      npcHpBars.sync();
     });
 
     if (import.meta.hot) {
       import.meta.hot.dispose(() => {
         merchantMenu.close();
+        pointerSub.unsubscribe();
+        npcHpBars.close();
         monsterExclamation.close();
         chrome.detach();
         keyboard.detach();

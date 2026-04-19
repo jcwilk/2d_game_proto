@@ -111,8 +111,8 @@ export const MONSTER_WALK_FRAME_STYLE =
 
 export const MONSTER_FALSPRITE_SHEET_SUBJECT =
   `Illustrated full-color 2D game art (not pixel art), **isometric three-quarter view** with the same per-cell framing everywhere: figure centered on the vertical midline; **top of head 10%** down from top; **soles / ground contact 20%** above bottom (**W/4** clearance, same as mock); head/torso/leg proportions **~10/64**, **12/64**, **5/64** vs cell. ` +
-  `**Fluffy dark fairy monster** (wings, shadowy fur or mane, **oversized clawed hands** — not the player hero): panel order **left to right** in a **single row** (1×4 strip): (1) idle standing — feet under hips, relaxed menacing pose, not mid-stride; ` +
-  `(2) walk contact left; (3) walk passing / mid-stride; (4) walk contact right — one pose per cell, same creature identity.`;
+  `**Fluffy dark fairy monster** (wings, shadowy fur or mane, **oversized clawed hands** — not the player hero): panel order **left to right** in **one** horizontal row only (1×4 strip — **not** a 2×4 grid, **not** two stacked rows of four): (1) idle standing — feet under hips, relaxed menacing pose, not mid-stride; ` +
+  `(2) walk contact left; (3) walk passing / mid-stride; (4) walk contact right — one full-height pose per column, same creature identity.`;
 
 export const MONSTER_WALK_SHEET_REWRITE_USER_SEED =
   "Illustrated 2D **fluffy dark fairy with giant claws** in isometric three-quarter view (painterly or cel-shaded, not pixel art): centered in frame; head top **10%** from top edge, feet ground line **20%** from bottom (mock pipeline / W/4 clearance); compact proportions like the reference mock; first beat is idle standing; then a three-step walk loop (contact left, passing, contact right) — single consistent monster silhouette, not the player avatar.";
@@ -121,7 +121,8 @@ export const MONSTER_WALK_SHEET_REWRITE_USER_SEED =
 export const MONSTER_FALSPRITE_SHEET_REWRITE_SYSTEM_PROMPT =
   CHARACTER_WALK_REWRITE_SYSTEM_BASE +
   " Staging: describe the character and motion as seen from a fixed isometric three-quarter camera (oblique, front plus one side readable — not a flat side profile). The performer should occupy the frame as if centered on the vertical midline: **top of head** near **10%** down from the top, **ground contact** near **20%** up from the bottom (same vertical bands as the pipeline mock, not equal 10% top and bottom)." +
-  " Backdrop (match isometric floor strip rewrites): do **not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia as the background — one calm uniform flat backdrop only; **no** gutters, divider lines, or vertical bands between columns; **no** pink/purple glow or colored halos at the figure outline or along interior vertical boundaries.";
+  " Backdrop (match isometric floor strip rewrites): do **not** mention chroma keys, greenscreen, matting, or bright magenta/fuchsia as the background — one calm uniform flat backdrop only; **no** gutters, divider lines, or vertical bands between columns; **no** pink/purple glow or colored halos at the figure outline or along interior vertical boundaries." +
+  " Layout: all four beats are **side by side** in one horizontal line — never choreograph as two horizontal rows of four poses (no upper/lower register).";
 
 export function recipeId(mode: "mock" | "generate", strategy?: "per-tile" | "sheet"): string {
   return buildRecipeId({

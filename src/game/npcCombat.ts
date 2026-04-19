@@ -34,8 +34,8 @@ export const PLAYER_DEFAULT_MAX_HP = 100;
 /** Damage per successful player attack on an NPC. */
 export const NPC_ATTACK_DAMAGE = 14;
 
-/** HP restored when the player hugs a peaceful merchant. */
-export const MERCHANT_HUG_HEAL_AMOUNT = 28;
+/** HP restored to the player and the merchant when the player hugs a peaceful merchant. */
+export const MERCHANT_HUG_HEAL_AMOUNT = 48;
 
 /** After a hug, the merchant follows the player for this long (world chase, no damage). */
 export const MERCHANT_FOLLOW_AFTER_HUG_MS = 4_500;

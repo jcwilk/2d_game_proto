@@ -12,8 +12,8 @@ import {
   chromaKeyWithBorderFallback,
   keySemiTransparentNearKey,
   removeMagentaFringeAdjacentToTransparent,
-} from "./postprocess/chroma-key.mjs";
-import { countFullyTransparentPercent } from "./postprocess/png-region.mjs";
+} from "./postprocess/chroma-key.ts";
+import { countFullyTransparentPercent } from "./postprocess/png-region.ts";
 
 /** Default when `preset.postprocessSteps` is omitted and `mode === 'generate'`. */
 export const DEFAULT_POSTPROCESS_STEPS_GENERATE = Object.freeze(["chromaKey"]);

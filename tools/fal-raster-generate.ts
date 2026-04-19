@@ -6,11 +6,12 @@
  * Endpoint id is pinned to the model’s /api page (see tools/README.md).
  */
 import { ApiError, fal } from "@fal-ai/client";
+import type { FluxDevInput } from "@fal-ai/client/endpoints";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** @type {string} Exact endpoint id from https://fal.ai/models/fal-ai/flux/dev/api */
+/** Exact endpoint id from https://fal.ai/models/fal-ai/flux/dev/api */
 export const FAL_RASTER_ENDPOINT_ID = "fal-ai/flux/dev";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -18,11 +19,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Default directory for saved raster files (under this repo’s `tools/`). */
 export const DEFAULT_RASTER_OUT_DIR = join(__dirname, "out", "raster");
 
-/**
- * @param {string} s
- * @returns {{ width: number; height: number } | string}
- */
-function parseImageSize(s) {
+type OutputFormat = "jpeg" | "png";
+
+function parseImageSize(s: string): { width: number; height: number } | string {
   const m = /^(\d+)x(\d+)$/.exec(s.trim());
   if (m) {
     return { width: Number(m[1]), height: Number(m[2]) };
@@ -30,12 +29,17 @@ function parseImageSize(s) {
   return s;
 }
 
-/**
- * @param {string[]} argv
- */
-function parseArgs(argv) {
-  /** @type {{ prompt: string; numImages: number; outputFormat: 'jpeg' | 'png'; seed?: number; imageSize: string; outDir: string }} */
-  const opts = {
+interface ParsedOpts {
+  prompt: string;
+  numImages: number;
+  outputFormat: OutputFormat;
+  seed?: number;
+  imageSize: string;
+  outDir: string;
+}
+
+function parseArgs(argv: string[]): ParsedOpts {
+  const opts: ParsedOpts = {
     prompt: "",
     numImages: 1,
     outputFormat: "png",
@@ -44,7 +48,7 @@ function parseArgs(argv) {
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    const next = () => {
+    const next = (): string => {
       const v = argv[++i];
       if (v === undefined) throw new Error(`Missing value after ${a}`);
       return v;
@@ -87,8 +91,10 @@ function parseArgs(argv) {
   return opts;
 }
 
-function printHelp() {
-  console.log(`Usage: node tools/fal-raster-generate.mjs --prompt <text> [options]
+function printHelp(): void {
+  console.log(`Usage: node --experimental-strip-types tools/fal-raster-generate.ts --prompt <text> [options]
+
+Or: npm run generate:raster -- --prompt <text> [options]
 
 Calls fal endpoint "${FAL_RASTER_ENDPOINT_ID}" with image_size, num_images, output_format, and optional seed (per project plan §E.3.1).
 
@@ -108,28 +114,20 @@ On HTTP 403 Forbidden, read the printed detail — often account billing (add ba
 `);
 }
 
-/**
- * Resolve API key: trimmed `FAL_KEY`, or `FAL_KEY_ID:FAL_KEY_SECRET` when set (see fal docs).
- * @returns {string | undefined}
- */
-function resolveFalCredentials() {
-  const direct = process.env.FAL_KEY;
+function resolveFalCredentials(): string | undefined {
+  const direct = process.env["FAL_KEY"];
   if (direct !== undefined && String(direct).trim() !== "") {
     return String(direct).trim();
   }
-  const id = process.env.FAL_KEY_ID;
-  const secret = process.env.FAL_KEY_SECRET;
+  const id = process.env["FAL_KEY_ID"];
+  const secret = process.env["FAL_KEY_SECRET"];
   if (id && secret && String(id).trim() && String(secret).trim()) {
     return `${String(id).trim()}:${String(secret).trim()}`;
   }
   return undefined;
 }
 
-/**
- * @param {unknown} err
- * @returns {string}
- */
-function formatFalClientError(err) {
+function formatFalClientError(err: unknown): string {
   if (err instanceof ApiError) {
     const body = err.body;
     if (body && typeof body === "object") {
@@ -147,7 +145,7 @@ function formatFalClientError(err) {
   return err instanceof Error ? err.message : String(err);
 }
 
-async function downloadToFile(url, destPath) {
+async function downloadToFile(url: string, destPath: string): Promise<void> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to download image: HTTP ${res.status} ${res.statusText}`);
@@ -156,7 +154,19 @@ async function downloadToFile(url, destPath) {
   await writeFile(destPath, buf);
 }
 
-async function main() {
+interface FalRasterData {
+  images: Array<{ url?: string } | null | undefined>;
+  seed?: number;
+}
+
+function isFalRasterData(data: unknown): data is FalRasterData {
+  if (data === null || typeof data !== "object") return false;
+  if (!("images" in data)) return false;
+  const images = (data as { images: unknown }).images;
+  return Array.isArray(images) && images.length > 0;
+}
+
+async function main(): Promise<void> {
   const credentials = resolveFalCredentials();
   if (!credentials) {
     console.error(
@@ -166,7 +176,7 @@ async function main() {
     process.exit(1);
   }
 
-  let opts;
+  let opts: ParsedOpts;
   try {
     opts = parseArgs(process.argv);
   } catch (e) {
@@ -182,8 +192,8 @@ async function main() {
 
   fal.config({ credentials });
 
-  const imageSize = parseImageSize(opts.imageSize);
-  const input = {
+  const imageSize = parseImageSize(opts.imageSize) as NonNullable<FluxDevInput["image_size"]>;
+  const input: FluxDevInput = {
     prompt: opts.prompt,
     image_size: imageSize,
     num_images: opts.numImages,
@@ -199,14 +209,14 @@ async function main() {
   });
 
   const data = result.data;
-  if (!data || !Array.isArray(data.images) || data.images.length === 0) {
+  if (!isFalRasterData(data)) {
     console.error("error: fal returned no images in the response.");
     process.exit(1);
   }
 
   await mkdir(opts.outDir, { recursive: true });
   const ext = opts.outputFormat === "png" ? "png" : "jpg";
-  const paths = [];
+  const paths: string[] = [];
   for (let i = 0; i < data.images.length; i++) {
     const img = data.images[i];
     if (!img || typeof img.url !== "string") {
@@ -225,7 +235,7 @@ async function main() {
   }
 }
 
-main().catch((e) => {
+main().catch((e: unknown) => {
   console.error(`error: ${formatFalClientError(e)}`);
   process.exit(1);
 });

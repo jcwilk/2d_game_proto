@@ -1,3 +1,5 @@
+// @ts-nocheck
+// @ts-nocheck — Vitest integration test migrated from .mjs
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
@@ -6,7 +8,7 @@ import {
   extractPngRegion,
   normalizeDecodedSheetToPreset,
   resizePngBufferNearest,
-} from "./png-region.mjs";
+} from "./png-region.ts";
 
 describe("png-region", () => {
   it("countFullyTransparentPercent matches deterministic alpha pattern", () => {
@@ -36,7 +38,7 @@ describe("png-region", () => {
   it("resizePngBufferNearest maps corners when upscaling 2×2 → 4×4", () => {
     const png = new PNG({ width: 2, height: 2, colorType: 6 });
     png.data.fill(0);
-    const set = (x, y, r, g, b) => {
+    const set = (x: number, y: number, r: number, g: number, b: number) => {
       const i = (png.width * y + x) << 2;
       png.data[i] = r;
       png.data[i + 1] = g;
@@ -59,14 +61,14 @@ describe("png-region", () => {
     const png = new PNG({ width: 400, height: 100, colorType: 6 });
     png.data.fill(0);
     const buf = PNG.sync.write(png);
-    expect(normalizeDecodedSheetToPreset(buf, 400, 100)).toBe(buf);
+    expect(normalizeDecodedSheetToPreset(buf, 400, 100, {})).toBe(buf);
   });
 
   it("normalizeDecodedSheetToPreset maps square fal-like per-tile output to tileSize (512² → 100², 2gp-r67u / per-tile path)", () => {
     const png = new PNG({ width: 512, height: 512, colorType: 6 });
     png.data.fill(0);
     const buf = PNG.sync.write(png);
-    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 100, 100));
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 100, 100, {}));
     expect(out.width).toBe(100);
     expect(out.height).toBe(100);
   });
@@ -76,7 +78,7 @@ describe("png-region", () => {
     png.data.fill(0);
     png.data[0] = 99;
     const buf = PNG.sync.write(png);
-    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100));
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100, {}));
     expect(out.width).toBe(400);
     expect(out.height).toBe(100);
   });
@@ -85,7 +87,7 @@ describe("png-region", () => {
     const png = new PNG({ width: 800, height: 200, colorType: 6 });
     png.data.fill(0);
     const buf = PNG.sync.write(png);
-    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100));
+    const out = PNG.sync.read(normalizeDecodedSheetToPreset(buf, 400, 100, {}));
     expect(out.width).toBe(400);
     expect(out.height).toBe(100);
   });

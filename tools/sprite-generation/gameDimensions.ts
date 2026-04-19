@@ -4,6 +4,8 @@
  * **Keep in sync** — `src/dimensions.sync.test.ts` asserts parity with the TypeScript module.
  *
  * @see ../../../../src/dimensions.ts
+ *
+ * Deduplication with **`src/dimensions`** is deferred to **`2gp-y4cn`**.
  */
 
 export const TILE_WORLD_M = 1;

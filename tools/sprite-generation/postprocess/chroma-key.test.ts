@@ -1,6 +1,7 @@
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 
+// @ts-expect-error — pipeline-stages remains .mjs until sprite-generation wave 2
 import { runChromaKeyStage } from "../pipeline-stages.mjs";
 import {
   CHROMA_FALLBACK_TOLERANCE_MIN,
@@ -8,8 +9,8 @@ import {
   chromaKeyWithBorderFallback,
   keySemiTransparentNearKey,
   removeMagentaFringeAdjacentToTransparent,
-} from "./chroma-key.mjs";
-import { countFullyTransparentPercent } from "./png-region.mjs";
+} from "./chroma-key.ts";
+import { countFullyTransparentPercent } from "./png-region.ts";
 
 describe("chroma-key", () => {
   it("exports CHROMA_FALLBACK_TOLERANCE_MIN unchanged", () => {

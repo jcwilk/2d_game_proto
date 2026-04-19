@@ -103,7 +103,7 @@ Walk-cycle sheet presets use **2×2** + **`gridFrameKeys`** (`sheet.png` + `spri
 
 General client/queue/authentication: https://docs.fal.ai/model-apis
 
-**Note:** **`tools/fal-raster-generate.mjs`** uses **`fal-ai/flux/dev`** for generic rasters (often 512²); that is **independent** of the HUD 1×4 sheet dimensions above.
+**Note:** **`tools/fal-raster-generate.ts`** uses **`fal-ai/flux/dev`** for generic rasters (often 512²); that is **independent** of the HUD 1×4 sheet dimensions above.
 
 ## Determinism vs T2I / chroma variance
 

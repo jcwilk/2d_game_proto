@@ -20,7 +20,7 @@ node --experimental-strip-types path/to/script.ts
 
 | Script (`npm run …`) | Node entry file |
 |---------------------|-------------------|
-| **`generate:raster`** | `tools/fal-raster-generate.mjs` |
+| **`generate:raster`** | `tools/fal-raster-generate.ts` (`node --experimental-strip-types`) |
 | **`dpad-workflow`** | `tools/dpad-workflow.mjs` |
 | **`mock:dpad-workflow`** | `tools/dpad-workflow.mjs --mode mock` (same as `npm run dpad-workflow -- --mode mock`) |
 | **`analyze:png`** | `node --experimental-strip-types tools/png-analyze.ts` |
@@ -83,7 +83,7 @@ flowchart LR
 
 See **`.cursor/plans/project-implementation-deep-dive.md`** §E.0, §E.5.1.
 
-## `fal-raster-generate.mjs`
+## `fal-raster-generate.ts`
 
 Calls the fal Model API for text-to-image raster output using **`FAL_KEY`** (or **`FAL_KEY_ID`** + **`FAL_KEY_SECRET`**) from the environment.
 

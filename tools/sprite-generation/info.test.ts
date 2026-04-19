@@ -1,3 +1,5 @@
+// @ts-nocheck
+// @ts-nocheck — Vitest integration test migrated from .mjs
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +11,7 @@ import {
   readPngIhdrDimensions,
   summarizeManifest,
   summarizeSpriteRef,
-} from "./info.mjs";
+} from "./info.ts";
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
 
@@ -40,9 +42,10 @@ describe("info helpers", () => {
     const r = gitTrackedFilesUnderArtDir(repoRoot, "public/art/dpad");
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error("expected ok");
-    expect(r.files.length).toBeGreaterThan(0);
-    expect(r.files.some((f) => f.endsWith("manifest.json"))).toBe(true);
-    expect(r.files).toEqual([...r.files].sort());
+    const files = r.files!;
+    expect(files.length).toBeGreaterThan(0);
+    expect(files.some((f) => f.endsWith("manifest.json"))).toBe(true);
+    expect(files).toEqual([...files].sort());
   });
 
   it("summarizeManifest extracts dpad manifest fields", () => {

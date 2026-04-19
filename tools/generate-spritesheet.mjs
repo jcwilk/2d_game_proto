@@ -13,15 +13,15 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { formatFalClientError } from "./sprite-generation/generators/fal.mjs";
-import { log } from "./sprite-generation/logging.mjs";
+import { log } from "./sprite-generation/logging.ts";
 import { runPipeline } from "./sprite-generation/pipeline.mjs";
 import { DEFAULT_CHROMA_KEY_HEX } from "./sprite-generation/prompt.mjs";
-import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.mjs";
+import { buildInfoLines, parseInfoArgs } from "./sprite-generation/info.ts";
 import {
   buildRenameDryRunPlan,
   formatRenameDryRunPlan,
   parseRenameArgs,
-} from "./sprite-generation/rename-dry-run.mjs";
+} from "./sprite-generation/rename-dry-run.ts";
 import { PRESETS, resolveRepoRoot } from "./sprite-generation/presets/registry.mjs";
 
 const REPO_ROOT = resolveRepoRoot(import.meta.url);

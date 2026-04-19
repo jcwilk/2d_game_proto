@@ -4,7 +4,7 @@
  * Preset keys are discovered at load time from directories under `presets/` that contain
  * `<slug>/<slug>.mjs`.
  *
- * @see `../preset-contract.mjs` — `SpritePresetModule`
+ * @see `../preset-contract.ts` — `SpritePresetModule`
  */
 
 import { existsSync, readdirSync } from "node:fs";

@@ -1,6 +1,7 @@
+// @ts-nocheck
 import { PNG } from "pngjs";
 
-import { countFullyTransparentPercent } from "./png-region.mjs";
+import { countFullyTransparentPercent } from "./png-region.ts";
 
 /** When the prompt hex misses FLUX drift, fallback inferred key uses at least this tolerance (Euclidean RGB distance). */
 export const CHROMA_FALLBACK_TOLERANCE_MIN = 64;

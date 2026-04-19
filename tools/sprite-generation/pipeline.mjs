@@ -1,7 +1,7 @@
 /**
  * Sprite-generation pipeline: **`runPipeline(preset, opts)`** runs **prompt → generator →
  * postprocess (ordered **`postprocessSteps`** from **`pipeline-stages.mjs`**) → QA (optional) → manifest + sprite-ref writes**, with structured logs via
- * **`logging.mjs`**.
+ * **`logging.ts`**.
  *
  * Supports **per-tile** (one `generate()` per frame) and **sheet** (`generateSheet()` then
  * deterministic crops using **`preset.sheet.size`** and **`preset.sheet.crops`**).
@@ -47,7 +47,7 @@ import {
   shouldUseBriaSheetMatting,
 } from "./generators/fal.mjs";
 import { generate as mockGenerate, generateSheet as mockGenerateSheet } from "./generators/mock.mjs";
-import { log } from "./logging.mjs";
+import { log } from "./logging.ts";
 import { buildInitialManifest, buildRecipeId } from "./manifest.mjs";
 import {
   buildFalspriteStyleSpritePrompt,
@@ -62,7 +62,7 @@ import {
   resolvePostprocessSteps,
   resolveSheetTilePostprocessSteps,
 } from "./pipeline-stages.mjs";
-import { extractPngRegion } from "./postprocess/png-region.mjs";
+import { extractPngRegion } from "./postprocess/png-region.ts";
 import { runPngAnalyzeBridge } from "./qa/analyze-bridge.mjs";
 import { DEFAULT_TILE_PNG_BASENAME, writeSpriteRef } from "./sprite-ref.mjs";
 import { sheetLayoutFromCrops, sheetLayoutFromCropsRect } from "./sheet-layout.mjs";

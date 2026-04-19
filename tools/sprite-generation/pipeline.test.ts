@@ -10,24 +10,23 @@ import { buildDpadGridSpritePrompt } from "./prompt.ts";
 import { hashPromptForLog } from "./generators/fal.ts";
 import { RECIPE_VERSION_MOCK } from "./manifest.ts";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
+// @ts-expect-error TS7016 — preset module is still `.mjs` (see epic / registry TS migration)
 import { createPreset } from "./presets/dpad/dpad.mjs";
-import { runPipeline } from "./pipeline.mjs";
+import { runPipeline, type PipelineOpts, type PipelinePreset } from "./pipeline.ts";
 
-/** @param {string} outBase */
-function dpadLikePreset(outBase) {
+function dpadLikePreset(outBase: string): PipelinePreset {
   return createPreset({
     outBase,
     artUrlPrefix: "art/pipeline-test",
-    provenanceTool: "tools/sprite-generation/pipeline.test.mjs",
+    provenanceTool: "tools/sprite-generation/pipeline.test.ts",
     provenanceVersion: 1,
-  });
+  }) as PipelinePreset;
 }
 
 /**
  * D-pad preset with per-frame PNG output + chroma postprocess (for tests that assert cropped tiles).
- * @param {string} outBase
  */
-function dpadLikePresetPerTileOutput(outBase) {
+function dpadLikePresetPerTileOutput(outBase: string): PipelinePreset {
   const p = dpadLikePreset(outBase);
   return {
     ...p,
@@ -44,8 +43,7 @@ function dpadLikePresetPerTileOutput(outBase) {
 }
 
 describe("pipeline (integration)", () => {
-  /** @type {string | undefined} */
-  let dir;
+  let dir: string | undefined;
 
   afterEach(async () => {
     vi.unstubAllEnvs();
@@ -85,7 +83,7 @@ describe("pipeline (integration)", () => {
 
     const refRaw = JSON.parse(await readFile(join(dir, "sprite-ref.json"), "utf8"));
     const parsed = parseFrameKeyRectManifestJson(refRaw);
-    expect(parsed.frames["up"].width).toBe(100);
+    expect(parsed.frames["up"]!.width).toBe(100);
     expect(refRaw.images?.up).toBe("art/pipeline-test/up/dpad.png");
   });
 
@@ -105,8 +103,8 @@ describe("pipeline (integration)", () => {
     expect(refRaw.image).toBe("art/pipeline-test/sheet.png");
     const gridParsed = parseGridFrameKeysManifestJson(refRaw);
     expect(gridParsed.grid.rows).toBe(2);
-    expect(gridParsed.frames.up).toEqual({ column: 0, row: 0 });
-    expect(gridParsed.frames.right).toEqual({ column: 1, row: 1 });
+    expect(gridParsed.frames["up"]).toEqual({ column: 0, row: 0 });
+    expect(gridParsed.frames["right"]).toEqual({ column: 1, row: 1 });
 
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
     expect(manifest.generationRecipe?.mode).toBe("mock");
@@ -130,7 +128,7 @@ describe("pipeline (integration)", () => {
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
     const pngBytes = Buffer.from(PNG.sync.write(png));
 
-    const falSubscribe = vi.fn(async (ep) => {
+    const falSubscribe = vi.fn(async (ep: string) => {
       if (ep === "fal-ai/nano-banana-2") {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
@@ -139,7 +137,7 @@ describe("pipeline (integration)", () => {
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
-    const fetchMock = vi.fn(async (url) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes("bria.png")) {
         return {
@@ -159,8 +157,8 @@ describe("pipeline (integration)", () => {
       quiet: true,
       sheetRewrite: false,
       keepSheet: true,
-      falSubscribe,
-      fetch: fetchMock,
+      falSubscribe: falSubscribe as unknown as NonNullable<PipelineOpts["falSubscribe"]>,
+      fetch: fetchMock as unknown as typeof fetch,
     });
 
     const sheetBuf = await readFile(join(dir, "sheet.png"));
@@ -191,7 +189,7 @@ describe("pipeline (integration)", () => {
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
     const pngBytes = Buffer.from(PNG.sync.write(png));
 
-    const falSubscribe = vi.fn(async (ep) => {
+    const falSubscribe = vi.fn(async (ep: string) => {
       if (ep === "fal-ai/nano-banana-2") {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
@@ -200,7 +198,7 @@ describe("pipeline (integration)", () => {
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
-    const fetchMock = vi.fn(async (url) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes("t2i.png")) {
         throw new Error("T2I PNG should not be downloaded when BRIA matting is used");
@@ -222,8 +220,8 @@ describe("pipeline (integration)", () => {
       skipQa: true,
       quiet: true,
       sheetRewrite: false,
-      falSubscribe,
-      fetch: fetchMock,
+      falSubscribe: falSubscribe as unknown as NonNullable<PipelineOpts["falSubscribe"]>,
+      fetch: fetchMock as unknown as typeof fetch,
     });
 
     expect(falSubscribe).toHaveBeenCalledTimes(2);
@@ -253,7 +251,7 @@ describe("pipeline (integration)", () => {
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
     const pngBytes = Buffer.from(PNG.sync.write(png));
 
-    const falSubscribe = vi.fn(async (ep) => {
+    const falSubscribe = vi.fn(async (ep: string) => {
       if (ep === "fal-ai/nano-banana-2") {
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
@@ -262,7 +260,7 @@ describe("pipeline (integration)", () => {
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
-    const fetchMock = vi.fn(async (url) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes("bria.png")) {
         return {
@@ -282,8 +280,8 @@ describe("pipeline (integration)", () => {
       quiet: true,
       sheetRewrite: false,
       chromaAfterBria: true,
-      falSubscribe,
-      fetch: fetchMock,
+      falSubscribe: falSubscribe as unknown as NonNullable<PipelineOpts["falSubscribe"]>,
+      fetch: fetchMock as unknown as typeof fetch,
     });
 
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
@@ -304,11 +302,10 @@ describe("pipeline (integration)", () => {
     for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
     const pngBytes = Buffer.from(PNG.sync.write(png));
 
-    /** @type {Record<string, unknown> | undefined} */
-    let t2iInput;
-    const falSubscribe = vi.fn(async (ep, opts) => {
+    let t2iInput: Record<string, unknown> | undefined;
+    const falSubscribe = vi.fn(async (ep: string, opts?: { input?: unknown }) => {
       if (ep === "fal-ai/nano-banana-2/rc") {
-        t2iInput = opts?.input && typeof opts.input === "object" ? /** @type {Record<string, unknown>} */ (opts.input) : undefined;
+        t2iInput = opts?.input && typeof opts.input === "object" ? (opts.input as Record<string, unknown>) : undefined;
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
       if (ep === "fal-ai/bria/background/remove") {
@@ -316,7 +313,7 @@ describe("pipeline (integration)", () => {
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
-    const fetchMock = vi.fn(async (url) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes("bria.png")) {
         return {
@@ -335,12 +332,12 @@ describe("pipeline (integration)", () => {
       skipQa: true,
       quiet: true,
       sheetRewrite: false,
-      falSubscribe,
-      fetch: fetchMock,
+      falSubscribe: falSubscribe as unknown as NonNullable<PipelineOpts["falSubscribe"]>,
+      fetch: fetchMock as unknown as typeof fetch,
     });
 
-    expect(t2iInput?.aspect_ratio).toBe("1:1");
-    expect(t2iInput?.resolution).toBe("0.5K");
+    expect(t2iInput?.["aspect_ratio"]).toBe("1:1");
+    expect(t2iInput?.["resolution"]).toBe("0.5K");
   });
 
   it("generate sheet + BRIA + rewrite: openrouter then T2I; manifest records rewriteModel and rewrittenPromptFingerprint", async () => {
@@ -357,14 +354,13 @@ describe("pipeline (integration)", () => {
     const pngBytes = Buffer.from(PNG.sync.write(png));
 
     const rewritten = "REWRITTEN_SHEET_PROMPT_FOR_T2I";
-    /** @type {Record<string, unknown> | undefined} */
-    let t2iInput;
-    const falSubscribe = vi.fn(async (ep, opts) => {
+    let t2iInput: Record<string, unknown> | undefined;
+    const falSubscribe = vi.fn(async (ep: string, opts?: { input?: unknown }) => {
       if (ep === "openrouter/router") {
         return { data: { output: rewritten } };
       }
       if (ep === "fal-ai/nano-banana-2") {
-        t2iInput = opts?.input && typeof opts.input === "object" ? /** @type {Record<string, unknown>} */ (opts.input) : undefined;
+        t2iInput = opts?.input && typeof opts.input === "object" ? (opts.input as Record<string, unknown>) : undefined;
         return { data: { images: [{ url: "https://cdn.example.com/t2i.png" }] } };
       }
       if (ep === "fal-ai/bria/background/remove") {
@@ -372,7 +368,7 @@ describe("pipeline (integration)", () => {
       }
       throw new Error(`unexpected endpoint ${ep}`);
     });
-    const fetchMock = vi.fn(async (url) => {
+    const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const u = String(url);
       if (u.includes("bria.png")) {
         return {
@@ -391,12 +387,12 @@ describe("pipeline (integration)", () => {
       skipQa: true,
       quiet: true,
       sheetRewrite: true,
-      falSubscribe,
-      fetch: fetchMock,
+      falSubscribe: falSubscribe as unknown as NonNullable<PipelineOpts["falSubscribe"]>,
+      fetch: fetchMock as unknown as typeof fetch,
     });
 
     expect(falSubscribe).toHaveBeenCalledTimes(3);
-    expect(String(t2iInput?.prompt)).toContain(rewritten);
+    expect(String(t2iInput?.["prompt"])).toContain(rewritten);
     const manifest = JSON.parse(await readFile(join(dir, "manifest.json"), "utf8"));
     const sheet = manifest.generationResults?._sheet;
     expect(sheet?.rewriteModel).toBe("openai/gpt-4o-mini");

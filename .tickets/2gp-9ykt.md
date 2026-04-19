@@ -1,6 +1,6 @@
 ---
 id: 2gp-9ykt
-status: open
+status: closed
 deps: [2gp-bdeg]
 links: []
 created: 2026-04-19T03:02:23Z

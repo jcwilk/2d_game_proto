@@ -1,5 +1,5 @@
 /**
- * Structured logging for the sprite-generation pipeline (`pipeline.mjs`, generators, QA bridges).
+ * Structured logging for the sprite-generation pipeline (`pipeline.ts`, generators, QA bridges).
  *
  * ## Line shape
  *

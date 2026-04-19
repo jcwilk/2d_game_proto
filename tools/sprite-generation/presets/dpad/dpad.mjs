@@ -2,7 +2,7 @@
  * D-pad four-way tile preset — **single source of truth** for frame list, sheet layout,
  * fal tuning, QA grid size, and **`gridFrameKeys`** sprite-ref under `public/`.
  *
- * ## Preset contract (`runPipeline` from **`../../pipeline.mjs`**)
+ * ## Preset contract (`runPipeline` from **`../../pipeline.ts`**)
  *
  * **`createPreset(opts)`** returns an object matching **`PipelinePreset`**:
  *
@@ -25,7 +25,7 @@
  * and OpenRouter rewrite system prompt are aligned so **`--rewrite`** stays on-brand.
  *
  * @see `../../README.md`
- * @see `../../pipeline.mjs`
+ * @see `../../pipeline.ts`
  * @see `../../manifest.ts` — `buildRecipeId`
  */
 

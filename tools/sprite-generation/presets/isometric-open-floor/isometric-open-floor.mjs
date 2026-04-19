@@ -8,7 +8,7 @@
  * **Live T2I:** **`fal-ai/nano-banana-2`** with **8∶1** + **`0.5K`**. **`sheet.png`** is stored at **native** fal/BRIA pixel dimensions (no pipeline resize); **`sprite-ref.json`** grid cell size is derived from the raster. The game scales to logical layout with smooth filtering.
  *
  * @see `../../README.md`
- * @see `../../pipeline.mjs`
+ * @see `../../pipeline.ts`
  */
 
 import {

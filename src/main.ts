@@ -299,6 +299,7 @@ void engine
     let lastMonsterAttackOnPlayer = 0;
     let lastMonsterAttackOnMerchant = 0;
     let lastMerchantAttackOnPlayer = 0;
+    let lastMerchantAttackOnMonster = 0;
     let playerHitPulseEnd = 0;
 
     /** While true, shopkeeper shows Talk / Hug when in range. Set false after the player attacks him. */
@@ -620,6 +621,22 @@ void engine
             if (merchantHp <= 0) {
               merchantActor.kill();
               merchantDefeated = true;
+            }
+          }
+          if (
+            !merchantDefeated &&
+            !monsterDefeated &&
+            distanceSquared(monsterNpc.pos.x, monsterNpc.pos.y, merchantActor.pos.x, merchantActor.pos.y) <=
+              meleeR2 &&
+            now - lastMerchantAttackOnMonster >= ENEMY_ATTACK_COOLDOWN_MS
+          ) {
+            monsterHp = Math.max(0, monsterHp - ENEMY_DAMAGE_TO_PLAYER);
+            lastMerchantAttackOnMonster = now;
+            monsterHitPulseEnd = now + 200;
+            if (monsterHp <= 0) {
+              monsterNpc.kill();
+              monsterActor = undefined;
+              monsterDefeated = true;
             }
           }
         } else {

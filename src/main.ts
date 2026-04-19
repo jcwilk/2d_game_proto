@@ -12,7 +12,12 @@ import {
   scaleToTargetWidthPx,
   TILE_FOOTPRINT_WIDTH_PX,
 } from './dimensions';
-import { attachDirectionalChrome, chromeMoveVelocityFromActiveDirections } from './input/directionalChrome';
+import {
+  attachDirectionalChrome,
+  chromeMoveVelocityFromActiveDirections,
+  mergeActiveDirections,
+} from './input/directionalChrome';
+import { attachKeyboardDirections } from './input/keyboardDirections';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -189,8 +194,10 @@ void engine
     let facingRight = true;
 
     const chrome = attachDirectionalChrome(root);
+    const keyboard = attachKeyboardDirections();
     const chromeMoveSub = mainScene.on('preupdate', () => {
-      const v = chromeMoveVelocityFromActiveDirections(chrome.getActiveDirections(), CHROME_MOVE_SPEED);
+      const merged = mergeActiveDirections(chrome.getActiveDirections(), keyboard.getActiveDirections());
+      const v = chromeMoveVelocityFromActiveDirections(merged, CHROME_MOVE_SPEED);
       actor.vel = vec(v.x, v.y);
       actor.z = isoCharacterZFromWorldPos(actor.pos);
       if (v.x > 0) {
@@ -213,6 +220,7 @@ void engine
     if (import.meta.hot) {
       import.meta.hot.dispose(() => {
         chrome.detach();
+        keyboard.detach();
         chromeMoveSub.close();
       });
     }

@@ -55,6 +55,16 @@ export interface ActiveDirectionFlags {
   right: boolean;
 }
 
+/** Per-direction boolean OR — merge DOM chrome directions with keyboard (or other sources) before velocity. */
+export function mergeActiveDirections(a: ActiveDirectionFlags, b: ActiveDirectionFlags): ActiveDirectionFlags {
+  return {
+    up: a.up || b.up,
+    down: a.down || b.down,
+    left: a.left || b.left,
+    right: a.right || b.right,
+  };
+}
+
 export function activeDirectionsFromPointerCountsAndLatch(
   pointerCounts: DirectionPointerCounts,
   latchedUntilMs: DirectionLatchedUntilMs,

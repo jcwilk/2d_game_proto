@@ -1,6 +1,6 @@
 ---
 id: 2gp-biy0
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T19:44:51Z

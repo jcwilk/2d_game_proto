@@ -3,7 +3,7 @@
     "rows": 1,
     "columns": 4,
     "spriteWidth": 64,
-    "spriteHeight": 96
+    "spriteHeight": 160
   },
   "frames": {
     "wall_0": {

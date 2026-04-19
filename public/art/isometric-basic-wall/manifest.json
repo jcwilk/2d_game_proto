@@ -2,12 +2,12 @@
   "kind": "isometric_wall_tile_set",
   "preset": "isometric_basic_wall",
   "recipeId": "sprite-gen-isometric_basic_wall-sheet-v21-iso-floor-1x4-strip",
-  "createdAt": "2026-04-19T20:41:26.948Z",
-  "workflow": "fal sheet (fal-ai/nano-banana-2, 256×96px, txt2img → crop)",
+  "createdAt": "2026-04-19T22:49:54.244Z",
+  "workflow": "fal sheet (fal-ai/nano-banana-2, 256×160px, txt2img → crop)",
   "specs": {
     "tileSize": {
       "width": 64,
-      "height": 96
+      "height": 160
     },
     "framePreset": [
       {
@@ -29,7 +29,7 @@
     ],
     "sheetSize": {
       "width": 256,
-      "height": 96
+      "height": 160
     },
     "sheetCropMap": {
       "wall_0": {
@@ -49,7 +49,7 @@
         "y": 0
       }
     },
-    "imageSize": "256x96",
+    "imageSize": "256x160",
     "naming": "sheet.png + sprite-ref.json (gridFrameKeys); no per-frame wall PNGs",
     "strategy": "sheet",
     "chroma": {
@@ -75,14 +75,14 @@
       "expand_prompt": true,
       "safety_tolerance": 2
     },
-    "note": "Real: one fal sheet job at 256x96, crop to 64×96px cells; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
+    "note": "Real: one fal sheet job at 256x160, crop to 64×160px cells; alpha via BRIA matting (nano-banana path) or chroma-key (#FF00FF) with flux/dev — see preset fal.sheetMatting."
   },
   "frames": [
     {
       "id": "wall_0",
       "outSubdir": "wall_0",
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,0",
@@ -95,7 +95,7 @@
       "id": "wall_1",
       "outSubdir": "wall_1",
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "64,0",
@@ -108,7 +108,7 @@
       "id": "wall_2",
       "outSubdir": "wall_2",
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "128,0",
@@ -121,7 +121,7 @@
       "id": "wall_3",
       "outSubdir": "wall_3",
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "192,0",
@@ -138,7 +138,7 @@
   "generationResults": {
     "wall_0": {
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "0,0",
@@ -149,7 +149,7 @@
     },
     "wall_1": {
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "64,0",
@@ -160,7 +160,7 @@
     },
     "wall_2": {
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "128,0",
@@ -171,7 +171,7 @@
     },
     "wall_3": {
       "seedRequested": null,
-      "wallMs": 20586,
+      "wallMs": 48905,
       "fromSheet": true,
       "sheetOnly": true,
       "cropOrigin": "192,0",
@@ -181,14 +181,14 @@
       "notes": []
     },
     "_sheet": {
-      "wallMs": 20586,
+      "wallMs": 48905,
       "strategy": "sheet",
       "alphaSource": "bria",
-      "t2iWallMs": 19405,
-      "briaWallMs": 1181,
+      "t2iWallMs": 47730,
+      "briaWallMs": 1175,
       "rewriteModel": "openai/gpt-4o-mini",
-      "rewrittenPromptFingerprint": "2d940caf33437498",
-      "rewriteWallMs": 3483
+      "rewrittenPromptFingerprint": "3e8ae744ccba6cf0",
+      "rewriteWallMs": 2417
     }
   }
 }

@@ -1,6 +1,6 @@
 ---
 id: wor-39p4
-status: open
+status: closed
 deps: [wor-98q7]
 links: []
 created: 2026-04-19T20:34:59Z

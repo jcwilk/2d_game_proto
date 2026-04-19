@@ -20,6 +20,12 @@ export const ENEMY_DAMAGE_TO_PLAYER = 9;
 /** Minimum ms between enemy melee hits on the player (per enemy). */
 export const ENEMY_ATTACK_COOLDOWN_MS = 850;
 
+/** Wall-clock duration the monster stays stuck (no chase / no melee from aggro block). */
+export const MONSTER_STUCK_DURATION_MS = 2_500;
+
+/** Wall-clock cooldown after a successful stuck apply (`'ok'` only). */
+export const STUCK_ABILITY_COOLDOWN_MS = 4_000;
+
 /** Default HP for merchant / monster until a fuller combat system exists. */
 export const NPC_DEFAULT_MAX_HP = 100;
 

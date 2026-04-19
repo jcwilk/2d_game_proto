@@ -43,6 +43,7 @@ import {
   playerCanAttackNpc,
   worldPointInNpcBounds,
 } from './game/npcCombat';
+import { monsterShouldChaseAndMelee, stepMonsterAggroAndReAggro } from './game/stuckAbility';
 import { distanceSquared } from './proximity/worldDistance';
 import {
   MONSTER_PROXIMITY_RANGE_WORLD_PX,
@@ -279,6 +280,10 @@ void engine
 
     /** Monster pursues after the player enters {@link MONSTER_AGGRO_RADIUS_WORLD_PX}. */
     let monsterAggro = false;
+    /** After stuck, player must leave aggro disk then re-enter before chase resumes (spec: drag-stun-hud §4). */
+    let reAggroArmRequired = false;
+    /** `performance.now()` until which the monster is stuck (`now < until`); 0 means not stuck. */
+    let monsterStuckUntilMs = 0;
 
     let lastMonsterAttackOnPlayer = 0;
     let lastMerchantAttackOnPlayer = 0;
@@ -477,10 +482,12 @@ void engine
 
       if (!monsterDefeated && !playerDead) {
         const distSqM = distanceSquared(px, py, monsterNpc.pos.x, monsterNpc.pos.y);
-        if (!monsterAggro && distSqM <= aggroR2) {
-          monsterAggro = true;
-        }
-        if (monsterAggro) {
+        const aggroStep = stepMonsterAggroAndReAggro(monsterAggro, reAggroArmRequired, distSqM, aggroR2);
+        monsterAggro = aggroStep.monsterAggro;
+        reAggroArmRequired = aggroStep.reAggroArmRequired;
+
+        const chaseMelee = monsterShouldChaseAndMelee(monsterAggro, monsterStuckUntilMs, now);
+        if (chaseMelee) {
           const mdx = px - monsterNpc.pos.x;
           const mdy = py - monsterNpc.pos.y;
           if (distSqM > 1) {

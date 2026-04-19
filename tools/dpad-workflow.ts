@@ -28,20 +28,42 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_BASE = join(__dirname, "..", "public", "art", "dpad");
 
+const PROVENANCE_TOOL = "tools/dpad-workflow.ts";
+
+const CLI_INVOCATION = "node --experimental-strip-types tools/dpad-workflow.ts";
+
 /** Euclidean RGB distance vs key — default tuned for FLUX magenta drift + fringe removal. */
 const DEFAULT_CHROMA_TOLERANCE = 72;
 
-function parseHexRgb(hex) {
+function parseHexRgb(hex: string): { r: number; g: number; b: number } {
   const s = String(hex).trim();
   const m = /^#?([0-9a-fA-F]{6})$/.exec(s);
-  if (!m) throw new Error(`invalid hex color: ${hex}`);
-  const n = Number.parseInt(m[1], 16);
+  const g = m?.[1];
+  if (!g) throw new Error(`invalid hex color: ${hex}`);
+  const n = Number.parseInt(g, 16);
   return { r: (n >> 16) & 0xff, g: (n >> 8) & 0xff, b: n & 0xff };
 }
 
-function parseArgs(argv) {
-  /** @type {{ mode: 'mock' | 'generate'; strategy: 'sheet' | 'per-tile'; endpoint: string; imageSize: string; seed?: number; keepSheet: boolean; savePreChroma: boolean; skipQa: boolean; dryRun: boolean; quiet: boolean; help: boolean; chromaKeyHex: string; chromaTolerance: number; sheetRewrite: boolean | undefined }} */
-  const opts = {
+interface ParsedDpadArgs {
+  mode: "mock" | "generate";
+  strategy: "sheet" | "per-tile";
+  endpoint: string;
+  imageSize: string;
+  seed?: number;
+  keepSheet: boolean;
+  savePreChroma: boolean;
+  skipQa: boolean;
+  dryRun: boolean;
+  quiet: boolean;
+  help: boolean;
+  chromaKeyHex: string;
+  chromaTolerance: number;
+  /** `undefined` → use preset (dpad defaults to rewrite on for generate sheet). */
+  sheetRewrite: boolean | undefined;
+}
+
+function parseArgs(argv: string[]): ParsedDpadArgs {
+  const opts: ParsedDpadArgs = {
     mode: "mock",
     strategy: "sheet",
     endpoint: DEFAULT_FAL_ENDPOINT,
@@ -54,7 +76,6 @@ function parseArgs(argv) {
     help: false,
     chromaKeyHex: DEFAULT_CHROMA_KEY_HEX,
     chromaTolerance: DEFAULT_CHROMA_TOLERANCE,
-    /** `undefined` → use preset (dpad defaults to rewrite on for generate sheet). */
     sheetRewrite: undefined,
   };
   for (let i = 2; i < argv.length; i++) {
@@ -65,34 +86,40 @@ function parseArgs(argv) {
       return v;
     };
     switch (a) {
-      case "--mode":
-        opts.mode = /** @type {'mock'|'generate'} */ (next());
-        if (opts.mode !== "mock" && opts.mode !== "generate") {
+      case "--mode": {
+        const m = next();
+        if (m !== "mock" && m !== "generate") {
           throw new Error('--mode must be "mock" or "generate"');
         }
+        opts.mode = m;
         break;
+      }
       case "--endpoint":
         opts.endpoint = next();
         break;
       case "--image-size":
         opts.imageSize = next();
         break;
-      case "--strategy":
-        opts.strategy = /** @type {'sheet'|'per-tile'} */ (next());
-        if (opts.strategy !== "sheet" && opts.strategy !== "per-tile") {
+      case "--strategy": {
+        const s = next();
+        if (s !== "sheet" && s !== "per-tile") {
           throw new Error('--strategy must be "sheet" or "per-tile"');
         }
+        opts.strategy = s;
         break;
+      }
       case "--keep-sheet":
         opts.keepSheet = true;
         break;
       case "--save-pre-chroma":
         opts.savePreChroma = true;
         break;
-      case "--seed":
-        opts.seed = Number.parseInt(next(), 10);
-        if (Number.isNaN(opts.seed)) throw new Error("--seed must be an integer");
+      case "--seed": {
+        const n = Number.parseInt(next(), 10);
+        if (Number.isNaN(n)) throw new Error("--seed must be an integer");
+        opts.seed = n;
         break;
+      }
       case "--skip-qa":
         opts.skipQa = true;
         break;
@@ -110,8 +137,7 @@ function parseArgs(argv) {
         opts.quiet = true;
         break;
       case "--chroma-key": {
-        const v = next();
-        opts.chromaKeyHex = v;
+        opts.chromaKeyHex = next();
         break;
       }
       case "--chroma-tolerance": {
@@ -133,8 +159,8 @@ function parseArgs(argv) {
   return opts;
 }
 
-function printHelp() {
-  console.log(`Usage: node tools/dpad-workflow.mjs [options]
+function printHelp(): void {
+  console.log(`Usage: ${CLI_INVOCATION} [options]
 
 D-pad tile preset: manifest + four frames (data-driven list) + png-analyze QA.
 
@@ -164,14 +190,14 @@ Environment (generate mode):
   FAL_KEY or FAL_KEY_ID + FAL_KEY_SECRET
 
 Examples:
-  node tools/dpad-workflow.mjs --mode mock
+  ${CLI_INVOCATION} --mode mock
   FAL_KEY=… npm run dpad-workflow -- --mode generate --strategy sheet --keep-sheet
-  node --env-file=.env tools/dpad-workflow.mjs --mode generate --endpoint fal-ai/flux/dev
+  node --env-file=.env ${CLI_INVOCATION} --mode generate --endpoint fal-ai/flux/dev
 `);
 }
 
-async function main() {
-  let opts;
+async function main(): Promise<void> {
+  let opts: ParsedDpadArgs;
   try {
     opts = parseArgs(process.argv);
   } catch (e) {
@@ -195,7 +221,7 @@ async function main() {
 
   const preset = createPreset({
     outBase: OUT_BASE,
-    provenanceTool: "tools/dpad-workflow.mjs",
+    provenanceTool: PROVENANCE_TOOL,
     provenanceVersion: 4,
   });
 

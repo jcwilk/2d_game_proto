@@ -4,7 +4,7 @@
  * ## Line shape
  *
  * Each line is written with `console.log` (stdout), same structure as the inline helper in
- * `tools/dpad-workflow.mjs` (see ~288–301):
+ * `tools/dpad-workflow.ts` (see ~288–301):
  *
  * ```
  * [ISO-8601] [<tag>] [LEVEL] [step] message

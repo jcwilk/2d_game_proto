@@ -6,33 +6,34 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  mapCliModeToPipelineMode,
-  parseRunArgs,
-} from "./generate-spritesheet.mjs";
+import { mapCliModeToPipelineMode, parseRunArgs } from "./generate-spritesheet.ts";
 import { PRESETS } from "./sprite-generation/presets/registry.ts";
+
+const NODE_TS_RUNNER_FLAGS = ["--experimental-strip-types"] as const;
 
 const repoRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 /** First registry key (sorted slugs) — avoids pinning CLI smoke tests to one production asset. */
-const FIRST_PRESET = Object.keys(PRESETS)[0];
-const cliPath = join(repoRoot, "tools/generate-spritesheet.mjs");
+const FIRST_PRESET = (() => {
+  const id = Object.keys(PRESETS)[0];
+  if (id === undefined) throw new Error("PRESETS registry is empty");
+  return id;
+})();
+const cliPath = join(repoRoot, "tools/generate-spritesheet.ts");
 
-function runCli(args) {
-  return execFileSync(process.execPath, [cliPath, ...args], {
+function runCli(args: string[]): string {
+  return execFileSync(process.execPath, [...NODE_TS_RUNNER_FLAGS, cliPath, ...args], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
 }
 
-function runCliStatus(args) {
+function runCliStatus(args: string[]): { code: number; stdout: string; stderr: string } {
   try {
     const out = runCli(args);
     return { code: 0, stdout: out, stderr: "" };
   } catch (e) {
-    const err = /** @type {NodeJS.ErrnoException & { stdout?: string; stderr?: string; status?: number }} */ (
-      e
-    );
+    const err = e as NodeJS.ErrnoException & { stdout?: string; stderr?: string; status?: number };
     return {
       code: err.status ?? 1,
       stdout: err.stdout?.toString() ?? "",
@@ -48,7 +49,7 @@ describe("generate-spritesheet CLI", () => {
   });
 
   it("live maps to generate exactly once in the mapping helper (pipeline mode string)", () => {
-    const file = readFileSync(join(repoRoot, "tools/generate-spritesheet.mjs"), "utf8");
+    const file = readFileSync(join(repoRoot, "tools/generate-spritesheet.ts"), "utf8");
     const returnsGenerate = file.match(/return "generate"/g) ?? [];
     expect(returnsGenerate.length).toBe(1);
   });
@@ -95,7 +96,12 @@ describe("generate-spritesheet CLI", () => {
     const toSlug = `hud_${FIRST_PRESET}`;
     const r = runCliStatus(["rename", "--dry-run", "--from", FIRST_PRESET, "--to", toSlug]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toMatch(new RegExp(`^rename dry-run: ${FIRST_PRESET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> ${toSlug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "m"));
+    expect(r.stdout).toMatch(
+      new RegExp(
+        `^rename dry-run: ${FIRST_PRESET.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} -> ${toSlug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "m",
+      ),
+    );
     expect(r.stdout).toContain("registry.ts");
     expect(r.stdout).toContain("Candidate references");
     expect(r.stdout).toContain("--apply is not available");
@@ -117,8 +123,7 @@ describe("generate-spritesheet CLI", () => {
     expect(runCliStatus(["help", "rename"]).code).toBe(0);
   });
 
-  /** @type {string | undefined} */
-  let tmpDir;
+  let tmpDir: string | undefined;
 
   afterEach(async () => {
     if (tmpDir) {

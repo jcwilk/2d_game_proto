@@ -16,9 +16,9 @@
     "generate:raster": "node --experimental-strip-types tools/fal-raster-generate.ts",
     "analyze:png": "node --experimental-strip-types tools/png-analyze.ts",
     "qa:vision": "node --experimental-strip-types tools/openai-vision-qa.ts",
-    "mock:dpad-workflow": "node --experimental-strip-types tools/dpad-workflow.mjs --mode mock",
-    "dpad-workflow": "node --experimental-strip-types tools/dpad-workflow.mjs",
-    "generate:spritesheet": "node --experimental-strip-types tools/generate-spritesheet.mjs"
+    "mock:dpad-workflow": "node --experimental-strip-types tools/dpad-workflow.ts --mode mock",
+    "dpad-workflow": "node --experimental-strip-types tools/dpad-workflow.ts",
+    "generate:spritesheet": "node --experimental-strip-types tools/generate-spritesheet.ts"
   },
   "devDependencies": {
     "@fal-ai/client": "^1.9.5",

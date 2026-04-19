@@ -132,7 +132,7 @@
     }
   ],
   "provenance": {
-    "tool": "tools/dpad-workflow.mjs",
+    "tool": "tools/dpad-workflow.ts",
     "version": 4
   },
   "generationResults": {

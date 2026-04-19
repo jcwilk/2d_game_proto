@@ -132,7 +132,7 @@
     }
   ],
   "provenance": {
-    "tool": "tools/generate-spritesheet.mjs",
+    "tool": "tools/generate-spritesheet.ts",
     "version": 1
   },
   "generationResults": {

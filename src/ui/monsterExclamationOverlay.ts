@@ -1,7 +1,7 @@
 import type { Actor } from 'excalibur';
 
 import { isWithinProximity } from '../proximity/worldDistance';
-import { logicalGamePointToClientPoint } from './screenOverlay';
+import { logicalGamePointToClientPoint, worldPointToOverlayLogical } from './screenOverlay';
 
 /**
  * Trigger radius in **world / logical pixels** — distance between player and monster {@link Actor.pos}
@@ -18,6 +18,7 @@ export interface MonsterExclamationOverlayOptions {
   readonly canvas: HTMLCanvasElement;
   /** Logical square edge — same as {@link VIEWPORT_SIZE}. */
   readonly viewportSize: number;
+  readonly getCameraFocus?: () => { x: number; y: number };
   readonly rangeWorldPx: number;
   getPlayerPos: () => { x: number; y: number };
   getMonster: () => Actor | undefined;
@@ -63,7 +64,11 @@ export function attachMonsterExclamationOverlay(options: MonsterExclamationOverl
     }
     el.hidden = false;
     const rect = options.canvas.getBoundingClientRect();
-    const client = logicalGamePointToClientPoint(labelPos.x, labelPos.y, rect, options.viewportSize);
+    const cam = options.getCameraFocus?.();
+    const logical = cam
+      ? worldPointToOverlayLogical(labelPos.x, labelPos.y, cam.x, cam.y, options.viewportSize)
+      : labelPos;
+    const client = logicalGamePointToClientPoint(logical.x, logical.y, rect, options.viewportSize);
     el.style.left = `${client.x}px`;
     el.style.top = `${client.y}px`;
   }

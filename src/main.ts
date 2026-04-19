@@ -1,6 +1,15 @@
 import './styles.css';
 
-import { Actor, Animation, AnimationStrategy, Color, PointerButton, Scene, vec } from 'excalibur';
+import {
+  Actor,
+  Animation,
+  AnimationStrategy,
+  Color,
+  LockCameraToActorStrategy,
+  PointerButton,
+  Scene,
+  vec,
+} from 'excalibur';
 
 /** Scene character classification — player and NPC kinds (proximity UI, follow-on tickets). */
 export const CharacterKind = {
@@ -60,6 +69,7 @@ import { attachMerchantProximityMenu, pickDistinctMerchantPhrases } from './ui/m
 import { spawnHugHeartBurst } from './ui/hugHeartBurst';
 import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
 import { attachStuckOrbHud, loadStuckOrbSpriteRef } from './ui/stuckOrbHud';
+import { clientPointToWorldPoint } from './ui/screenOverlay';
 
 const root = document.querySelector<HTMLDivElement>('#game-root');
 if (!root) {
@@ -196,12 +206,17 @@ void engine
     /** Diamond isometric: half footprint width and half foreshortened height per grid step (`dimensions.ts`). */
     const isoHalfW = TILE_FOOTPRINT_WIDTH_PX / 2;
     const isoHalfH = FLOOR_FORESHORTENED_HEIGHT_PX / 2;
-    const gridSize = 9;
-    const centerG = (gridSize - 1) / 2;
-    const floorZMax = (gridSize - 1) * 2;
+    /** Same center index as the old fixed 9×9 grid — spawn stays one “screenful” of tiles from the origin diamond. */
+    const centerG = 4;
+    /** Tiles along one edge of a chunk; 3×3 chunks × 3×3 tiles/chunk = 81 floor actors (same order of magnitude as the old map). */
+    const CHUNK_SIDE = 3;
+    /** All floor tile `z = gx + gy` stay below this so characters always draw on top, even at large world coords. */
+    const CHARACTER_Z_BASE = 1e7;
+
+    const worldOriginCellBottom = cellBottomCenter;
 
     function gridCellBottomCenter(gx: number, gy: number): typeof cellBottomCenter {
-      return cellBottomCenter.add(
+      return worldOriginCellBottom.add(
         vec((gx - gy) * isoHalfW, (gx + gy - 2 * centerG) * isoHalfH),
       );
     }
@@ -211,31 +226,93 @@ void engine
      * `z` ordering so figures “farther forward” on the grid draw on top. Continuous in `pos` for smooth player motion.
      */
     function isoDepthSumFromWorld(pos: typeof cellBottomCenter): number {
-      const oy = pos.y - cellBottomCenter.y;
+      const oy = pos.y - worldOriginCellBottom.y;
       return oy / isoHalfH + 2 * centerG;
     }
 
     /**
-     * Actor `z` for standing figures: always above every floor tile (`z ≤ floorZMax`), with sub-order from
+     * Actor `z` for standing figures: always above every floor tile, with sub-order from
      * {@link isoDepthSumFromWorld} so the player can pass behind NPCs.
      */
     function isoCharacterZFromWorldPos(pos: typeof cellBottomCenter): number {
       const depthScale = 0.01;
-      return floorZMax + 1 + isoDepthSumFromWorld(pos) * depthScale;
+      return CHARACTER_Z_BASE + isoDepthSumFromWorld(pos) * depthScale;
     }
 
-    for (let gx = 0; gx < gridSize; gx++) {
-      for (let gy = 0; gy < gridSize; gy++) {
-        const variantIndex = Math.floor(Math.random() * floorGraphics.length);
-        const floorGraphic = floorGraphics[variantIndex] ?? floorGraphic0;
-        const floorActor = new Actor({
-          pos: gridCellBottomCenter(gx, gy),
-          scale: vec(floorScale, floorScale),
-          z: gx + gy,
-        });
-        floorActor.graphics.anchor = vec(0.5, 1);
-        floorActor.graphics.use(floorGraphic);
-        mainScene.add(floorActor);
+    function hash32(n: number): number {
+      let x = n | 0;
+      x = Math.imul(x ^ (x >>> 16), 0x7feb352d);
+      x = Math.imul(x ^ (x >>> 15), 0x846ca68b);
+      return x ^ (x >>> 16);
+    }
+
+    function floorVariantIndexForCell(gx: number, gy: number): number {
+      const h = hash32(Math.imul(gx, 374761393) ^ Math.imul(gy, 668265263));
+      return Math.abs(h) % floorGraphics.length;
+    }
+
+    /** Chunk index → floor actors spawned for that chunk (removed when the player walks away). */
+    const floorChunkActors = new Map<string, Actor[]>();
+
+    function worldPosToFloatGrid(pos: typeof cellBottomCenter): { gx: number; gy: number } {
+      const dx = (pos.x - worldOriginCellBottom.x) / isoHalfW;
+      const dy = (pos.y - worldOriginCellBottom.y) / isoHalfH;
+      return {
+        gx: (dx + dy) / 2 + centerG,
+        gy: (-dx + dy) / 2 + centerG,
+      };
+    }
+
+    function syncFloorChunksAround(pos: typeof cellBottomCenter): void {
+      const { gx: gxFloat, gy: gyFloat } = worldPosToFloatGrid(pos);
+      const centerChunkX = Math.floor(gxFloat / CHUNK_SIDE);
+      const centerChunkY = Math.floor(gyFloat / CHUNK_SIDE);
+
+      const desired = new Set<string>();
+      for (let ox = -1; ox <= 1; ox++) {
+        for (let oy = -1; oy <= 1; oy++) {
+          desired.add(`${centerChunkX + ox},${centerChunkY + oy}`);
+        }
+      }
+
+      for (const [key, actors] of floorChunkActors) {
+        if (!desired.has(key)) {
+          for (const a of actors) {
+            a.kill();
+          }
+          floorChunkActors.delete(key);
+        }
+      }
+
+      for (const key of desired) {
+        if (floorChunkActors.has(key)) {
+          continue;
+        }
+        const [cxStr, cyStr] = key.split(',');
+        const cx = Number(cxStr);
+        const cy = Number(cyStr);
+        const actors: Actor[] = [];
+        for (let lx = 0; lx < CHUNK_SIDE; lx++) {
+          for (let ly = 0; ly < CHUNK_SIDE; ly++) {
+            const gx = cx * CHUNK_SIDE + lx;
+            const gy = cy * CHUNK_SIDE + ly;
+            const variantIndex = floorVariantIndexForCell(gx, gy);
+            const floorGraphic = floorGraphics[variantIndex] ?? floorGraphic0;
+            if (!floorGraphic) {
+              throw new Error('Expected floor graphic for chunk tile');
+            }
+            const floorActor = new Actor({
+              pos: gridCellBottomCenter(gx, gy),
+              scale: vec(floorScale, floorScale),
+              z: gx + gy,
+            });
+            floorActor.graphics.anchor = vec(0.5, 1);
+            floorActor.graphics.use(floorGraphic);
+            mainScene.add(floorActor);
+            actors.push(floorActor);
+          }
+        }
+        floorChunkActors.set(key, actors);
       }
     }
 
@@ -276,6 +353,11 @@ void engine
     actor.graphics.anchor = vec(0.5, 1);
     actor.graphics.use(walkAnim);
     mainScene.add(actor);
+
+    /** World scrolls under the player: camera focal point tracks the player each frame. */
+    mainScene.camera.clearAllStrategies();
+    mainScene.camera.addStrategy(new LockCameraToActorStrategy(actor));
+    syncFloorChunksAround(actor.pos);
 
     /** Horizontal flip: left-facing until the player moves right again (vertical-only keeps last facing). */
     let facingRight = true;
@@ -337,6 +419,7 @@ void engine
           spriteElement: sprite,
           getCanvas: () => gameCanvas,
           viewportSize: VIEWPORT_SIZE,
+          getCameraFocus: () => ({ x: mainScene.camera.pos.x, y: mainScene.camera.pos.y }),
           isAbilityReady: () =>
             playerHp > 0 && !monsterDefeated && isAbilityReady(performance.now(), stuckCooldownUntilMs),
           onDrop: (wx, wy) => {
@@ -401,6 +484,7 @@ void engine
     const npcHpBars = attachNpcHpBarOverlay({
       canvas: gameCanvas,
       viewportSize: VIEWPORT_SIZE,
+      getCameraFocus: () => ({ x: mainScene.camera.pos.x, y: mainScene.camera.pos.y }),
       entries: [
         {
           id: 'merchant',
@@ -438,6 +522,7 @@ void engine
     const merchantMenu = attachMerchantProximityMenu(mainScene, {
       canvas: gameCanvas,
       viewportSize: VIEWPORT_SIZE,
+      getCameraFocus: () => ({ x: mainScene.camera.pos.x, y: mainScene.camera.pos.y }),
       proximityRadius: MERCHANT_MENU_PROXIMITY_RADIUS,
       getPlayerFeet: () => ({ x: actor.pos.x, y: actor.pos.y }),
       getMerchantFeet: () => ({ x: merchantActor.pos.x, y: merchantActor.pos.y }),
@@ -476,8 +561,20 @@ void engine
         if (ev.button === PointerButton.Middle || ev.button === PointerButton.Right) {
           return;
         }
-        const wx = ev.worldPos.x;
-        const wy = ev.worldPos.y;
+        const ne = ev.nativeEvent as MouseEvent;
+        const picked = clientPointToWorldPoint(
+          ne.clientX,
+          ne.clientY,
+          gameCanvas,
+          VIEWPORT_SIZE,
+          mainScene.camera.pos.x,
+          mainScene.camera.pos.y,
+        );
+        if (!picked) {
+          return;
+        }
+        const wx = picked.x;
+        const wy = picked.y;
         const px = actor.pos.x;
         const py = actor.pos.y;
 
@@ -549,6 +646,7 @@ void engine
     const monsterExclamation = attachMonsterExclamationOverlay({
       canvas: gameCanvas,
       viewportSize: VIEWPORT_SIZE,
+      getCameraFocus: () => ({ x: mainScene.camera.pos.x, y: mainScene.camera.pos.y }),
       rangeWorldPx: MONSTER_PROXIMITY_RANGE_WORLD_PX,
       getPlayerPos: () => ({ x: actor.pos.x, y: actor.pos.y }),
       getMonster: () => monsterActor,
@@ -562,6 +660,10 @@ void engine
           y: m.pos.y - monsterSpriteHeightWorld - monsterExclamationAboveHeadPx,
         };
       },
+    });
+
+    const floorChunkSyncSub = mainScene.on('postupdate', () => {
+      syncFloorChunksAround(actor.pos);
     });
 
     const chromeMoveSub = mainScene.on('preupdate', () => {
@@ -732,6 +834,7 @@ void engine
         monsterExclamation.close();
         chrome.detach();
         keyboard.detach();
+        floorChunkSyncSub.close();
         chromeMoveSub.close();
       });
     }

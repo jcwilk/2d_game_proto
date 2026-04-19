@@ -1,7 +1,7 @@
 import type { Scene } from 'excalibur';
 
 import { isWithinProximity } from '../proximity/worldDistance';
-import { logicalGamePointToClientPoint } from './screenOverlay';
+import { logicalGamePointToClientPoint, worldPointToOverlayLogical } from './screenOverlay';
 
 /** Pool of canned lines — each merchant instance gets one distinct phrase at startup (shuffled assignment). */
 export const MERCHANT_TALK_PHRASE_POOL = [
@@ -48,6 +48,7 @@ const TALK_BUBBLE_MS = 4200;
 export interface MerchantProximityMenuOptions {
   canvas: HTMLCanvasElement;
   viewportSize: number;
+  getCameraFocus?: () => { x: number; y: number };
   /** World-space radius for showing the menu. */
   proximityRadius: number;
   getPlayerFeet: () => { x: number; y: number };
@@ -166,7 +167,11 @@ export function attachMerchantProximityMenu(
     menu.hidden = false;
     const rect = options.canvas.getBoundingClientRect();
     const anchor = options.getMerchantMenuAnchorLogical();
-    const client = logicalGamePointToClientPoint(anchor.x, anchor.y, rect, options.viewportSize);
+    const cam = options.getCameraFocus?.();
+    const logical = cam
+      ? worldPointToOverlayLogical(anchor.x, anchor.y, cam.x, cam.y, options.viewportSize)
+      : anchor;
+    const client = logicalGamePointToClientPoint(logical.x, logical.y, rect, options.viewportSize);
     menu.style.left = `${client.x}px`;
     menu.style.top = `${client.y}px`;
   }

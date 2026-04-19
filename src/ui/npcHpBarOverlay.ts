@@ -1,4 +1,4 @@
-import { logicalGamePointToClientPoint } from './screenOverlay';
+import { logicalGamePointToClientPoint, worldPointToOverlayLogical } from './screenOverlay';
 
 export interface NpcHpBarEntry {
   id: string;
@@ -13,6 +13,8 @@ export interface NpcHpBarEntry {
 export interface NpcHpBarOverlayOptions {
   canvas: HTMLCanvasElement;
   viewportSize: number;
+  /** When the scene camera moves, pass focal point so world anchors map to the canvas. */
+  getCameraFocus?: () => { x: number; y: number };
   entries: NpcHpBarEntry[];
 }
 
@@ -67,7 +69,11 @@ export function attachNpcHpBarOverlay(options: NpcHpBarOverlayOptions): { close:
       const pct = Math.round(t * 1000) / 10;
       track.style.background = `linear-gradient(to right, #22c55e 0%, #22c55e ${pct}%, #dc2626 ${pct}%, #dc2626 100%)`;
       const anchor = e.getAnchorLogical();
-      const client = logicalGamePointToClientPoint(anchor.x, anchor.y, rect, options.viewportSize);
+      const cam = options.getCameraFocus?.();
+      const logical = cam
+        ? worldPointToOverlayLogical(anchor.x, anchor.y, cam.x, cam.y, options.viewportSize)
+        : anchor;
+      const client = logicalGamePointToClientPoint(logical.x, logical.y, rect, options.viewportSize);
       row.style.left = `${client.x}px`;
       row.style.top = `${client.y}px`;
     }

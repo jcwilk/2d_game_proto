@@ -2,6 +2,7 @@
  * Draggable stuck-ability orb (DOM). See specs/drag-stun-hud.md — pointer path, sprite-ref-driven frames.
  */
 import type { TryApplyStuckAtWorldCoordsResult } from '../game/stuckAbility';
+import { clientPointToWorldPoint } from './screenOverlay';
 
 /** Matches manifest `wallMs`-scale feel; 3 activation frames → ~270ms total. */
 export const STUCK_ORB_ACTIVATION_FRAME_MS = 90;
@@ -27,22 +28,6 @@ function publicArtUrl(pathFromArt: string): string {
   return base.endsWith('/') ? `${base}${trimmed}` : `${base}/${trimmed}`;
 }
 
-export function clientPointToWorldPoint(
-  clientX: number,
-  clientY: number,
-  canvas: HTMLCanvasElement,
-  viewportSize: number,
-): { x: number; y: number } | null {
-  const rect = canvas.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-  return {
-    x: ((clientX - rect.left) / rect.width) * viewportSize,
-    y: ((clientY - rect.top) / rect.height) * viewportSize,
-  };
-}
-
 function backgroundPositionForCell(column: number, row: number, columns: number, rows: number): string {
   const xPct = columns <= 1 ? 0 : (column / (columns - 1)) * 100;
   const yPct = rows <= 1 ? 0 : (row / (rows - 1)) * 100;
@@ -60,6 +45,8 @@ export interface AttachStuckOrbHudOptions {
   spriteElement: HTMLElement;
   getCanvas: () => HTMLCanvasElement;
   viewportSize: number;
+  /** Scene camera focal point (Excalibur `camera.pos`) — maps canvas picks to world space when the camera moves. */
+  getCameraFocus: () => { x: number; y: number };
   /** Gate drag start + visual “ready” state; must match tryApply cooldown (API source of truth). */
   isAbilityReady: () => boolean;
   onDrop: (worldX: number, worldY: number) => TryApplyStuckAtWorldCoordsResult;
@@ -99,7 +86,7 @@ function applyFrameToElement(
  * Wires pointer handlers, optional floating ghost during drag, and activation strip (frames 1–3 on `'ok'` only).
  */
 export function attachStuckOrbHud(ref: SpriteRefJson, options: AttachStuckOrbHudOptions): StuckOrbHudHandle {
-  const { hitTarget, spriteElement, getCanvas, viewportSize, isAbilityReady, onDrop } = options;
+  const { hitTarget, spriteElement, getCanvas, viewportSize, getCameraFocus, isAbilityReady, onDrop } = options;
   const sheetUrl = publicArtUrl(ref.image);
 
   const ghost = document.createElement('div');
@@ -243,7 +230,8 @@ export function attachStuckOrbHud(ref: SpriteRefJson, options: AttachStuckOrbHud
 
     if (apply) {
       const canvas = getCanvas();
-      const w = clientPointToWorldPoint(e.clientX, e.clientY, canvas, viewportSize);
+      const cam = getCameraFocus();
+      const w = clientPointToWorldPoint(e.clientX, e.clientY, canvas, viewportSize, cam.x, cam.y);
       if (w) {
         const result = onDrop(w.x, w.y);
         if (result.result === 'ok') {

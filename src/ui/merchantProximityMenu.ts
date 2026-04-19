@@ -1,7 +1,7 @@
 import type { Scene } from 'excalibur';
 
 import { isWithinProximity } from '../proximity/worldDistance';
-import { logicalGamePointToClientPoint } from './screenOverlay';
+import { logicalGamePointToClientPoint, worldPointToOverlayLogical } from './screenOverlay';
 
 /** Peaceful interactions only — attack is canvas click on the NPC. */
 export const MERCHANT_PEACEFUL_ACTION_LABELS = ['Talk', 'Trade', 'Hug'] as const;
@@ -10,6 +10,7 @@ export type MerchantPeacefulActionLabel = (typeof MERCHANT_PEACEFUL_ACTION_LABEL
 export interface MerchantProximityMenuOptions {
   canvas: HTMLCanvasElement;
   viewportSize: number;
+  getCameraFocus?: () => { x: number; y: number };
   /** World-space radius for showing the menu. */
   proximityRadius: number;
   getPlayerFeet: () => { x: number; y: number };
@@ -92,7 +93,11 @@ export function attachMerchantProximityMenu(
     menu.hidden = false;
     const rect = options.canvas.getBoundingClientRect();
     const anchor = options.getMerchantMenuAnchorLogical();
-    const client = logicalGamePointToClientPoint(anchor.x, anchor.y, rect, options.viewportSize);
+    const cam = options.getCameraFocus?.();
+    const logical = cam
+      ? worldPointToOverlayLogical(anchor.x, anchor.y, cam.x, cam.y, options.viewportSize)
+      : anchor;
+    const client = logicalGamePointToClientPoint(logical.x, logical.y, rect, options.viewportSize);
     menu.style.left = `${client.x}px`;
     menu.style.top = `${client.y}px`;
   }

@@ -29,11 +29,7 @@
  * @see `../../manifest.ts` — `buildRecipeId`
  */
 
-import {
-  NANO_BANANA2_DEFAULT_RESOLUTION,
-  NANO_BANANA2_LOW_RESOLUTION,
-  NANO_BANANA2_SQUARE_ASPECT_RATIO,
-} from "../../generators/fal.ts";
+import { NANO_BANANA2_SQUARE_ASPECT_RATIO } from "../../generators/fal.ts";
 import type { GeneratorFrame } from "../../generators/types.ts";
 import { defaultDpadShapeForFrame } from "../../generators/mock.ts";
 import { buildRecipeId } from "../../manifest.ts";
@@ -48,6 +44,7 @@ import {
   DPAD_FRAME_STYLE,
 } from "../../prompt.ts";
 import { sheetLayoutFromCrops } from "../../sheet-layout.ts";
+import { nanoBanana2FalExtrasPerTile, nanoBanana2FalExtrasSheet } from "../lib/fal-nano-banana.ts";
 
 /** Directory name under `presets/` — matches layout `presets/<ASSET_ID>/<ASSET_ID>.ts`. */
 export const ASSET_ID = "dpad";
@@ -82,20 +79,14 @@ export const DEFAULT_FAL_ENDPOINT = "fal-ai/nano-banana-2";
 /**
  * Nano-banana sheet inputs: **1:1** + **0.5K** (aligned with character walk preset).
  */
-export const DPAD_FAL_EXTRAS_SHEET = {
-  aspect_ratio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
-  resolution: NANO_BANANA2_LOW_RESOLUTION,
-  expand_prompt: true,
-  safety_tolerance: 2,
-};
+export const DPAD_FAL_EXTRAS_SHEET = nanoBanana2FalExtrasSheet({
+  aspectRatio: NANO_BANANA2_SQUARE_ASPECT_RATIO,
+});
 
 /**
  * Extra fal input for **per-tile** nano-banana jobs (square tiles).
  */
-export const DPAD_FAL_EXTRAS_PER_TILE = {
-  aspect_ratio: "1:1",
-  resolution: NANO_BANANA2_DEFAULT_RESOLUTION,
-};
+export const DPAD_FAL_EXTRAS_PER_TILE = nanoBanana2FalExtrasPerTile();
 
 /** Grid cell size for png-analyze (5×5 cells on 100²). */
 export const QA_SPRITE_W = 20;

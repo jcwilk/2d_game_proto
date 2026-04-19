@@ -15,6 +15,26 @@ const ISO_EDGE_HALF_H = FLOOR_FORESHORTENED_HEIGHT_PX / 2;
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
+/**
+ * Short taps can begin/end between simulation ticks; keep direction active briefly so a tap
+ * always produces at least one movement update.
+ */
+export const DEFAULT_TAP_LATCH_MS = 160;
+
+export interface DirectionPointerCounts {
+  up: number;
+  down: number;
+  left: number;
+  right: number;
+}
+
+export interface DirectionLatchedUntilMs {
+  up: number;
+  down: number;
+  left: number;
+  right: number;
+}
+
 function dpadSheetPublicUrl(): string {
   const base = import.meta.env.BASE_URL;
   return base.endsWith('/') ? `${base}art/dpad/sheet.png` : `${base}/art/dpad/sheet.png`;
@@ -33,6 +53,19 @@ export interface ActiveDirectionFlags {
   down: boolean;
   left: boolean;
   right: boolean;
+}
+
+export function activeDirectionsFromPointerCountsAndLatch(
+  pointerCounts: DirectionPointerCounts,
+  latchedUntilMs: DirectionLatchedUntilMs,
+  nowMs: number
+): ActiveDirectionFlags {
+  return {
+    up: pointerCounts.up > 0 || nowMs < latchedUntilMs.up,
+    down: pointerCounts.down > 0 || nowMs < latchedUntilMs.down,
+    left: pointerCounts.left > 0 || nowMs < latchedUntilMs.left,
+    right: pointerCounts.right > 0 || nowMs < latchedUntilMs.right,
+  };
 }
 
 /**
@@ -82,11 +115,19 @@ export interface DirectionalChromeHandle {
   detach(): void;
 }
 
+export interface DirectionalChromeAttachOptions {
+  tapLatchMs?: number;
+  nowMs?: () => number;
+}
+
 /**
  * Wires `.game-chrome` nodes under `root`: pointer listeners, per §6.2 maps/sets,
  * and `sheet.png` slice via CSS background on `.game-chrome-img`.
  */
-export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHandle {
+export function attachDirectionalChrome(
+  root: HTMLElement,
+  options: DirectionalChromeAttachOptions = {}
+): DirectionalChromeHandle {
   const pointerToDirection = new Map<number, Direction>();
   const pointersByDirection: Record<Direction, Set<number>> = {
     up: new Set(),
@@ -94,6 +135,11 @@ export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHan
     left: new Set(),
     right: new Set(),
   };
+  const latchedUntilMs: DirectionLatchedUntilMs = { up: 0, down: 0, left: 0, right: 0 };
+  const tapLatchMs = options.tapLatchMs ?? DEFAULT_TAP_LATCH_MS;
+  const nowMs =
+    options.nowMs ??
+    (() => (typeof globalThis.performance !== 'undefined' ? globalThis.performance.now() : Date.now()));
 
   const chromeNodes = root.querySelectorAll<HTMLElement>('.game-chrome');
 
@@ -111,12 +157,16 @@ export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHan
   }
 
   function activeFromSets(): ActiveDirectionFlags {
-    return {
-      up: pointersByDirection.up.size > 0,
-      down: pointersByDirection.down.size > 0,
-      left: pointersByDirection.left.size > 0,
-      right: pointersByDirection.right.size > 0,
-    };
+    return activeDirectionsFromPointerCountsAndLatch(
+      {
+        up: pointersByDirection.up.size,
+        down: pointersByDirection.down.size,
+        left: pointersByDirection.left.size,
+        right: pointersByDirection.right.size,
+      },
+      latchedUntilMs,
+      nowMs()
+    );
   }
 
   function clearPointer(pointerId: number): void {
@@ -142,6 +192,7 @@ export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHan
     clearPointer(pid);
     pointerToDirection.set(pid, dir);
     pointersByDirection[dir].add(pid);
+    latchedUntilMs[dir] = Math.max(latchedUntilMs[dir], nowMs() + tapLatchMs);
   }
 
   function onPointerEnd(ev: Event): void {
@@ -175,6 +226,7 @@ export function attachDirectionalChrome(root: HTMLElement): DirectionalChromeHan
       pointerToDirection.clear();
       for (const d of Object.keys(pointersByDirection) as Direction[]) {
         pointersByDirection[d].clear();
+        latchedUntilMs[d] = 0;
       }
     },
   };

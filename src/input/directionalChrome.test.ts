@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { FLOOR_FORESHORTENED_HEIGHT_PX, TILE_FOOTPRINT_WIDTH_PX } from '../dimensions';
-import { chromeMoveVelocityFromActiveDirections } from './directionalChrome';
+import {
+  activeDirectionsFromPointerCountsAndLatch,
+  chromeMoveVelocityFromActiveDirections,
+} from './directionalChrome';
 
 const S = 200;
 
@@ -60,5 +63,37 @@ describe('chromeMoveVelocityFromActiveDirections', () => {
       x: 0,
       y: 0,
     });
+  });
+});
+
+describe('activeDirectionsFromPointerCountsAndLatch', () => {
+  it('uses current pointer counts immediately', () => {
+    expect(
+      activeDirectionsFromPointerCountsAndLatch(
+        { up: 0, down: 0, left: 1, right: 0 },
+        { up: 0, down: 0, left: 0, right: 0 },
+        500
+      )
+    ).toEqual({ up: false, down: false, left: true, right: false });
+  });
+
+  it('keeps direction active while latch window is not expired', () => {
+    expect(
+      activeDirectionsFromPointerCountsAndLatch(
+        { up: 0, down: 0, left: 0, right: 0 },
+        { up: 0, down: 0, left: 200, right: 0 },
+        199
+      )
+    ).toEqual({ up: false, down: false, left: true, right: false });
+  });
+
+  it('expires direction when latch deadline is reached', () => {
+    expect(
+      activeDirectionsFromPointerCountsAndLatch(
+        { up: 0, down: 0, left: 0, right: 0 },
+        { up: 0, down: 0, left: 200, right: 0 },
+        200
+      )
+    ).toEqual({ up: false, down: false, left: false, right: false });
   });
 });

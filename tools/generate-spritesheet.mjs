@@ -2,7 +2,7 @@
 /**
  * Unified sprite-sheet CLI — registry-driven **`run`**, **`list`**, **`status`**, **`info`**, **`rename`**, **`help`**.
  *
- * @see tools/sprite-generation/presets/registry.mjs
+ * @see tools/sprite-generation/presets/registry.ts
  * @see tools/sprite-generation/pipeline.ts
  */
 
@@ -22,7 +22,7 @@ import {
   formatRenameDryRunPlan,
   parseRenameArgs,
 } from "./sprite-generation/rename-dry-run.ts";
-import { PRESETS, resolveRepoRoot } from "./sprite-generation/presets/registry.mjs";
+import { PRESETS, resolveRepoRoot } from "./sprite-generation/presets/registry.ts";
 
 const REPO_ROOT = resolveRepoRoot(import.meta.url);
 const PROVENANCE_TOOL = "tools/generate-spritesheet.mjs";
@@ -212,7 +212,7 @@ function printHelpInfo() {
 Shows one asset: git-tracked paths under public/art/<id>/, on-disk manifest /
 sprite-ref / sheet sizes, and a loaded-preset summary (frame list, sheet grid,
 truncated prompt excerpts). Prompt text comes from createPreset() in memory, not
-by parsing the .mjs file as text.
+by parsing the preset `.ts` file as text.
 
 Required:
   --asset <id>           Registry asset id (see: list)

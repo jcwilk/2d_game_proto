@@ -3,9 +3,9 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { PRESETS, resolveRepoRoot } from "./registry.mjs";
+import { PRESETS, resolveRepoRoot } from "./registry.ts";
 
-describe("presets/registry.mjs", () => {
+describe("presets/registry.ts", () => {
   it("resolveRepoRoot finds repo containing this package.json", () => {
     const root = resolveRepoRoot(import.meta.url);
     const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -17,7 +17,7 @@ describe("presets/registry.mjs", () => {
     const ids = Object.keys(PRESETS).sort((a, b) => a.localeCompare(b));
     expect(ids.length).toBeGreaterThan(0);
     for (const id of ids) {
-      const href = PRESETS[id].presetModuleHref;
+      const href = PRESETS[id]!.presetModuleHref;
       expect(href.startsWith("file:")).toBe(true);
       const fsPath = fileURLToPath(href);
       const rel = relative(repoRoot, resolve(fsPath));
@@ -28,7 +28,7 @@ describe("presets/registry.mjs", () => {
 
   it("dynamic import succeeds for each preset module (CI)", async () => {
     for (const id of Object.keys(PRESETS)) {
-      const mod = await import(PRESETS[id].presetModuleHref);
+      const mod = await import(PRESETS[id]!.presetModuleHref);
       expect(mod.ASSET_ID).toBe(id);
       expect(mod.createPreset).toBeTypeOf("function");
     }

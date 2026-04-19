@@ -224,8 +224,8 @@ export function buildRenameDryRunPlan(repoRoot, from, to, registryAssetIds) {
   const presetDirTo = join(repoRoot, "tools", "sprite-generation", "presets", to);
   const artDirFrom = join(repoRoot, "public", "art", from);
   const artDirTo = join(repoRoot, "public", "art", to);
-  const moduleFrom = join(presetDirFrom, `${from}.mjs`);
-  const moduleTo = join(presetDirTo, `${to}.mjs`);
+  const moduleFrom = join(presetDirFrom, `${from}.ts`);
+  const moduleTo = join(presetDirTo, `${to}.ts`);
 
   const candidates = collectCandidateReferenceFiles(repoRoot, from);
 
@@ -238,7 +238,7 @@ export function buildRenameDryRunPlan(repoRoot, from, to, registryAssetIds) {
       { kind: "rename", from: artDirFrom, to: artDirTo },
     ],
     presetModule: { from: moduleFrom, to: moduleTo },
-    registryRel: "tools/sprite-generation/presets/registry.mjs",
+    registryRel: "tools/sprite-generation/presets/registry.ts",
     registryNotes: [
       "Extend AssetId union / PRESETS with the new key; remove or repoint the old key.",
       "Update buildPresets() entry(): publicArtDir, preset path, manifestPresetId as needed.",

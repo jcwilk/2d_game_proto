@@ -1,8 +1,8 @@
 /**
- * Central registry for sprite-generation preset modules (`presets/<slug>/<slug>.mjs`).
+ * Central registry for sprite-generation preset modules (`presets/<slug>/<slug>.ts`).
  *
  * Preset keys are discovered at load time from directories under `presets/` that contain
- * `<slug>/<slug>.mjs`.
+ * `<slug>/<slug>.ts`.
  *
  * @see `../preset-contract.ts` — `SpritePresetModule`
  */
@@ -11,13 +11,29 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import type { SpritePresetModule } from "../preset-contract.ts";
+
+export interface RegistryEntry {
+  /** Manifest `preset` string (not `PipelinePreset.presetId` in docs). */
+  manifestPresetId: string;
+  /** Absolute `file:` URL for `import()` of the preset module. */
+  presetModuleHref: string;
+  /** Absolute out dir (manifest, sprite-ref, tiles/sheet) — default `public/art/<slug>/`. */
+  defaultOutBase: string;
+  /** Repo-relative POSIX path (`public/art/<slug>`). */
+  publicArtDir: string;
+  /** Path segment(s) under `publicArtDir` to `manifest.json`. */
+  manifestRelative: string;
+  /** Default sheet PNG basename (e.g. `sheet.png`). */
+  sheetBasename: string;
+  /** Default CLI `--strategy` (from module `DEFAULT_STRATEGY` or `"sheet"`). */
+  defaultStrategy: "sheet" | "per-tile";
+}
+
 /**
  * Walk upward from `fromUrl` until a directory containing `package.json` is found.
- *
- * @param {string} [fromUrl=import.meta.url] Module URL to start from (e.g. this file).
- * @returns {string} Absolute filesystem path to the repository root.
  */
-export function resolveRepoRoot(fromUrl = import.meta.url) {
+export function resolveRepoRoot(fromUrl: string = import.meta.url): string {
   let dir = dirname(fileURLToPath(fromUrl));
   for (;;) {
     if (existsSync(join(dir, "package.json"))) return dir;
@@ -31,41 +47,24 @@ export function resolveRepoRoot(fromUrl = import.meta.url) {
   }
 }
 
-/**
- * @typedef {object} RegistryEntry
- * @property {string} manifestPresetId Manifest `preset` string (not `PipelinePreset.presetId` in docs).
- * @property {string} presetModuleHref Absolute `file:` URL for `import()` of the preset module.
- * @property {string} defaultOutBase Absolute out dir (manifest, sprite-ref, tiles/sheet) — default `public/art/<slug>/`.
- * @property {string} publicArtDir Repo-relative POSIX path (`public/art/<slug>`).
- * @property {string} manifestRelative Path segment(s) under `publicArtDir` to `manifest.json`.
- * @property {string} sheetBasename Default sheet PNG basename (e.g. `sheet.png`).
- * @property {'sheet' | 'per-tile'} defaultStrategy Default CLI `--strategy` (from module `DEFAULT_STRATEGY` or `"sheet"`).
- */
-
-/**
- * @param {string} repoRoot
- * @returns {Promise<Record<string, RegistryEntry>>}
- */
-async function buildPresets(repoRoot) {
+async function buildPresets(repoRoot: string): Promise<Record<string, RegistryEntry>> {
   const presetsDir = join(repoRoot, "tools", "sprite-generation", "presets");
   const dirents = readdirSync(presetsDir, { withFileTypes: true });
-  /** @type {string[]} */
-  const slugs = [];
+  const slugs: string[] = [];
   for (const ent of dirents) {
     if (!ent.isDirectory() || ent.name.startsWith(".")) continue;
     const slug = ent.name;
-    const modulePath = join(presetsDir, slug, `${slug}.mjs`);
+    const modulePath = join(presetsDir, slug, `${slug}.ts`);
     if (!existsSync(modulePath)) continue;
     slugs.push(slug);
   }
   slugs.sort((a, b) => a.localeCompare(b));
 
-  /** @type {Record<string, RegistryEntry>} */
-  const out = {};
+  const out: Record<string, RegistryEntry> = {};
   for (const slug of slugs) {
-    const presetPath = join(presetsDir, slug, `${slug}.mjs`);
+    const presetPath = join(presetsDir, slug, `${slug}.ts`);
     const href = pathToFileURL(presetPath).href;
-    const mod = await import(href);
+    const mod = (await import(href)) as SpritePresetModule;
     if (mod.ASSET_ID !== slug) {
       throw new Error(
         `SPRITESHEET registry: directory ${JSON.stringify(slug)} !== module ASSET_ID ${JSON.stringify(mod.ASSET_ID)}`,
@@ -99,20 +98,14 @@ async function buildPresets(repoRoot) {
 const _repoRoot = resolveRepoRoot();
 const _PRESETS = await buildPresets(_repoRoot);
 
-export const PRESETS = /** @type {Readonly<Record<string, RegistryEntry>>} */ (
-  Object.freeze(
-    Object.fromEntries(
-      Object.entries(_PRESETS).map(([k, v]) => [k, Object.freeze(v)]),
-    ),
-  )
+export const PRESETS: Readonly<Record<string, Readonly<RegistryEntry>>> = Object.freeze(
+  Object.fromEntries(
+    Object.entries(_PRESETS).map(([k, v]) => [k, Object.freeze(v)]),
+  ),
 );
 
-/**
- * @param {string} href
- * @param {string} repoRoot
- */
-function assertFileUrlUnderRepoRoot(href, repoRoot) {
-  let u;
+function assertFileUrlUnderRepoRoot(href: string, repoRoot: string): void {
+  let u: URL;
   try {
     u = new URL(href);
   } catch (e) {
@@ -130,19 +123,18 @@ function assertFileUrlUnderRepoRoot(href, repoRoot) {
   }
 }
 
-/**
- * @param {string} repoRoot
- * @param {Readonly<Record<string, RegistryEntry>>} presets
- */
-async function assertRegistryStrict(repoRoot, presets) {
+async function assertRegistryStrict(
+  repoRoot: string,
+  presets: Readonly<Record<string, Readonly<RegistryEntry>>>,
+): Promise<void> {
   for (const id of Object.keys(presets)) {
-    const e = presets[id];
+    const e = presets[id]!;
     assertFileUrlUnderRepoRoot(e.presetModuleHref, repoRoot);
     const pathFs = fileURLToPath(e.presetModuleHref);
     if (!existsSync(pathFs)) {
       throw new Error(`SPRITESHEET registry: preset module missing on disk: ${pathFs}`);
     }
-    const mod = await import(e.presetModuleHref);
+    const mod = (await import(e.presetModuleHref)) as SpritePresetModule;
     if (mod.ASSET_ID !== id) {
       throw new Error(
         `SPRITESHEET registry: key "${id}" preset exports ASSET_ID ${JSON.stringify(mod.ASSET_ID)}`,
@@ -166,7 +158,7 @@ async function assertRegistryStrict(repoRoot, presets) {
 }
 
 const _strict =
-  process.env.SPRITESHEET_REGISTRY_STRICT === "1" || process.env.NODE_ENV === "test";
+  process.env["SPRITESHEET_REGISTRY_STRICT"] === "1" || process.env["NODE_ENV"] === "test";
 
 if (_strict) {
   await assertRegistryStrict(_repoRoot, PRESETS);

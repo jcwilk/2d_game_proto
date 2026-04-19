@@ -10,8 +10,7 @@ import { buildDpadGridSpritePrompt } from "./prompt.ts";
 import { hashPromptForLog } from "./generators/fal.ts";
 import { RECIPE_VERSION_MOCK } from "./manifest.ts";
 import { parseGridFrameKeysManifestJson } from "../../src/art/atlasTypes.ts";
-// @ts-expect-error TS7016 — preset module is still `.mjs` (see epic / registry TS migration)
-import { createPreset } from "./presets/dpad/dpad.mjs";
+import { createPreset } from "./presets/dpad/dpad.ts";
 import { runPipeline, type PipelineOpts, type PipelinePreset } from "./pipeline.ts";
 
 function dpadLikePreset(outBase: string): PipelinePreset {

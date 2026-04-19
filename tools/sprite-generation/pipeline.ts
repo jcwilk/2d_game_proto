@@ -14,7 +14,7 @@
  * @see `pipeline-stages.ts` — `applyPostprocessPipeline`, chroma and other postprocess steps
  * @see `qa/analyze-bridge.ts` — QA png-analyze bridge (`runPngAnalyzeBridge`)
  * @see `generators/types.ts` — generator contracts
- * @see `presets/dpad/dpad.mjs` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
+ * @see `presets/dpad/dpad.ts` — D-pad preset (`createPreset`); canonical constants + `runPipeline` config.
  *
  * ## Raster WxH (on-disk = model output)
  *

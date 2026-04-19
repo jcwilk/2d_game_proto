@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { SpriteRefGridFrameKeys } from "../../sprite-ref.ts";
 import { RECIPE_VERSION_MOCK, RECIPE_VERSION_PER_TILE, RECIPE_VERSION_SHEET } from "../../manifest.ts";
 import { renderCharacterWalkMockTileBuffer } from "../../generators/mock.ts";
 import {
@@ -17,7 +18,7 @@ import {
   SHEET_WIDTH,
   TILE_HEIGHT,
   TILE_SIZE,
-} from "./avatar-character.mjs";
+} from "./avatar-character.ts";
 
 describe("presets/avatar-character", () => {
   it("createPreset builds a runPipeline-ready object with gridFrameKeys sprite-ref for art/avatar-character", () => {
@@ -25,19 +26,20 @@ describe("presets/avatar-character", () => {
     expect(p.presetId).toBe(MANIFEST_PRESET_ID);
     expect(p.presetId).toBe(CHARACTER_PRESET_ID);
     expect(p.kind).toBe(CHARACTER_KIND);
-    expect(p.frames).toBe(CHARACTER_WALK_FRAMES);
+    expect(p.frames).toStrictEqual(CHARACTER_WALK_FRAMES);
     expect(p.tileSize).toBe(TILE_SIZE);
     expect(p.tileHeight).toBe(TILE_HEIGHT);
     expect(p.sheet?.width).toBe(SHEET_WIDTH);
     expect(p.sheet?.height).toBe(SHEET_HEIGHT);
     expect(p.sheet?.rows).toBe(1);
     expect(p.sheet?.columns).toBe(4);
-    expect(p.sheet?.crops?.walk_0).toEqual({ x: 0, y: 0 });
-    expect(p.sheet?.crops?.walk_3).toEqual({ x: TILE_SIZE * 3, y: 0 });
+    expect(p.sheet?.crops?.["walk_0"]).toEqual({ x: 0, y: 0 });
+    expect(p.sheet?.crops?.["walk_3"]).toEqual({ x: TILE_SIZE * 3, y: 0 });
     expect(p.frameSheetCells).toEqual({ ...CHARACTER_FRAME_SHEET_CELLS });
     expect(p.spriteRef.kind).toBe("gridFrameKeys");
-    expect(p.spriteRef.sheetImageRelativePath).toBe("art/avatar-character/sheet.png");
-    expect(p.spriteRef.jsonRelativePath).toBe("sprite-ref.json");
+    const spriteRef = p.spriteRef as SpriteRefGridFrameKeys;
+    expect(spriteRef.sheetImageRelativePath).toBe("art/avatar-character/sheet.png");
+    expect(spriteRef.jsonRelativePath).toBe("sprite-ref.json");
     expect(p.fal?.falExtrasPerTile).toMatchObject({ aspect_ratio: "1:1", resolution: "1K" });
     expect(p.fal?.falExtrasSheet).toMatchObject({
       aspect_ratio: "3:2",
@@ -55,7 +57,7 @@ describe("presets/avatar-character", () => {
     expect(p.generatorConfig?.tileBufferForFrame).toBeDefined();
     expect(p.generatorConfig?.sheetLayout).toEqual(CHARACTER_SHEET_LAYOUT);
     expect(p.postprocessSteps).toEqual([]);
-    const buf = p.generatorConfig.tileBufferForFrame(
+    const buf = p.generatorConfig!.tileBufferForFrame!(
       { id: "walk_0", outSubdir: "walk_0", promptVariant: "" },
       { tileSize: TILE_SIZE, tileWidth: TILE_SIZE, tileHeight: TILE_HEIGHT },
     );
@@ -91,7 +93,7 @@ describe("presets/avatar-character", () => {
   });
 
   it("throws without outBase", () => {
-    expect(() => createPreset({})).toThrow(/outBase/);
+    expect(() => createPreset({} as import("./avatar-character.ts").CreateCharacterPresetOpts)).toThrow(/outBase/);
   });
 
   it("renderCharacterWalkMockTileBuffer produces distinct phases (idle vs stride)", () => {

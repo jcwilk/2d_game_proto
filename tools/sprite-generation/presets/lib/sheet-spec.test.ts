@@ -22,8 +22,19 @@ import {
 } from "../isometric-open-floor/isometric-open-floor.ts";
 
 import {
+  DPAD_FRAME_SHEET_CELLS,
+  DPAD_FRAMES,
+  DPAD_SHEET_LAYOUT,
+  SHEET_CROPS as DPAD_SHEET_CROPS,
+  SHEET_HEIGHT as DPAD_SHEET_HEIGHT,
+  SHEET_WIDTH as DPAD_SHEET_WIDTH,
+  TILE_SIZE as DPAD_TILE_SIZE,
+} from "../dpad/dpad.ts";
+import {
   frameSheetCellsRowMajor,
   horizontalStripCrops,
+  rowMajorGridCrops,
+  sheetDimensionsFromGrid,
   sheetDimensionsFromStrip,
   sheetLayoutFromStripCrops,
   validateFrameCropCellCoverage,
@@ -69,6 +80,30 @@ describe("presets/lib/sheet-spec horizontal strip (golden vs isometric-open-floo
     expect(layout).toEqual(ISO_FLOOR_SHEET_LAYOUT);
     expect(sheetWidth).toBe(ISO_SHEET_WIDTH);
     expect(sheetHeight).toBe(ISO_SHEET_HEIGHT);
+    expect(() => validateFrameCropCellCoverage(frameIds, crops, cells)).not.toThrow();
+  });
+});
+
+describe("presets/lib/sheet-spec row-major grid (golden vs dpad)", () => {
+  const frameIds = DPAD_FRAMES.map((f) => f.id);
+  const numColumns = 2;
+
+  it("matches SHEET_CROPS, cells, layout, and sheet dimensions", () => {
+    const crops = rowMajorGridCrops(frameIds, numColumns, DPAD_TILE_SIZE, DPAD_TILE_SIZE);
+    const cells = frameSheetCellsRowMajor(frameIds, numColumns);
+    const { sheetWidth, sheetHeight } = sheetDimensionsFromGrid(
+      frameIds.length,
+      numColumns,
+      DPAD_TILE_SIZE,
+      DPAD_TILE_SIZE,
+    );
+    const layout = sheetLayoutFromStripCrops(crops, DPAD_TILE_SIZE, DPAD_TILE_SIZE);
+
+    expect(crops).toEqual(DPAD_SHEET_CROPS);
+    expect(cells).toEqual(DPAD_FRAME_SHEET_CELLS);
+    expect(layout).toEqual(DPAD_SHEET_LAYOUT);
+    expect(sheetWidth).toBe(DPAD_SHEET_WIDTH);
+    expect(sheetHeight).toBe(DPAD_SHEET_HEIGHT);
     expect(() => validateFrameCropCellCoverage(frameIds, crops, cells)).not.toThrow();
   });
 });

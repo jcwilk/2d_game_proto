@@ -1,6 +1,7 @@
 /**
- * Pure builders for **horizontal strip** sprite sheets (one row, left-to-right).
- * Mock compositor cell layout stays {@link sheetLayoutFromCropsRect} in `sheet-layout.ts`.
+ * Pure builders for sprite sheets: **horizontal strip** (one row) and **row-major grids**
+ * (`numColumns` wide, rows grow downward). Mock compositor cell layout uses
+ * {@link sheetLayoutFromCropsRect} in `sheet-layout.ts`.
  */
 
 import { sheetLayoutFromCropsRect, type CropRecord } from "../../sheet-layout.ts";
@@ -21,7 +22,7 @@ function assertDistinctFrameIds(frameIds: readonly string[]): void {
   const seen = new Set<string>();
   for (const id of frameIds) {
     if (seen.has(id)) {
-      throw new Error(`horizontalStripCrops: duplicate frame id "${id}"`);
+      throw new Error(`duplicate frame id "${id}"`);
     }
     seen.add(id);
   }
@@ -71,6 +72,33 @@ export function frameSheetCellsRowMajor(
   return Object.freeze(out);
 }
 
+/**
+ * Top-left crop origins for a **row-major** grid: frame `i` at column `i % numColumns`, row `⌊i / numColumns⌋`.
+ * Cell `(col, row)` origin is `(col * cellWidth, row * cellHeight)`.
+ */
+export function rowMajorGridCrops(
+  frameIds: readonly string[],
+  numColumns: number,
+  cellWidth: number,
+  cellHeight: number,
+): SheetCropMap {
+  assertPositiveInt("rowMajorGridCrops(numColumns)", numColumns);
+  assertPositiveInt("rowMajorGridCrops(cellWidth)", cellWidth);
+  assertPositiveInt("rowMajorGridCrops(cellHeight)", cellHeight);
+  if (frameIds.length === 0) {
+    throw new Error("rowMajorGridCrops: frameIds must be non-empty");
+  }
+  assertDistinctFrameIds(frameIds);
+  const out: Record<string, { x: number; y: number }> = {};
+  for (let i = 0; i < frameIds.length; i++) {
+    const id = frameIds[i]!;
+    const col = i % numColumns;
+    const row = Math.floor(i / numColumns);
+    out[id] = { x: col * cellWidth, y: row * cellHeight };
+  }
+  return Object.freeze(out);
+}
+
 /** Pixel size of a **1×frameCount** horizontal strip (one row). */
 export function sheetDimensionsFromStrip(
   frameCount: number,
@@ -83,6 +111,27 @@ export function sheetDimensionsFromStrip(
   return {
     sheetWidth: frameCount * cellWidth,
     sheetHeight: cellHeight,
+  };
+}
+
+/**
+ * Pixel size of a row-major grid: **`numColumns` × `⌈frameCount / numColumns⌉`** cells.
+ * A horizontal strip is the special case `numColumns === frameCount` (one row).
+ */
+export function sheetDimensionsFromGrid(
+  frameCount: number,
+  numColumns: number,
+  cellWidth: number,
+  cellHeight: number,
+): { sheetWidth: number; sheetHeight: number } {
+  assertPositiveInt("sheetDimensionsFromGrid(frameCount)", frameCount);
+  assertPositiveInt("sheetDimensionsFromGrid(numColumns)", numColumns);
+  assertPositiveInt("sheetDimensionsFromGrid(cellWidth)", cellWidth);
+  assertPositiveInt("sheetDimensionsFromGrid(cellHeight)", cellHeight);
+  const numRows = Math.ceil(frameCount / numColumns);
+  return {
+    sheetWidth: numColumns * cellWidth,
+    sheetHeight: numRows * cellHeight,
   };
 }
 

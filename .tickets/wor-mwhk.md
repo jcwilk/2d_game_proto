@@ -1,6 +1,6 @@
 ---
 id: wor-mwhk
-status: open
+status: closed
 deps: [wor-ustu, wor-0ae7]
 links: []
 created: 2026-04-19T16:37:46Z
@@ -19,3 +19,9 @@ Plan step 5: extend sheet-spec with row-major grid builder (2×2 for dpad); vali
 
 dpad geometry unchanged; dpad tests + pipeline tests green; grid builder covered by tests; dpad imports shared fal bundle from lib (no duplicate literals left for those keys).
 
+
+## Notes
+
+**2026-04-19T16:53:51Z**
+
+Added rowMajorGridCrops + sheetDimensionsFromGrid; dpad uses sheet-spec builders for crops/cells/layout/dimensions; golden test vs dpad preset; duplicate frame id error message generic.

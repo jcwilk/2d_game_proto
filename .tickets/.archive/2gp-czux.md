@@ -1,6 +1,6 @@
 ---
 id: 2gp-czux
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T03:02:13Z

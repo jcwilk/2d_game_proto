@@ -64,7 +64,7 @@ export const CHARACTER_KIND = KIND;
 
 /**
  * Walk-frame **width** (px) — matches floor tile / footprint width; with {@link TILE_HEIGHT} the cell is **width:height = 2:5**.
- * See **`CHARACTER_WALK_FRAME_WIDTH_PX`** / **`CHARACTER_WALK_FRAME_HEIGHT_PX`** in **`gameDimensions.ts`** / **`src/dimensions.ts`**.
+ * See **`CHARACTER_WALK_FRAME_WIDTH_PX`** / **`CHARACTER_WALK_FRAME_HEIGHT_PX`** in **`src/dimensions.ts`** (via **`gameDimensions.ts`**).
  */
 export const TILE_SIZE = CHARACTER_WALK_FRAME_PX;
 

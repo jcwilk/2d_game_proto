@@ -1,6 +1,6 @@
 /**
  * Pixel layout for isometric **1m × 1m** floor tiles and **2m** verticals (walls, figures, pillars).
- * Runtime and sprite generators share numbers with **`tools/sprite-generation/gameDimensions.ts`** (`dimensions.sync.test.ts`).
+ * **`tools/sprite-generation/gameDimensions.ts`** re-exports this module for Node sprite tools (single source of truth here).
  *
  * **Square art cells** — `TILE_FOOTPRINT_WIDTH_PX` (**W**) is the **1m footprint** width in px. Tier **square side lengths** are **W**, **1.5W**, **2.5W** (half/full cells are larger than W on purpose).
  * - Foreshortened floor diamond height = **W/2** (`FLOOR_FORESHORTENED_HEIGHT_PX`).

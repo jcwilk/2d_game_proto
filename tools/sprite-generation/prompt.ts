@@ -363,7 +363,7 @@ export function buildCharacterWalkStripSpritePrompt(basePrompt: string, sheetWid
     "Camera: **isometric three-quarter view** (three-fourths): a stable oblique angle that shows a readable front plane and one side of the body together — classic game isometric staging, not a flat orthographic side profile, not top-down, not a straight-on card portrait.",
     "Full body visible head to toe in every cell.",
     "",
-    "FRAMING IN EACH CELL (identical geometry in every cell — matches **`renderCharacterWalkMockTileBuffer`** / `CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX` in **`gameDimensions.mjs`):",
+    "FRAMING IN EACH CELL (identical geometry in every cell — matches **`renderCharacterWalkMockTileBuffer`** / `CHARACTER_WALK_FRAME_FEET_INSET_FROM_BOTTOM_PX` in **`src/dimensions.ts`):",
     "**Horizontal:** center the character on the vertical midline (equal margin left and right).",
     "**Vertical:** the **top of the head** (hairline / crown) lies on the midline **10% of the cell height** **down** from the top edge (same as mock `hy0`).",
     "The **sole line** / **ground contact** between the feet lies **20% of the cell height above the bottom edge** of the cell (**W/4** foot clearance when the cell matches the pipeline — **not** 10%; **not** flush to the bottom edge).",

@@ -1,6 +1,6 @@
 ---
 id: 2gp-1os4
-status: open
+status: closed
 deps: [2gp-gwjc]
 links: []
 created: 2026-04-19T03:02:23Z

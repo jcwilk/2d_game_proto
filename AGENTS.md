@@ -25,3 +25,5 @@ Unless the user explicitly asks otherwise: **commit and push on the current bran
 ## Environment
 
 **`.env`** for local secrets (e.g. API keys used by optional subagents). **`.env`** is gitignored.
+
+**Node tools in TypeScript:** run with **`node --experimental-strip-types <file.ts>`** (Node 22+). Details and typecheck layout are in **`tools/README.md`** (section *TypeScript toolchain*).

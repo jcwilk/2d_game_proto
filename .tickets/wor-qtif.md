@@ -1,6 +1,6 @@
 ---
 id: wor-qtif
-status: open
+status: closed
 deps: [wor-ustu, wor-0ae7]
 links: []
 created: 2026-04-19T16:37:37Z

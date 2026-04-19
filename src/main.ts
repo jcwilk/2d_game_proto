@@ -588,6 +588,7 @@ void engine
         merchantHitPulseEnd = now + 260;
         if (action === 'Hug' && merchantPeaceful && !merchantDefeated && playerHp > 0) {
           playerHp = Math.min(playerMaxHp, playerHp + MERCHANT_HUG_HEAL_AMOUNT);
+          merchantHp = Math.min(NPC_DEFAULT_MAX_HP, merchantHp + MERCHANT_HUG_HEAL_AMOUNT);
           spawnHugHeartBurst({
             canvas: gameCanvas,
             viewportSize: VIEWPORT_SIZE,

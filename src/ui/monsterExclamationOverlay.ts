@@ -20,7 +20,14 @@ export interface MonsterExclamationOverlayOptions {
   readonly viewportSize: number;
   readonly rangeWorldPx: number;
   getPlayerPos: () => { x: number; y: number };
-  getMonster: () => Actor | undefined;
+  /**
+   * Single monster (legacy). Ignored when **`getMonsters`** is set.
+   */
+  getMonster?: () => Actor | undefined;
+  /**
+   * When set, the “!” shows if the player is within range of **any** of these actors (e.g. multiple hostile NPCs).
+   */
+  getMonsters?: () => readonly Actor[];
   /** World Y increases downward; place the label above the sprite (smaller Y). */
   getMonsterLabelWorldPos: () => { x: number; y: number } | null;
 }
@@ -46,13 +53,26 @@ export function attachMonsterExclamationOverlay(options: MonsterExclamationOverl
   wrap.appendChild(el);
 
   function sync(): void {
-    const monster = options.getMonster();
-    if (!monster) {
-      el.hidden = true;
-      return;
-    }
     const p = options.getPlayerPos();
-    if (!isWithinProximity(p.x, p.y, monster.pos.x, monster.pos.y, options.rangeWorldPx)) {
+    const roster = options.getMonsters?.() ?? [];
+    let inRange = false;
+    if (roster.length > 0) {
+      for (const m of roster) {
+        if (isWithinProximity(p.x, p.y, m.pos.x, m.pos.y, options.rangeWorldPx)) {
+          inRange = true;
+          break;
+        }
+      }
+    } else {
+      const monster = options.getMonster?.();
+      if (
+        monster &&
+        isWithinProximity(p.x, p.y, monster.pos.x, monster.pos.y, options.rangeWorldPx)
+      ) {
+        inRange = true;
+      }
+    }
+    if (!inRange) {
       el.hidden = true;
       return;
     }

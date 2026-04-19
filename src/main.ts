@@ -1,6 +1,15 @@
 import './styles.css';
 
-import { Actor, Animation, AnimationStrategy, Color, PointerButton, Scene, vec } from 'excalibur';
+import {
+  Actor,
+  Animation,
+  AnimationStrategy,
+  Color,
+  Graphic,
+  PointerButton,
+  Scene,
+  vec,
+} from 'excalibur';
 
 /** Scene character classification — player and NPC kinds (proximity UI, follow-on tickets). */
 export const CharacterKind = {
@@ -10,7 +19,10 @@ export const CharacterKind = {
 } as const;
 export type CharacterKind = (typeof CharacterKind)[keyof typeof CharacterKind];
 
-/** Spawned monster NPC — world position readable for proximity UI (e.g. ticket 2gp-real). */
+/**
+ * First living hostile NPC, or `undefined` when all are defeated — world position readable for proximity UI
+ * (e.g. ticket 2gp-real). Updated each frame when multiple monsters exist.
+ */
 export let monsterActor: Actor | undefined;
 
 import { createGridSheetLoader, mergeGridSheetLoaders } from './art/atlasLoader';
@@ -49,7 +61,7 @@ import {
   stepMonsterAggroAndReAggro,
   tryApplyStuckAtWorldCoords,
 } from './game/stuckAbility';
-import { distanceSquared } from './proximity/worldDistance';
+import { distanceSquared, isWithinProximity } from './proximity/worldDistance';
 import {
   MONSTER_PROXIMITY_RANGE_WORLD_PX,
   attachMonsterExclamationOverlay,
@@ -80,12 +92,18 @@ engine.addScene('main', mainScene);
 
 const characterAssets = createGridSheetLoader('art/avatar-character');
 const merchantAssets = createGridSheetLoader('art/merchant-character');
-const monsterAssets = createGridSheetLoader('art/monster-character');
+const monsterCharacterAssets = createGridSheetLoader('art/monster-character');
+const monsterArmadilloAssets = createGridSheetLoader('art/monster-armadillo');
+const monsterStrawberryJellyfishAssets = createGridSheetLoader('art/monster-strawberry-jellyfish');
+const monsterBladeFairyAssets = createGridSheetLoader('art/monster-blade-fairy');
 const floorAssets = createGridSheetLoader('art/isometric-open-floor');
 const loader = mergeGridSheetLoaders(
   characterAssets,
   merchantAssets,
-  monsterAssets,
+  monsterCharacterAssets,
+  monsterArmadilloAssets,
+  monsterStrawberryJellyfishAssets,
+  monsterBladeFairyAssets,
   floorAssets,
 );
 
@@ -165,22 +183,51 @@ void engine
     const merchantIdleGraphic = merchantSpriteSheet.getSprite(merchantIdleCell.column, merchantIdleCell.row);
     const merchantCharacterScale = scaleToTargetWidthPx(merchantIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
 
-    const monsterRaw = monsterAssets.spriteRefResource.data;
-    if (monsterRaw == null) {
-      throw new Error('Expected monster sprite-ref JSON after preload');
+    type MonsterKind = 'fairy' | 'armadillo' | 'jellyfish' | 'bladeFairy';
+
+    interface MonsterRuntime {
+      kind: MonsterKind;
+      actor: Actor;
+      idleGraphic: Graphic;
+      characterScale: number;
+      hp: number;
+      defeated: boolean;
+      aggro: boolean;
+      /** After stuck, leave aggro radius before chase can resume (per NPC; same rules as single-monster flow). */
+      reAggroArmRequired: boolean;
+      stuckUntilMs: number;
+      hitPulseEnd: number;
+      lastAttackOnPlayer: number;
+      facesRight: boolean;
     }
-    const monsterManifest = parseGridFrameKeysManifestJson(monsterRaw);
-    if (!monsterAssets.sheetImageSource.isLoaded()) {
-      throw new Error('Expected monster sheet ImageSource loaded after preload');
+
+    function loadMonsterFromAssets(
+      assets: ReturnType<typeof createGridSheetLoader>,
+      kind: MonsterKind,
+    ): Pick<MonsterRuntime, 'idleGraphic' | 'characterScale'> {
+      const raw = assets.spriteRefResource.data;
+      if (raw == null) {
+        throw new Error(`Expected sprite-ref JSON after preload (${kind})`);
+      }
+      const manifest = parseGridFrameKeysManifestJson(raw);
+      if (!assets.sheetImageSource.isLoaded()) {
+        throw new Error(`Expected monster sheet ImageSource loaded after preload (${kind})`);
+      }
+      const sheet = spriteSheetFromGridImageSource(assets.sheetImageSource, manifest);
+      const idleCell = manifest.frames['walk_0'];
+      if (!idleCell) {
+        throw new Error(`Expected sprite-ref frame "walk_0" (idle) for ${kind}`);
+      }
+      const idleGraphic = sheet.getSprite(idleCell.column, idleCell.row);
+      const characterScale = scaleToTargetWidthPx(idleGraphic.width, CHARACTER_WALK_FRAME_PX);
+      return { idleGraphic, characterScale };
     }
-    const monsterSpriteSheet = spriteSheetFromGridImageSource(monsterAssets.sheetImageSource, monsterManifest);
-    const monsterIdleCell = monsterManifest.frames['walk_0'];
-    if (!monsterIdleCell) {
-      throw new Error('Expected monster sprite-ref frame "walk_0" (idle)');
-    }
-    const monsterIdleGraphic = monsterSpriteSheet.getSprite(monsterIdleCell.column, monsterIdleCell.row);
-    const monsterCharacterScale = scaleToTargetWidthPx(monsterIdleGraphic.width, CHARACTER_WALK_FRAME_PX);
-    const monsterSpriteHeightWorld = monsterIdleGraphic.height * monsterCharacterScale;
+
+    const monsterFairy = loadMonsterFromAssets(monsterCharacterAssets, 'fairy');
+    const monsterArmadillo = loadMonsterFromAssets(monsterArmadilloAssets, 'armadillo');
+    const monsterJellyfish = loadMonsterFromAssets(monsterStrawberryJellyfishAssets, 'jellyfish');
+    const monsterBlade = loadMonsterFromAssets(monsterBladeFairyAssets, 'bladeFairy');
+
     /** Logical px gap above sprite top for the “!” (clears head at current scale). */
     const monsterExclamationAboveHeadPx = 12;
 
@@ -250,20 +297,48 @@ void engine
     merchantActor.graphics.use(merchantIdleGraphic);
     mainScene.add(merchantActor);
 
-    /** Stationary monster NPC — opposite quadrant from merchant so both stay readable on the grid. */
-    const monsterGx = 2;
-    const monsterGy = 7;
-    const monsterPos = gridCellBottomCenter(monsterGx, monsterGy);
-    let monsterFacesRight = monsterPos.x <= cellBottomCenter.x;
-    const monsterNpc = new Actor({
-      pos: monsterPos,
-      scale: vec(monsterFacesRight ? monsterCharacterScale : -monsterCharacterScale, monsterCharacterScale),
-      z: isoCharacterZFromWorldPos(monsterPos),
+    /** Hostile NPCs — one per monster preset; same chase / aggro / stuck rules for now. */
+    const monsterSpawns: { gx: number; gy: number; graphic: Graphic; scale: number; kind: MonsterKind }[] = [
+      { gx: 2, gy: 7, graphic: monsterFairy.idleGraphic, scale: monsterFairy.characterScale, kind: 'fairy' },
+      { gx: 1, gy: 6, graphic: monsterArmadillo.idleGraphic, scale: monsterArmadillo.characterScale, kind: 'armadillo' },
+      {
+        gx: 3,
+        gy: 6,
+        graphic: monsterJellyfish.idleGraphic,
+        scale: monsterJellyfish.characterScale,
+        kind: 'jellyfish',
+      },
+      { gx: 2, gy: 6, graphic: monsterBlade.idleGraphic, scale: monsterBlade.characterScale, kind: 'bladeFairy' },
+    ];
+
+    const monsters: MonsterRuntime[] = monsterSpawns.map((s) => {
+      const pos = gridCellBottomCenter(s.gx, s.gy);
+      const facesRight = pos.x <= cellBottomCenter.x;
+      const a = new Actor({
+        pos,
+        scale: vec(facesRight ? s.scale : -s.scale, s.scale),
+        z: isoCharacterZFromWorldPos(pos),
+      });
+      a.graphics.anchor = vec(0.5, 1);
+      a.graphics.use(s.graphic);
+      mainScene.add(a);
+      return {
+        kind: s.kind,
+        actor: a,
+        idleGraphic: s.graphic,
+        characterScale: s.scale,
+        hp: NPC_DEFAULT_MAX_HP,
+        defeated: false,
+        aggro: false,
+        reAggroArmRequired: false,
+        stuckUntilMs: 0,
+        hitPulseEnd: 0,
+        lastAttackOnPlayer: 0,
+        facesRight,
+      };
     });
-    monsterNpc.graphics.anchor = vec(0.5, 1);
-    monsterNpc.graphics.use(monsterIdleGraphic);
-    mainScene.add(monsterNpc);
-    monsterActor = monsterNpc;
+
+    monsterActor = monsters[0]?.actor;
 
     const actor = new Actor({
       pos: cellBottomCenter,
@@ -278,38 +353,35 @@ void engine
     let facingRight = true;
 
     let merchantHp = NPC_DEFAULT_MAX_HP;
-    let monsterHp = NPC_DEFAULT_MAX_HP;
     const npcMaxHp = NPC_DEFAULT_MAX_HP;
 
     let playerHp = PLAYER_DEFAULT_MAX_HP;
     const playerMaxHp = PLAYER_DEFAULT_MAX_HP;
-
-    /** Monster pursues after the player enters {@link MONSTER_AGGRO_RADIUS_WORLD_PX}. */
-    let monsterAggro = false;
-    /** After stuck, player must leave aggro disk then re-enter before chase resumes (spec: drag-stun-hud §4). */
-    let reAggroArmRequired = false;
-    /** `performance.now()` until which the monster is stuck (`now < until`); 0 means not stuck. */
-    let monsterStuckUntilMs = 0;
     /** Stuck ability cooldown until this time; only advanced on successful apply (`'ok'`). */
     let stuckCooldownUntilMs = 0;
 
-    let lastMonsterAttackOnPlayer = 0;
     let lastMerchantAttackOnPlayer = 0;
     let playerHitPulseEnd = 0;
 
     /** While true, shopkeeper shows Talk / Trade / Hug when in range. Set false after the player attacks him. */
     let merchantPeaceful = true;
     let merchantDefeated = false;
-    let monsterDefeated = false;
 
     const MERCHANT_MENU_PROXIMITY_RADIUS = 220;
 
     let merchantHitPulseEnd = 0;
-    let monsterHitPulseEnd = 0;
 
     /** Brief lunge toward target on attack (world px/s). */
     let attackLungeEnd = 0;
     let attackLungeVel = vec(0, 0);
+
+    function anyMonsterAlive(): boolean {
+      return monsters.some((m) => !m.defeated);
+    }
+
+    function syncMonsterActorExport(): void {
+      monsterActor = monsters.find((m) => !m.defeated)?.actor;
+    }
 
     const chrome = attachDirectionalChrome(root);
     const keyboard = attachKeyboardDirections();
@@ -329,7 +401,7 @@ void engine
           getCanvas: () => gameCanvas,
           viewportSize: VIEWPORT_SIZE,
           isAbilityReady: () =>
-            playerHp > 0 && !monsterDefeated && isAbilityReady(performance.now(), stuckCooldownUntilMs),
+            playerHp > 0 && anyMonsterAlive() && isAbilityReady(performance.now(), stuckCooldownUntilMs),
           onDrop: (wx, wy) => {
             const now = performance.now();
             const msx = Math.abs(merchantActor.scale.x);
@@ -345,25 +417,59 @@ void engine
                 msx,
                 msy,
               );
+            let best: MonsterRuntime | undefined;
+            let bestD = Number.POSITIVE_INFINITY;
+            for (const m of monsters) {
+              if (m.defeated) continue;
+              const sx = Math.abs(m.actor.scale.x);
+              const sy = Math.abs(m.actor.scale.y);
+              if (
+                worldPointInNpcBounds(
+                  wx,
+                  wy,
+                  m.actor,
+                  m.idleGraphic.width,
+                  m.idleGraphic.height,
+                  sx,
+                  sy,
+                ) &&
+                playerCanAttackNpc(
+                  actor.pos.x,
+                  actor.pos.y,
+                  m.actor.pos.x,
+                  m.actor.pos.y,
+                  NPC_ATTACK_RANGE_WORLD_PX,
+                )
+              ) {
+                const d = distanceSquared(wx, wy, m.actor.pos.x, m.actor.pos.y);
+                if (d < bestD) {
+                  bestD = d;
+                  best = m;
+                }
+              }
+            }
+            if (best == null) {
+              return { result: 'miss' as const };
+            }
             const r = tryApplyStuckAtWorldCoords({
               nowMs: now,
               stuckCooldownUntilMs,
-              monsterDefeated,
+              monsterDefeated: false,
               dropHitsMerchantBounds: dropHitsMerchant,
               dropWorldX: wx,
               dropWorldY: wy,
-              monsterNpc,
-              monsterGraphicWidth: monsterIdleGraphic.width,
-              monsterGraphicHeight: monsterIdleGraphic.height,
-              monsterScaleX: Math.abs(monsterNpc.scale.x),
-              monsterScaleY: Math.abs(monsterNpc.scale.y),
+              monsterNpc: best.actor,
+              monsterGraphicWidth: best.idleGraphic.width,
+              monsterGraphicHeight: best.idleGraphic.height,
+              monsterScaleX: Math.abs(best.actor.scale.x),
+              monsterScaleY: Math.abs(best.actor.scale.y),
               playerFeetX: actor.pos.x,
               playerFeetY: actor.pos.y,
             });
             if (r.result === 'ok') {
-              monsterAggro = r.monsterAggro;
-              monsterStuckUntilMs = r.monsterStuckUntilMs;
-              reAggroArmRequired = r.reAggroArmRequired;
+              best.aggro = r.monsterAggro;
+              best.stuckUntilMs = r.monsterStuckUntilMs;
+              best.reAggroArmRequired = r.reAggroArmRequired;
               stuckCooldownUntilMs = r.stuckCooldownUntilMs;
             }
             return r;
@@ -377,11 +483,6 @@ void engine
     function merchantSpriteTopLogicalY(): number {
       const sy = Math.abs(merchantActor.scale.y);
       return merchantActor.pos.y - merchantIdleGraphic.height * sy;
-    }
-
-    function monsterSpriteTopLogicalY(): number {
-      const sy = Math.abs(monsterNpc.scale.y);
-      return monsterNpc.pos.y - monsterIdleGraphic.height * sy;
     }
 
     function playerSpriteTopLogicalY(): number {
@@ -403,16 +504,19 @@ void engine
             y: merchantSpriteTopLogicalY() - 8,
           }),
         },
-        {
-          id: 'monster',
-          getHp: () => monsterHp,
+        ...monsters.map((m, i) => ({
+          id: `monster-${i}`,
+          getHp: () => m.hp,
           getMaxHp: () => npcMaxHp,
-          isActive: () => !monsterDefeated,
-          getAnchorLogical: () => ({
-            x: monsterNpc.pos.x,
-            y: monsterSpriteTopLogicalY() - 8,
-          }),
-        },
+          isActive: () => !m.defeated,
+          getAnchorLogical: () => {
+            const sy = Math.abs(m.actor.scale.y);
+            return {
+              x: m.actor.pos.x,
+              y: m.actor.pos.y - m.idleGraphic.height * sy - 8,
+            };
+          },
+        })),
         {
           id: 'player',
           getHp: () => playerHp,
@@ -457,7 +561,9 @@ void engine
         const px = actor.pos.x;
         const py = actor.pos.y;
 
-        type Target = { tag: 'merchant' | 'monster'; cx: number; cy: number };
+        type Target =
+          | { tag: 'merchant'; cx: number; cy: number }
+          | { tag: 'monster'; monster: MonsterRuntime; cx: number; cy: number };
         const hits: Target[] = [];
 
         const msx = Math.abs(merchantActor.scale.x);
@@ -472,16 +578,17 @@ void engine
           hits.push({ tag: 'merchant', cx: merchantActor.pos.x, cy: mcy });
         }
 
-        const nsx = Math.abs(monsterNpc.scale.x);
-        const nsy = Math.abs(monsterNpc.scale.y);
-        if (
-          !monsterDefeated &&
-          worldPointInNpcBounds(wx, wy, monsterNpc, monsterIdleGraphic.width, monsterIdleGraphic.height, nsx, nsy) &&
-          playerCanAttackNpc(px, py, monsterNpc.pos.x, monsterNpc.pos.y, NPC_ATTACK_RANGE_WORLD_PX) &&
-          monsterHp > 0
-        ) {
-          const ncy = monsterNpc.pos.y - (monsterIdleGraphic.height * nsy) / 2;
-          hits.push({ tag: 'monster', cx: monsterNpc.pos.x, cy: ncy });
+        for (const m of monsters) {
+          if (m.defeated || m.hp <= 0) continue;
+          const nsx = Math.abs(m.actor.scale.x);
+          const nsy = Math.abs(m.actor.scale.y);
+          if (
+            worldPointInNpcBounds(wx, wy, m.actor, m.idleGraphic.width, m.idleGraphic.height, nsx, nsy) &&
+            playerCanAttackNpc(px, py, m.actor.pos.x, m.actor.pos.y, NPC_ATTACK_RANGE_WORLD_PX)
+          ) {
+            const ncy = m.actor.pos.y - (m.idleGraphic.height * nsy) / 2;
+            hits.push({ tag: 'monster', monster: m, cx: m.actor.pos.x, cy: ncy });
+          }
         }
 
         if (hits.length === 0) {
@@ -493,7 +600,7 @@ void engine
             distanceSquared(wx, wy, a.cx, a.cy) - distanceSquared(wx, wy, b.cx, b.cy),
         );
         const target = hits[0]!;
-        const targetActor = target.tag === 'merchant' ? merchantActor : monsterNpc;
+        const targetActor = target.tag === 'merchant' ? merchantActor : target.monster.actor;
         const toTarget = vec(targetActor.pos.x - px, targetActor.pos.y - py);
         if (toTarget.size > 1e-6) {
           attackLungeVel = toTarget.normalize().scale(380);
@@ -511,12 +618,13 @@ void engine
             merchantDefeated = true;
           }
         } else {
-          monsterHp = Math.max(0, monsterHp - NPC_ATTACK_DAMAGE);
-          monsterHitPulseEnd = performance.now() + 220;
-          if (monsterHp <= 0) {
-            monsterNpc.kill();
-            monsterActor = undefined;
-            monsterDefeated = true;
+          const m = target.monster;
+          m.hp = Math.max(0, m.hp - NPC_ATTACK_DAMAGE);
+          m.hitPulseEnd = performance.now() + 220;
+          if (m.hp <= 0) {
+            m.actor.kill();
+            m.defeated = true;
+            syncMonsterActorExport();
           }
         }
       },
@@ -527,15 +635,30 @@ void engine
       viewportSize: VIEWPORT_SIZE,
       rangeWorldPx: MONSTER_PROXIMITY_RANGE_WORLD_PX,
       getPlayerPos: () => ({ x: actor.pos.x, y: actor.pos.y }),
-      getMonster: () => monsterActor,
+      getMonsters: () => monsters.filter((m) => !m.defeated).map((m) => m.actor),
       getMonsterLabelWorldPos: () => {
-        const m = monsterActor;
-        if (!m) {
+        const px = actor.pos.x;
+        const py = actor.pos.y;
+        let best: MonsterRuntime | undefined;
+        let bestD = Number.POSITIVE_INFINITY;
+        for (const m of monsters) {
+          if (m.defeated) continue;
+          if (!isWithinProximity(px, py, m.actor.pos.x, m.actor.pos.y, MONSTER_PROXIMITY_RANGE_WORLD_PX)) {
+            continue;
+          }
+          const d = distanceSquared(px, py, m.actor.pos.x, m.actor.pos.y);
+          if (d < bestD) {
+            bestD = d;
+            best = m;
+          }
+        }
+        if (!best) {
           return null;
         }
+        const hWorld = best.idleGraphic.height * Math.abs(best.actor.scale.y);
         return {
-          x: m.pos.x,
-          y: m.pos.y - monsterSpriteHeightWorld - monsterExclamationAboveHeadPx,
+          x: best.actor.pos.x,
+          y: best.actor.pos.y - hWorld - monsterExclamationAboveHeadPx,
         };
       },
     });
@@ -548,33 +671,35 @@ void engine
       const meleeR2 = ENEMY_MELEE_RANGE_WORLD_PX * ENEMY_MELEE_RANGE_WORLD_PX;
       const playerDead = playerHp <= 0;
 
-      if (!monsterDefeated && !playerDead) {
-        const distSqM = distanceSquared(px, py, monsterNpc.pos.x, monsterNpc.pos.y);
-        const aggroStep = stepMonsterAggroAndReAggro(monsterAggro, reAggroArmRequired, distSqM, aggroR2);
-        monsterAggro = aggroStep.monsterAggro;
-        reAggroArmRequired = aggroStep.reAggroArmRequired;
+      for (const m of monsters) {
+        if (m.defeated || playerDead) {
+          m.actor.vel = vec(0, 0);
+          continue;
+        }
+        const distSqM = distanceSquared(px, py, m.actor.pos.x, m.actor.pos.y);
+        const aggroStep = stepMonsterAggroAndReAggro(m.aggro, m.reAggroArmRequired, distSqM, aggroR2);
+        m.aggro = aggroStep.monsterAggro;
+        m.reAggroArmRequired = aggroStep.reAggroArmRequired;
 
-        const chaseMelee = monsterShouldChaseAndMelee(monsterAggro, monsterStuckUntilMs, now);
+        const chaseMelee = monsterShouldChaseAndMelee(m.aggro, m.stuckUntilMs, now);
         if (chaseMelee) {
-          const mdx = px - monsterNpc.pos.x;
-          const mdy = py - monsterNpc.pos.y;
+          const mdx = px - m.actor.pos.x;
+          const mdy = py - m.actor.pos.y;
           if (distSqM > 1) {
             const toPlayer = vec(mdx, mdy).normalize();
-            monsterNpc.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
-            monsterFacesRight = mdx > 0;
+            m.actor.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
+            m.facesRight = mdx > 0;
           } else {
-            monsterNpc.vel = vec(0, 0);
+            m.actor.vel = vec(0, 0);
           }
-          if (distSqM <= meleeR2 && now - lastMonsterAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS) {
+          if (distSqM <= meleeR2 && now - m.lastAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS) {
             playerHp = Math.max(0, playerHp - ENEMY_DAMAGE_TO_PLAYER);
-            lastMonsterAttackOnPlayer = now;
+            m.lastAttackOnPlayer = now;
             playerHitPulseEnd = now + 200;
           }
         } else {
-          monsterNpc.vel = vec(0, 0);
+          m.actor.vel = vec(0, 0);
         }
-      } else {
-        monsterNpc.vel = vec(0, 0);
       }
 
       if (!merchantDefeated && !playerDead) {
@@ -614,8 +739,10 @@ void engine
       if (!merchantDefeated) {
         merchantActor.z = isoCharacterZFromWorldPos(merchantActor.pos);
       }
-      if (!monsterDefeated) {
-        monsterNpc.z = isoCharacterZFromWorldPos(monsterNpc.pos);
+      for (const m of monsters) {
+        if (!m.defeated) {
+          m.actor.z = isoCharacterZFromWorldPos(m.actor.pos);
+        }
       }
 
       if (!merchantDefeated) {
@@ -623,10 +750,12 @@ void engine
         const mScale = merchantCharacterScale * (merchantPulse ? 1.1 : 1);
         merchantActor.scale = vec(merchantFacesRight ? mScale : -mScale, mScale);
       }
-      if (!monsterDefeated) {
-        const monsterPulse = now < monsterHitPulseEnd;
-        const monScale = monsterCharacterScale * (monsterPulse ? 1.08 : 1);
-        monsterNpc.scale = vec(monsterFacesRight ? monScale : -monScale, monScale);
+      for (const m of monsters) {
+        if (!m.defeated) {
+          const monsterPulse = now < m.hitPulseEnd;
+          const monScale = m.characterScale * (monsterPulse ? 1.08 : 1);
+          m.actor.scale = vec(m.facesRight ? monScale : -monScale, monScale);
+        }
       }
       const playerPulse = now < playerHitPulseEnd;
       const pScale = characterScale * (playerPulse ? 1.06 : 1);

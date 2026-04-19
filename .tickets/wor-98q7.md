@@ -1,6 +1,6 @@
 ---
 id: wor-98q7
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-04-19T20:34:59Z

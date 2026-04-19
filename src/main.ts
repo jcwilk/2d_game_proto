@@ -56,7 +56,7 @@ import {
   MONSTER_PROXIMITY_RANGE_WORLD_PX,
   attachMonsterExclamationOverlay,
 } from './ui/monsterExclamationOverlay';
-import { attachMerchantProximityMenu } from './ui/merchantProximityMenu';
+import { attachMerchantProximityMenu, pickDistinctMerchantPhrases } from './ui/merchantProximityMenu';
 import { spawnHugHeartBurst } from './ui/hugHeartBurst';
 import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
 import { attachStuckOrbHud, loadStuckOrbSpriteRef } from './ui/stuckOrbHud';
@@ -301,12 +301,14 @@ void engine
     let lastMerchantAttackOnPlayer = 0;
     let playerHitPulseEnd = 0;
 
-    /** While true, shopkeeper shows Talk / Trade / Hug when in range. Set false after the player attacks him. */
+    /** While true, shopkeeper shows Talk / Hug when in range. Set false after the player attacks him. */
     let merchantPeaceful = true;
     let merchantDefeated = false;
     let monsterDefeated = false;
 
     const MERCHANT_MENU_PROXIMITY_RADIUS = 220;
+
+    const merchantTalkPhrases = pickDistinctMerchantPhrases(1);
 
     let merchantHitPulseEnd = 0;
     let monsterHitPulseEnd = 0;
@@ -444,6 +446,7 @@ void engine
       },
       getPeacefulWithMerchant: () => merchantPeaceful,
       getMerchantAlive: () => !merchantDefeated,
+      getMerchantTalkPhrase: () => merchantTalkPhrases[0]!,
       onAction: (action) => {
         const now = performance.now();
         console.log(`[merchant] ${action}`);

@@ -105,7 +105,7 @@ body {
 
 /*
  * DOM overlays. Stack (low → high): canvas (0) < monster “!” (10) < NPC HP (15) < merchant menu (20).
- * HP uses pointer-events: none; merchant menu row uses pointer-events: auto.
+ * HP uses pointer-events: none; merchant menu actions row uses pointer-events: auto.
  *
  * Stuck orb (`#game-stuck-orb`): sits in `#game-controls` (same flex strip as d-pad). **z-index** is
  * not needed vs `#game-canvas-overlay` (orb is outside the stage); ghost drag preview is `position: fixed`
@@ -121,12 +121,35 @@ body {
 
 .merchant-action-menu {
   position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
   pointer-events: auto;
   transform: translate(-50%, -100%);
   margin-top: -4px;
   padding: 0;
   border: none;
   background: transparent;
+}
+
+.merchant-talk-bubble {
+  max-width: min(72cqw, 14rem);
+  padding: 0.28rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(22, 28, 42, 0.92);
+  color: #eef0f8;
+  font-size: clamp(0.62rem, 2cqmin, 0.8rem);
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+.merchant-talk-bubble[hidden] {
+  display: none !important;
 }
 
 .merchant-action-menu[hidden] {

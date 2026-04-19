@@ -160,6 +160,39 @@ body {
   background: rgba(40, 80, 140, 0.9);
 }
 
+/* Floating hearts after hug — same stacking as merchant menu (inside #game-canvas-wrap). */
+.hug-heart-burst {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 21;
+  overflow: visible;
+}
+
+.hug-heart-burst__heart {
+  position: fixed;
+  font-size: clamp(0.85rem, 3cqmin, 1.1rem);
+  color: #ff6b8a;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -100%);
+  animation: hug-heart-float 0.85s ease-out forwards;
+}
+
+@keyframes hug-heart-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -90%) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, -115%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -165%) scale(0.95);
+  }
+}
+
 .npc-hp-overlay-layer {
   position: absolute;
   inset: 0;

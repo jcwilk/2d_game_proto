@@ -3,7 +3,13 @@
 import { Actor, vec } from 'excalibur';
 import { describe, expect, it } from 'vitest';
 
-import { npcFeetAnchorBounds, playerCanAttackNpc, worldPointInNpcBounds } from './npcCombat';
+import {
+  MERCHANT_FOLLOW_AFTER_HUG_MS,
+  MERCHANT_HUG_HEAL_AMOUNT,
+  npcFeetAnchorBounds,
+  playerCanAttackNpc,
+  worldPointInNpcBounds,
+} from './npcCombat';
 
 describe('npcCombat', () => {
   it('worldPointInNpcBounds is true inside feet-anchored sprite box', () => {
@@ -28,5 +34,10 @@ describe('npcCombat', () => {
   it('playerCanAttackNpc respects radius', () => {
     expect(playerCanAttackNpc(0, 0, 200, 0, 150)).toBe(false);
     expect(playerCanAttackNpc(0, 0, 100, 0, 150)).toBe(true);
+  });
+
+  it('merchant hug tuning constants are positive', () => {
+    expect(MERCHANT_HUG_HEAL_AMOUNT).toBeGreaterThan(0);
+    expect(MERCHANT_FOLLOW_AFTER_HUG_MS).toBeGreaterThan(0);
   });
 });

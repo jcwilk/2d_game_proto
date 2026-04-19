@@ -36,6 +36,8 @@ import {
   ENEMY_DAMAGE_TO_PLAYER,
   ENEMY_MELEE_RANGE_WORLD_PX,
   MONSTER_AGGRO_RADIUS_WORLD_PX,
+  MERCHANT_FOLLOW_AFTER_HUG_MS,
+  MERCHANT_HUG_HEAL_AMOUNT,
   NPC_ATTACK_DAMAGE,
   NPC_ATTACK_RANGE_WORLD_PX,
   NPC_DEFAULT_MAX_HP,
@@ -55,6 +57,7 @@ import {
   attachMonsterExclamationOverlay,
 } from './ui/monsterExclamationOverlay';
 import { attachMerchantProximityMenu } from './ui/merchantProximityMenu';
+import { spawnHugHeartBurst } from './ui/hugHeartBurst';
 import { attachNpcHpBarOverlay } from './ui/npcHpBarOverlay';
 import { attachStuckOrbHud, loadStuckOrbSpriteRef } from './ui/stuckOrbHud';
 
@@ -294,6 +297,7 @@ void engine
     let stuckCooldownUntilMs = 0;
 
     let lastMonsterAttackOnPlayer = 0;
+    let lastMonsterAttackOnMerchant = 0;
     let lastMerchantAttackOnPlayer = 0;
     let playerHitPulseEnd = 0;
 
@@ -306,6 +310,8 @@ void engine
 
     let merchantHitPulseEnd = 0;
     let monsterHitPulseEnd = 0;
+    /** After a hug, merchant follows the player until this time (peaceful, no damage). */
+    let merchantFollowPlayerUntilMs = 0;
 
     /** Brief lunge toward target on attack (world px/s). */
     let attackLungeEnd = 0;
@@ -439,8 +445,22 @@ void engine
       getPeacefulWithMerchant: () => merchantPeaceful,
       getMerchantAlive: () => !merchantDefeated,
       onAction: (action) => {
+        const now = performance.now();
         console.log(`[merchant] ${action}`);
-        merchantHitPulseEnd = performance.now() + 260;
+        merchantHitPulseEnd = now + 260;
+        if (action === 'Hug' && merchantPeaceful && !merchantDefeated && playerHp > 0) {
+          playerHp = Math.min(playerMaxHp, playerHp + MERCHANT_HUG_HEAL_AMOUNT);
+          spawnHugHeartBurst({
+            canvas: gameCanvas,
+            viewportSize: VIEWPORT_SIZE,
+            getAnchorLogical: () => {
+              const sy = Math.abs(merchantActor.scale.y);
+              const top = merchantActor.pos.y - merchantIdleGraphic.height * sy;
+              return { x: merchantActor.pos.x, y: top - 6 };
+            },
+          });
+          merchantFollowPlayerUntilMs = now + MERCHANT_FOLLOW_AFTER_HUG_MS;
+        }
       },
     });
 
@@ -556,11 +576,26 @@ void engine
 
         const chaseMelee = monsterShouldChaseAndMelee(monsterAggro, monsterStuckUntilMs, now);
         if (chaseMelee) {
-          const mdx = px - monsterNpc.pos.x;
-          const mdy = py - monsterNpc.pos.y;
-          if (distSqM > 1) {
-            const toPlayer = vec(mdx, mdy).normalize();
-            monsterNpc.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
+          let targetX = px;
+          let targetY = py;
+          if (!merchantDefeated) {
+            const distSqMerch = distanceSquared(
+              monsterNpc.pos.x,
+              monsterNpc.pos.y,
+              merchantActor.pos.x,
+              merchantActor.pos.y,
+            );
+            if (distSqMerch < distSqM) {
+              targetX = merchantActor.pos.x;
+              targetY = merchantActor.pos.y;
+            }
+          }
+          const mdx = targetX - monsterNpc.pos.x;
+          const mdy = targetY - monsterNpc.pos.y;
+          const distSqToTarget = mdx * mdx + mdy * mdy;
+          if (distSqToTarget > 1) {
+            const toTarget = vec(mdx, mdy).normalize();
+            monsterNpc.vel = toTarget.scale(ENEMY_CHASE_SPEED_WORLD_PX);
             monsterFacesRight = mdx > 0;
           } else {
             monsterNpc.vel = vec(0, 0);
@@ -570,6 +605,20 @@ void engine
             lastMonsterAttackOnPlayer = now;
             playerHitPulseEnd = now + 200;
           }
+          if (
+            !merchantDefeated &&
+            distanceSquared(monsterNpc.pos.x, monsterNpc.pos.y, merchantActor.pos.x, merchantActor.pos.y) <=
+              meleeR2 &&
+            now - lastMonsterAttackOnMerchant >= ENEMY_ATTACK_COOLDOWN_MS
+          ) {
+            merchantHp = Math.max(0, merchantHp - ENEMY_DAMAGE_TO_PLAYER);
+            lastMonsterAttackOnMerchant = now;
+            merchantHitPulseEnd = now + 200;
+            if (merchantHp <= 0) {
+              merchantActor.kill();
+              merchantDefeated = true;
+            }
+          }
         } else {
           monsterNpc.vel = vec(0, 0);
         }
@@ -578,10 +627,11 @@ void engine
       }
 
       if (!merchantDefeated && !playerDead) {
-        if (!merchantPeaceful) {
+        const distSqE = distanceSquared(px, py, merchantActor.pos.x, merchantActor.pos.y);
+        const followPlayer = !merchantPeaceful || (merchantPeaceful && now < merchantFollowPlayerUntilMs);
+        if (followPlayer) {
           const edx = px - merchantActor.pos.x;
           const edy = py - merchantActor.pos.y;
-          const distSqE = distanceSquared(px, py, merchantActor.pos.x, merchantActor.pos.y);
           if (distSqE > 1) {
             const toPlayer = vec(edx, edy).normalize();
             merchantActor.vel = toPlayer.scale(ENEMY_CHASE_SPEED_WORLD_PX);
@@ -589,7 +639,11 @@ void engine
           } else {
             merchantActor.vel = vec(0, 0);
           }
-          if (distSqE <= meleeR2 && now - lastMerchantAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS) {
+          if (
+            !merchantPeaceful &&
+            distSqE <= meleeR2 &&
+            now - lastMerchantAttackOnPlayer >= ENEMY_ATTACK_COOLDOWN_MS
+          ) {
             playerHp = Math.max(0, playerHp - ENEMY_DAMAGE_TO_PLAYER);
             lastMerchantAttackOnPlayer = now;
             playerHitPulseEnd = now + 200;

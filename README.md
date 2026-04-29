@@ -1,3 +1,5 @@
+NOTICE TO NON-AI HUMANS: THIS REPO IS JUST FOR FUN AND SHOULDN'T BE CONSIDERED A SERIOUS PROJECT. THE CODE IS FULLY AI-GENERATED AND IS NOT INDICATIVE OF MY STANDARD OF CODE QUALITY.
+
 # 2D game prototype boilerplate
 
 This repository is a **starting point for small 2D game experiments** where you want a clear place for code, specs, and task tracking, and you plan to use **AI-generated 2D assets** (sprites, tiles, UI) alongside hand-written game logic.
